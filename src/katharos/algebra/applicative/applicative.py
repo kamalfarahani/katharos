@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 
 from katharos.algebra.functor.functor import Functor
 
@@ -36,8 +35,9 @@ class Applicative[A](Functor[A], ABC):
         - x, y are plain values
     """
 
+    @staticmethod
     @abstractmethod
-    def pure(self, x: A) -> Applicative[A]:
+    def pure(x: A) -> Applicative[A]:
         """
         Return an Applicative containing the given value.
 
@@ -52,13 +52,13 @@ class Applicative[A](Functor[A], ABC):
     @abstractmethod
     def ap[B](
         self,
-        wrapped_fn: Applicative[Callable[[A], B]],
+        wrapped_funcs,  # SubclassApplicative[Callable[[A], B]],
     ) -> Applicative[B]:
         """
-        Apply a wrapped function to this Applicative's value.
+        Apply wrapped functions to this Applicative's value.
 
         Args:
-            wrapped_fn: An Applicative containing a function from A to B.
+            wrapped_funcs: An Applicative containing functions from A to B.
 
         Returns:
             Applicative[B]: An Applicative containing the result of applying the function.
@@ -67,16 +67,16 @@ class Applicative[A](Functor[A], ABC):
 
     def __matmul__[B](
         self,
-        wrapped_fn: Applicative[Callable[[A], B]],
+        wrapped_funcs,  # SubclassApplicative[Callable[[A], B]],
     ) -> Applicative[B]:
         """
-        Apply a wrapped function to this Applicative's value.
+        Apply wrapped functions to this Applicative's value.
 
         Args:
-            wrapped_fn: An Applicative containing a function from A to B.
+            wrapped_funcs: An Applicative containing functions from A to B.
 
         Returns:
             Applicative[B]: An Applicative containing the result of applying the function.
 
         """
-        return self.ap(wrapped_fn)
+        return self.ap(wrapped_funcs)
