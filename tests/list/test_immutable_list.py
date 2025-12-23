@@ -1,9 +1,10 @@
 """Tests for the ImmutableList class."""
 
-import pytest
 from typing import Any
 
-from katharos.data_structures.immutable_list import ImmutableList
+import pytest
+
+from katharos.list.immutable_list import ImmutableList
 
 
 class TestImmutableListInitialization:
@@ -40,7 +41,7 @@ class TestImmutableListInitialization:
         """Test initialization with a string (iterable of characters)."""
         immutable_list = ImmutableList("hello")
         assert len(immutable_list) == 5
-        assert list(immutable_list) == ['h', 'e', 'l', 'l', 'o']
+        assert list(immutable_list) == ["h", "e", "l", "l", "o"]
 
 
 class TestSequenceOperations:
@@ -54,27 +55,27 @@ class TestSequenceOperations:
 
     def test_getitem_positive_index(self) -> None:
         """Test __getitem__ with positive indices."""
-        immutable_list = ImmutableList(['a', 'b', 'c', 'd'])
-        assert immutable_list[0] == 'a'
-        assert immutable_list[1] == 'b'
-        assert immutable_list[2] == 'c'
-        assert immutable_list[3] == 'd'
+        immutable_list = ImmutableList(["a", "b", "c", "d"])
+        assert immutable_list[0] == "a"
+        assert immutable_list[1] == "b"
+        assert immutable_list[2] == "c"
+        assert immutable_list[3] == "d"
 
     def test_getitem_negative_index(self) -> None:
         """Test __getitem__ with negative indices."""
-        immutable_list = ImmutableList(['a', 'b', 'c', 'd'])
-        assert immutable_list[-1] == 'd'
-        assert immutable_list[-2] == 'c'
-        assert immutable_list[-3] == 'b'
-        assert immutable_list[-4] == 'a'
+        immutable_list = ImmutableList(["a", "b", "c", "d"])
+        assert immutable_list[-1] == "d"
+        assert immutable_list[-2] == "c"
+        assert immutable_list[-3] == "b"
+        assert immutable_list[-4] == "a"
 
     def test_getitem_index_error(self) -> None:
         """Test __getitem__ raises IndexError for invalid indices."""
         immutable_list = ImmutableList([1, 2, 3])
-        
+
         with pytest.raises(IndexError):
             _ = immutable_list[3]
-        
+
         with pytest.raises(IndexError):
             _ = immutable_list[-4]
 
@@ -82,11 +83,11 @@ class TestSequenceOperations:
         """Test __iter__ method."""
         elements = [1, 2, 3, 4, 5]
         immutable_list = ImmutableList(elements)
-        
+
         result = []
         for item in immutable_list:
             result.append(item)
-        
+
         assert result == elements
 
     def test_iter_empty(self) -> None:
@@ -101,18 +102,18 @@ class TestMembershipOperations:
 
     def test_contains_existing_element(self) -> None:
         """Test __contains__ with existing elements."""
-        immutable_list = ImmutableList([1, 2, 3, 'hello', None])
+        immutable_list = ImmutableList([1, 2, 3, "hello", None])
         assert 1 in immutable_list
         assert 2 in immutable_list
         assert 3 in immutable_list
-        assert 'hello' in immutable_list
+        assert "hello" in immutable_list
         assert None in immutable_list
 
     def test_contains_non_existing_element(self) -> None:
         """Test __contains__ with non-existing elements."""
         immutable_list = ImmutableList([1, 2, 3])
         assert 4 not in immutable_list
-        assert 'hello' not in immutable_list
+        assert "hello" not in immutable_list
         assert None not in immutable_list
 
     def test_contains_empty_list(self) -> None:
@@ -207,9 +208,9 @@ class TestHashability:
         """Test using ImmutableList as dictionary key."""
         list1 = ImmutableList([1, 2, 3])
         list2 = ImmutableList([4, 5, 6])
-        
+
         dictionary = {list1: "first", list2: "second"}
-        
+
         assert dictionary[list1] == "first"
         assert dictionary[list2] == "second"
 
@@ -218,9 +219,9 @@ class TestHashability:
         list1 = ImmutableList([1, 2, 3])
         list2 = ImmutableList([4, 5, 6])
         list3 = ImmutableList([1, 2, 3])  # Same as list1
-        
+
         immutable_set = {list1, list2, list3}
-        
+
         # Should only contain 2 unique lists
         assert len(immutable_set) == 2
         assert list1 in immutable_set
@@ -244,7 +245,7 @@ class TestStringRepresentations:
 
     def test_repr_with_strings(self) -> None:
         """Test __repr__ with string elements."""
-        immutable_list = ImmutableList(['hello', 'world'])
+        immutable_list = ImmutableList(["hello", "world"])
         expected = "ImmutableList(['hello', 'world'])"
         assert repr(immutable_list) == expected
 
@@ -268,7 +269,7 @@ class TestAdditionOperation:
         """Test __add__ with a regular list."""
         immutable_list = ImmutableList([1, 2, 3])
         result = immutable_list + [4, 5, 6]
-        
+
         assert isinstance(result, ImmutableList)
         assert list(result) == [1, 2, 3, 4, 5, 6]
         # Original should be unchanged
@@ -278,7 +279,7 @@ class TestAdditionOperation:
         """Test __add__ with empty list."""
         immutable_list = ImmutableList([1, 2, 3])
         result = immutable_list + []
-        
+
         assert isinstance(result, ImmutableList)
         assert list(result) == [1, 2, 3]
 
@@ -286,17 +287,17 @@ class TestAdditionOperation:
         """Test __add__ with empty ImmutableList and regular list."""
         immutable_list = ImmutableList([])
         result = immutable_list + [1, 2, 3]
-        
+
         assert isinstance(result, ImmutableList)
         assert list(result) == [1, 2, 3]
 
     def test_add_preserves_types(self) -> None:
         """Test that __add__ preserves element types."""
-        immutable_list = ImmutableList(['a', 'b'])
-        result = immutable_list + ['c', 'd']
-        
+        immutable_list = ImmutableList(["a", "b"])
+        result = immutable_list + ["c", "d"]
+
         assert isinstance(result, ImmutableList)
-        assert list(result) == ['a', 'b', 'c', 'd']
+        assert list(result) == ["a", "b", "c", "d"]
         assert all(isinstance(item, str) for item in result)
 
 
@@ -307,11 +308,11 @@ class TestEdgeCasesAndErrorConditions:
         """Test that modifying original list doesn't affect ImmutableList."""
         original = [1, 2, 3]
         immutable_list = ImmutableList(original)
-        
+
         # Modify original list
         original.append(4)
         original[0] = 999
-        
+
         # ImmutableList should be unchanged
         assert list(immutable_list) == [1, 2, 3]
 
@@ -319,7 +320,7 @@ class TestEdgeCasesAndErrorConditions:
         """Test with a large list."""
         large_list = list(range(10000))
         immutable_list = ImmutableList(large_list)
-        
+
         assert len(immutable_list) == 10000
         assert immutable_list[0] == 0
         assert immutable_list[9999] == 9999
@@ -327,26 +328,26 @@ class TestEdgeCasesAndErrorConditions:
 
     def test_nested_structures(self) -> None:
         """Test with nested data structures."""
-        nested = [[1, 2], [3, 4], {'a': 5}]
+        nested = [[1, 2], [3, 4], {"a": 5}]
         immutable_list = ImmutableList(nested)
-        
+
         assert len(immutable_list) == 3
         assert immutable_list[0] == [1, 2]
         assert immutable_list[1] == [3, 4]
-        assert immutable_list[2] == {'a': 5}
+        assert immutable_list[2] == {"a": 5}
 
     def test_mixed_types(self) -> None:
         """Test with mixed data types."""
-        mixed = [1, 'hello', 3.14, None, [1, 2], {'key': 'value'}]
+        mixed = [1, "hello", 3.14, None, [1, 2], {"key": "value"}]
         immutable_list = ImmutableList(mixed)
-        
+
         assert len(immutable_list) == 6
         assert immutable_list[0] == 1
-        assert immutable_list[1] == 'hello'
+        assert immutable_list[1] == "hello"
         assert immutable_list[2] == 3.14
         assert immutable_list[3] is None
         assert immutable_list[4] == [1, 2]
-        assert immutable_list[5] == {'key': 'value'}
+        assert immutable_list[5] == {"key": "value"}
 
 
 class TestTypeCovariance:
@@ -354,10 +355,11 @@ class TestTypeCovariance:
 
     def test_covariance_with_inheritance(self) -> None:
         """Test covariance with class inheritance."""
+
         class Animal:
             def __init__(self, name: str) -> None:
                 self.name = name
-            
+
             def __eq__(self, other: Any) -> bool:
                 return isinstance(other, Animal) and self.name == other.name
 
@@ -368,10 +370,10 @@ class TestTypeCovariance:
         # Create ImmutableList of Dogs
         dogs = [Dog("Buddy"), Dog("Max")]
         dog_list = ImmutableList(dogs)
-        
+
         # This should work due to covariance (Dog is subtype of Animal)
         animal_list: ImmutableList[Animal] = dog_list
-        
+
         assert len(animal_list) == 2
         assert animal_list[0].name == "Buddy"
         assert animal_list[1].name == "Max"
@@ -381,7 +383,7 @@ class TestTypeCovariance:
         # bool is a subtype of int in Python
         bool_list = ImmutableList([True, False, True])
         int_list: ImmutableList[int] = bool_list
-        
+
         assert len(int_list) == 3
         assert int_list[0] == 1  # True as int
         assert int_list[1] == 0  # False as int
