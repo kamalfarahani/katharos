@@ -10,6 +10,8 @@ class ListFunctor[A](Functor[A]):
     List functor that applies a function to each element of a list.
     """
 
+    xs: list[A]
+
     def __init__(self, xs: list[A]) -> None:
         self.xs = xs
 
