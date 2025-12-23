@@ -56,6 +56,9 @@ class ImmutableList(BaseImmutableList[T]):
             return False
         return self._elements == other._elements
 
+    def __hash__(self) -> int:
+        return hash(tuple(self._elements))
+
     def __repr__(self) -> str:
         """
         Return a string representation of the list.

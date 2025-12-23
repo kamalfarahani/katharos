@@ -73,15 +73,6 @@ class BaseImmutableList(Generic[T], ABC):
         """
         return not self == other
 
-    def __hash__(self) -> int:
-        """
-        Return the hash value of the list.
-
-        Returns:
-            int: The hash value of the list.
-        """
-        return hash(tuple(self._elements))
-
     def __str__(self) -> str:
         """
         Return a string representation of the list.
@@ -101,6 +92,16 @@ class BaseImmutableList(Generic[T], ABC):
 
         Returns:
             bool: True if the list is equal to the other object, False otherwise.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __hash__(self) -> int:
+        """
+        Return the hash value of the list.
+
+        Returns:
+            int: The hash value of the list.
         """
         raise NotImplementedError()
 

@@ -33,6 +33,9 @@ class NonEmptyList(BaseImmutableList[T]):
             return False
         return self._elements == other._elements
 
+    def __hash__(self) -> int:
+        return hash(tuple(self._elements))
+
     def __add__(self, other: Iterable[T]) -> NonEmptyList[T]:
         """
         Concatenate two non-empty lists.
