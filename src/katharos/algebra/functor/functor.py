@@ -2,13 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Generic, TypeVar
-
-A = TypeVar("A")
-B = TypeVar("B")
 
 
-class Functor(ABC, Generic[A]):
+class Functor[A](ABC):
     """
     A functor is a type that implements the fmap method,
     allowing functions to be mapped over the structure.
@@ -22,7 +18,7 @@ class Functor(ABC, Generic[A]):
     """
 
     @abstractmethod
-    def fmap(self, f: Callable[[A], B]) -> Functor[B]:
+    def fmap[B](self, f: Callable[[A], B]) -> Functor[B]:
         """
         Map a function over the functor.
 
