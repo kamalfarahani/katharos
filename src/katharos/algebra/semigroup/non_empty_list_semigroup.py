@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from katharos.data.semigroup.semigroup import Semigroup
+from katharos.algebra.semigroup.semigroup import Semigroup
 from katharos.list.non_empty_list import NonEmptyList
 
 

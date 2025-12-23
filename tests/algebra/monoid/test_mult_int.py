@@ -1,4 +1,4 @@
-from katharos.data.monoid.mult_int import MultInt
+from katharos.algebra.monoid.mult_int import MultInt
 
 
 class TestMultIntAssociativity:

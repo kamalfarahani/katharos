@@ -1,4 +1,4 @@
-from katharos.data.semigroup.non_empty_list_semigroup import NonEmptyListSemigroup
+from katharos.algebra.semigroup.non_empty_list_semigroup import NonEmptyListSemigroup
 from katharos.list.non_empty_list import NonEmptyList
 
 

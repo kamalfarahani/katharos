@@ -1,4 +1,4 @@
-from katharos.data.monoid.sum_int import SumInt
+from katharos.algebra.monoid.sum_int import SumInt
 
 
 class TestSumIntAssociativity:

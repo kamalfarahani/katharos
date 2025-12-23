@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TypeVar
 
-from katharos.data.semigroup.semigroup import Semigroup
+from katharos.algebra.semigroup.semigroup import Semigroup
 
 M = TypeVar(
     name="M",

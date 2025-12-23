@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from katharos.data.monoid.monoid import Monoid
+from katharos.algebra.monoid.monoid import Monoid
 
 
 class MultInt(Monoid):
