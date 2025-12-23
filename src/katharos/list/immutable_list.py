@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
-from typing import Generic, Iterable, TypeVar
+from collections.abc import Iterable
+from typing import TypeVar
 
-T = TypeVar("T", covariant=True)
+from .base_immutable_list import BaseImmutableList
+
+T = TypeVar(name="T", covariant=True)
 
 
-class ImmutableList(Generic[T]):
+class ImmutableList(BaseImmutableList[T]):
     """
     A covariant immutable list implementation.
 
@@ -40,57 +42,6 @@ class ImmutableList(Generic[T]):
         >>> objects: ImmutableList[object] = strings  # Valid due to covariance
     """
 
-    def __init__(self, elements: Iterable[T]) -> None:
-        """
-        Initialize an ImmutableList with a list of elements.
-
-        Args:
-            elements: The list of elements to wrap.
-        """
-        self._elements = list(elements)
-
-    def __len__(self) -> int:
-        """
-        Return the number of elements in the list.
-
-        Returns:
-            int: The number of elements in the list.
-        """
-        return len(self._elements)
-
-    def __iter__(self) -> Iterator[T]:
-        """
-        Return an iterator over the elements in the list.
-
-        Returns:
-            Iterator[T]: An iterator over the elements in the list.
-        """
-        return iter(self._elements)
-
-    def __getitem__(self, index: int) -> T:
-        """
-        Return the element at the given index.
-
-        Args:
-            index: The index of the element to return.
-
-        Returns:
-            T: The element at the given index.
-        """
-        return self._elements[index]
-
-    def __contains__(self, item: object) -> bool:
-        """
-        Return True if the list contains the given item, False otherwise.
-
-        Args:
-            item: The item to check for.
-
-        Returns:
-            bool: True if the list contains the given item, False otherwise.
-        """
-        return item in self._elements
-
     def __eq__(self, other: object) -> bool:
         """
         Return True if the list is equal to the other object, False otherwise.
@@ -104,27 +55,6 @@ class ImmutableList(Generic[T]):
         if not isinstance(other, ImmutableList):
             return False
         return self._elements == other._elements
-
-    def __ne__(self, other: object) -> bool:
-        """
-        Return True if the list is not equal to the other object, False otherwise.
-
-        Args:
-            other: The object to compare to.
-
-        Returns:
-            bool: True if the list is not equal to the other object, False otherwise.
-        """
-        return not self == other
-
-    def __hash__(self) -> int:
-        """
-        Return the hash value of the list.
-
-        Returns:
-            int: The hash value of the list.
-        """
-        return hash(tuple(self._elements))
 
     def __repr__(self) -> str:
         """
@@ -144,7 +74,7 @@ class ImmutableList(Generic[T]):
         """
         return str(self._elements)
 
-    def __add__(self, other: list[T]) -> ImmutableList[T]:
+    def __add__(self, other: Iterable[T]) -> ImmutableList[T]:
         """
         Return a new ImmutableList containing the elements of the list and the other list.
 
@@ -154,4 +84,4 @@ class ImmutableList(Generic[T]):
         Returns:
             ImmutableList[T]: A new ImmutableList containing the elements of the list and the other list.
         """
-        return ImmutableList(self._elements + other)
+        return ImmutableList(list(self) + list(other))
