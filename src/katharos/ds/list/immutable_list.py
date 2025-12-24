@@ -94,6 +94,6 @@ class ImmutableList(BaseImmutableList[T], Monoid):
     def op(self, other: ImmutableList[T]) -> ImmutableList[T]:
         return self + other
 
-    @property
-    def identity(self) -> ImmutableList[T]:
+    @staticmethod
+    def identity() -> ImmutableList[T]:
         return ImmutableList([])
