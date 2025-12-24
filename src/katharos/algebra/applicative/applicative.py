@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Self
 
 from katharos.algebra.functor.functor import Functor
 
@@ -37,7 +38,7 @@ class Applicative[A](Functor[A], ABC):
 
     @staticmethod
     @abstractmethod
-    def pure(x: A) -> Applicative[A]:
+    def pure(x: A) -> Self:
         """
         Return an Applicative containing the given value.
 
