@@ -2,6 +2,11 @@ from collections.abc import Callable
 
 
 class F:
+    """
+    This class serves as a namespace for utility functions.
+    All functions are static and can be called without instantiating the class.
+    """
+
     @staticmethod
     def compose[A, B, C](
         f: Callable[[B], C],
