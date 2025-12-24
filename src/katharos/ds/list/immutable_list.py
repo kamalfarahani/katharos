@@ -3,12 +3,14 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TypeVar
 
+from katharos.algebra.monoid import Monoid
+
 from .base_immutable_list import BaseImmutableList
 
 T = TypeVar(name="T", covariant=True)
 
 
-class ImmutableList(BaseImmutableList[T]):
+class ImmutableList(BaseImmutableList[T], Monoid):
     """
     A covariant immutable list implementation.
 
@@ -88,3 +90,10 @@ class ImmutableList(BaseImmutableList[T]):
             ImmutableList[T]: A new ImmutableList containing the elements of the list and the other list.
         """
         return ImmutableList(list(self) + list(other))
+
+    def op(self, other: ImmutableList[T]) -> ImmutableList[T]:
+        return self + other
+
+    @property
+    def identity(self) -> ImmutableList[T]:
+        return ImmutableList([])
