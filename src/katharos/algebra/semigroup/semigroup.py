@@ -18,6 +18,22 @@ class Semigroup(ABC):
     """
 
     @abstractmethod
+    def op(self: S, other: S) -> S:
+        """
+        Combine this semigroup with another semigroup.
+
+        This is the abstract binary operation that must be implemented by all semigroups.
+        Must satisfy the associativity property: (a @ b) @ c = a @ (b @ c)
+
+        Args:
+            other: Another semigroup of the same type
+
+        Returns:
+            The result of combining the two semigroups
+        """
+
+        raise NotImplementedError()
+
     def __matmul__(self: S, other: S) -> S:
         """
         Combine this semigroup with another semigroup.
@@ -29,4 +45,4 @@ class Semigroup(ABC):
         Returns:
             A new semigroup representing the combination
         """
-        raise NotImplementedError()
+        return self.op(other)
