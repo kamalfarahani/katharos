@@ -3,12 +3,14 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TypeVar
 
+from katharos.algebra.semigroup import Semigroup
+
 from .base_immutable_list import BaseImmutableList
 
 T = TypeVar(name="T", covariant=True)
 
 
-class NonEmptyList(BaseImmutableList[T]):
+class NonEmptyList(BaseImmutableList[T], Semigroup):
     """
     A non-empty list implementation.
     """
@@ -29,11 +31,29 @@ class NonEmptyList(BaseImmutableList[T]):
         super().__init__(elements)
 
     def __eq__(self, other: object) -> bool:
+        """
+        Returns true if the other object is equal to this list.
+
+        Args:
+            other: The object to compare to this list.
+
+        Returns:
+            bool: True if the other object is equal to this list.
+        """
         if not isinstance(other, NonEmptyList):
             return False
         return self._elements == other._elements
 
     def __hash__(self) -> int:
+        """
+        Returns the hash value of the list.
+
+        Args:
+            None
+
+        Returns:
+            int: The hash value of the list.
+        """
         return hash(tuple(self._elements))
 
     def __add__(self, other: Iterable[T]) -> NonEmptyList[T]:
@@ -79,3 +99,9 @@ class NonEmptyList(BaseImmutableList[T]):
             list[T]: The tail of the list.
         """
         return self._elements[1:]
+
+    def op(self, other: NonEmptyList[T]) -> NonEmptyList[T]:
+        head = self.head
+        tail = self.tail + list(other)
+
+        return NonEmptyList(head, tail)

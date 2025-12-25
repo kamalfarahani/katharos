@@ -2,12 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
-from typing import Generic, TypeVar
-
-T = TypeVar("T", covariant=True)
 
 
-class BaseImmutableList(Generic[T], ABC):
+class BaseImmutableList[T](ABC):
     _elements: list[T]
 
     def __init__(self, elements: Iterable[T]) -> None:
