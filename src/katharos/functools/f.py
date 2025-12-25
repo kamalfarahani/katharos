@@ -1,4 +1,7 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from operator import matmul
+
+from katharos.algebra import Monoid
 
 
 class F:
@@ -38,3 +41,70 @@ class F:
             The same value x
         """
         return x
+
+    @staticmethod
+    def foldr[A, B](
+        f: Callable[[A, B], B],
+        acc: B,
+        xs: Iterable[A],
+    ) -> B:
+        """
+        Right fold a function over an iterable.
+
+        Args:
+            f: A function that takes an element and an accumulator and returns a new accumulator
+            acc: The initial accumulator value
+            xs: An iterable of elements
+
+        Returns:
+            The accumulator value after applying f to each element of xs
+        """
+        result = acc
+        for x in reversed(list(xs)):
+            result = f(x, result)
+
+        return result
+
+    @staticmethod
+    def foldl[A, B](
+        f: Callable[[B, A], B],
+        acc: B,
+        xs: Iterable[A],
+    ) -> B:
+        """
+        Left fold a function over an iterable.
+
+        Args:
+            f: A function that takes an accumulator and an element and returns a new accumulator
+            acc: The initial accumulator value
+            xs: An iterable of elements
+
+        Returns:
+            The accumulator value after applying f to each element of xs
+        """
+        result = acc
+        for x in xs:
+            result = f(result, x)
+
+        return result
+
+    @staticmethod
+    def sigma[A: Monoid](
+        M: type[A],
+        xs: Iterable[A],
+    ) -> A:
+        """
+        Calculate the sum of a collection of monoids.
+
+        Args:
+            M: A type of monoid
+            xs: A collection of monoids
+
+        Returns:
+            The sum of the monoids
+        """
+        return F.foldl(
+            f=matmul,
+            acc=M.identity(),
+            xs=xs,
+        )
