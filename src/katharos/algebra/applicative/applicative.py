@@ -66,7 +66,7 @@ class Applicative[A](Functor[A], ABC):
         """
         raise NotImplementedError()
 
-    def __matmul__[B](
+    def __xor__[B](
         self,
         wrapped_funcs,  # SubclassApplicative[Callable[[A], B]],
     ) -> Applicative[B]:
