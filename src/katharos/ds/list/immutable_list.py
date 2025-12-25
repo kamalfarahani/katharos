@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import TypeVar
 
-from katharos.algebra.monoid import Monoid
+from katharos.algebra import Monad, Monoid
 
 from .base_immutable_list import BaseImmutableList
 
 T = TypeVar(name="T", covariant=True)
 
 
-class ImmutableList(BaseImmutableList[T], Monoid):
+class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
     """
     A covariant immutable list implementation.
 
@@ -43,6 +43,83 @@ class ImmutableList(BaseImmutableList[T], Monoid):
         >>> strings: ImmutableList[str] = ImmutableList(["hello", "world"])
         >>> objects: ImmutableList[object] = strings  # Valid due to covariance
     """
+
+    @staticmethod
+    def identity() -> ImmutableList[T]:
+        """
+        Return the identity element for the monoid operation.
+
+        Returns:
+            ImmutableList[T]: An empty ImmutableList.
+        """
+        return ImmutableList([])
+
+    @staticmethod
+    def pure(x: T) -> ImmutableList[T]:
+        """
+        Return a singleton ImmutableList containing the given element.
+
+        Args:
+            x: The element to wrap in an ImmutableList.
+
+        Returns:
+            ImmutableList[T]: An ImmutableList containing only the given element.
+        """
+        return ImmutableList([x])
+
+    def op(self, other: ImmutableList[T]) -> ImmutableList[T]:
+        """
+        Combine this ImmutableList with another using concatenation (monoid operation).
+
+        Args:
+            other: Another ImmutableList to concatenate with this one.
+
+        Returns:
+            ImmutableList[T]: A new ImmutableList containing elements from both lists.
+        """
+        return self + other
+
+    def fmap[B](self, f: Callable[[T], B]) -> ImmutableList[B]:
+        """
+        Map a function over the elements of this ImmutableList.
+
+        Args:
+            f: A function to apply to each element.
+
+        Returns:
+            ImmutableList[B]: A new ImmutableList with the function applied to each element.
+        """
+        return ImmutableList(map(f, self._elements))
+
+    def ap[B](
+        self,
+        wrapped_funcs: ImmutableList[Callable[[T], B]],
+    ) -> ImmutableList[B]:
+        """
+        Apply functions in this ImmutableList to values in another ImmutableList.
+
+        Args:
+            wrapped_funcs: An ImmutableList of functions to apply.
+
+        Returns:
+            ImmutableList[B]: A new ImmutableList with results of applying functions.
+        """
+        return ImmutableList([f(x) for f in wrapped_funcs for x in self])
+
+    def bind[B](
+        self,
+        f: Callable[[T], ImmutableList[B]],
+    ) -> ImmutableList[B]:  # type: ignore[override]
+        """
+        Bind (flatMap) this ImmutableList with a function that returns another ImmutableList.
+
+        Args:
+            f: A function that takes an element and returns an ImmutableList.
+
+        Returns:
+            ImmutableList[B]: A new ImmutableList with the results of applying the function.
+        """
+        return ImmutableList([x for mapped_list in self.fmap(f) for x in mapped_list])
 
     def __eq__(self, other: object) -> bool:
         """
@@ -90,10 +167,3 @@ class ImmutableList(BaseImmutableList[T], Monoid):
             ImmutableList[T]: A new ImmutableList containing the elements of the list and the other list.
         """
         return ImmutableList(list(self) + list(other))
-
-    def op(self, other: ImmutableList[T]) -> ImmutableList[T]:
-        return self + other
-
-    @staticmethod
-    def identity() -> ImmutableList[T]:
-        return ImmutableList([])
