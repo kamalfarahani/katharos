@@ -20,13 +20,13 @@ class Applicative[A](Functor[A], ABC):
         ap: Apply a wrapped function to a wrapped value.
 
     Operators:
-        @: Infix operator for ap (applicative application).
+        ^: Infix operator for ap (applicative application).
 
     Laws:
-        - Identity: v @ pure(id) = v
-        - Composition: w @ (v @ (u @ pure(compose))) = (w @ v) @ u
-        - Homomorphism: pure(x) @ pure(f) = pure(f(x))
-        - Interchange: pure(y) @ u = u @ pure(lambda f: f(y))
+        - Identity: v ^ pure(id) = v
+        - Composition: w ^ (v ^ (u ^ pure(compose))) = (w ^ v) ^ u
+        - Homomorphism: pure(x) ^ pure(f) = pure(f(x))
+        - Interchange: pure(y) ^ u = u ^ pure(lambda f: f(y))
 
     Where:
         - id is the identity function: lambda x: x
