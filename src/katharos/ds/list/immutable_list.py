@@ -109,7 +109,7 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
     def bind[B](
         self,
         f: Callable[[T], ImmutableList[B]],
-    ) -> ImmutableList[B]:  # type: ignore[override]
+    ) -> ImmutableList[B]:
         """
         Bind (flatMap) this ImmutableList with a function that returns another ImmutableList.
 

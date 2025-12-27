@@ -54,7 +54,7 @@ class Nothing[A](Maybe[A]):
         """
         return Nothing()
 
-    def bind[B](self, f: Callable[[A], Monad[B]]) -> Nothing[B]:
+    def bind[B](self, f: Callable[[A], Maybe[B]]) -> Nothing[B]:
         """
         bind a Nothing returns a Nothing.
 
@@ -125,7 +125,7 @@ class Just[A](Maybe[A]):
     def bind[B](
         self,
         f: Callable[[A], Maybe[B]],
-    ) -> Maybe[B]:  # type: ignore
+    ) -> Maybe[B]:
         """
         Bind a function to the Just value.
 
