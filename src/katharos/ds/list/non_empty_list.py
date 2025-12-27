@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import TypeVar
 
-from katharos.algebra.semigroup import Semigroup
+from katharos.algebra import Monad, Semigroup
 
 from .base_immutable_list import BaseImmutableList
 
 T = TypeVar(name="T", covariant=True)
 
 
-class NonEmptyList(BaseImmutableList[T], Semigroup):
+class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
     """
     A non-empty list implementation.
     """
@@ -100,8 +100,65 @@ class NonEmptyList(BaseImmutableList[T], Semigroup):
         """
         return self._elements[1:]
 
-    def op(self, other: NonEmptyList[T]) -> NonEmptyList[T]:
-        head = self.head
-        tail = self.tail + list(other)
+    @staticmethod
+    def pure[A](x: A) -> NonEmptyList[A]:
+        """Return a singleton NonEmptyList containing the given element.
 
-        return NonEmptyList(head, tail)
+        Args:
+            x: The element to wrap in a NonEmptyList.
+
+        Returns:
+            NonEmptyList[A]: A NonEmptyList containing only the given element.
+        """
+
+        return NonEmptyList(head=x, tail=[])
+
+    def fmap[B](self, f: Callable[[T], B]) -> NonEmptyList[B]:
+        """Map a function over the elements of this NonEmptyList.
+
+        Args:
+            f: A function to apply to each element.
+
+        Returns:
+            NonEmptyList[B]: A new NonEmptyList with the function applied to each element.
+        """
+
+        return NonEmptyList(
+            head=f(self.head),
+            tail=list(map(f, self.tail)),
+        )
+
+    def ap[B](
+        self,
+        wrapped_funcs: NonEmptyList[Callable[[T], B]],
+    ) -> NonEmptyList[B]:
+        """Apply functions in this NonEmptyList to values in another NonEmptyList.
+
+        Args:
+            wrapped_funcs: A NonEmptyList of functions to apply.
+
+        Returns:
+            NonEmptyList[B]: A new NonEmptyList with results of applying the functions.
+        """
+
+        applied: list[B] = [f(x) for f in wrapped_funcs for x in self]
+        return NonEmptyList(
+            head=applied[0],
+            tail=applied[1:],
+        )
+
+    def bind[B](
+        self,
+        f: Callable[[T], NonEmptyList[B]],
+    ) -> NonEmptyList[B]:
+        """Bind (flatMap) this NonEmptyList with a function that returns another NonEmptyList.
+
+        Args:
+            f: A function that takes an element and returns a NonEmptyList.
+
+        Returns:
+            NonEmptyList[B]: A new NonEmptyList with the results of applying the function.
+        """
+
+        flat: list[B] = [y for x in self._elements for y in f(x)]
+        return NonEmptyList(head=flat[0], tail=flat[1:])
