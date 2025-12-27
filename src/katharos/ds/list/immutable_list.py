@@ -101,8 +101,8 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
         """
         return ImmutableList([])
 
-    @staticmethod
-    def pure(x: T) -> ImmutableList[T]:
+    @classmethod
+    def pure(cls: type[ImmutableList], x: T) -> ImmutableList[T]:
         """
         Return a singleton ImmutableList containing the given element.
 

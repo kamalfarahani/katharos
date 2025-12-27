@@ -11,8 +11,8 @@ class Maybe[A](Monad[A], ABC):
     This class represents a Maybe type.
     """
 
-    @staticmethod
-    def pure(x: A) -> Maybe[A]:
+    @classmethod
+    def pure(cls: type[Maybe], x: A) -> Maybe[A]:
         """
         Return a Maybe containing the given value.
 

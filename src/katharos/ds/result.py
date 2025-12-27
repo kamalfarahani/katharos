@@ -14,8 +14,8 @@ class Result[A](Monad[A], ABC):
     It implements the Monad interface for error handling.
     """
 
-    @staticmethod
-    def pure(x: A) -> Result[A]:
+    @classmethod
+    def pure(cls: type[Result], x: A) -> Result[A]:
         """
         Wrap a value in a Success.
 
