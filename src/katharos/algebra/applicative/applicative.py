@@ -36,9 +36,9 @@ class Applicative[A](Functor[A], ABC):
         - x, y are plain values
     """
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def pure(x: A) -> Self:
+    def pure(cls: type[Self], x: A) -> Self:
         """
         Return an Applicative containing the given value.
 
@@ -51,9 +51,9 @@ class Applicative[A](Functor[A], ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def ap[B](
+    def ap[B, App: Self](
         self,
-        wrapped_funcs,  # SubclassApplicative[Callable[[A], B]],
+        wrapped_funcs: App,  # SubclassApplicative[Callable[[A], B]],
     ) -> Applicative[B]:
         """
         Apply wrapped functions to this Applicative's value.
