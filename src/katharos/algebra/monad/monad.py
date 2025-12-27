@@ -73,9 +73,9 @@ class Monad[A](Applicative[A], ABC):
         return Monad.pure(x)
 
     @abstractmethod
-    def bind[B](
+    def bind[B, M: Self](
         self,
-        f: Callable[[A], Monad[B]],
+        f: Callable[[A], M],
     ) -> Monad[B]:
         """
         Monad bind operation.
