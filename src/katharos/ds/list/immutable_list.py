@@ -44,6 +44,53 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
         >>> objects: ImmutableList[object] = strings  # Valid due to covariance
     """
 
+    def __eq__(self, other: object) -> bool:
+        """
+        Return True if the list is equal to the other object, False otherwise.
+
+        Args:
+            other: The object to compare to.
+
+        Returns:
+            bool: True if the list is equal to the other object, False otherwise.
+        """
+        if not isinstance(other, ImmutableList):
+            return False
+        return self._elements == other._elements
+
+    def __hash__(self) -> int:
+        return hash(tuple(self._elements))
+
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the list.
+
+        Returns:
+            str: A string representation of the list.
+        """
+        return f"ImmutableList({self._elements!r})"
+
+    def __str__(self) -> str:
+        """
+        Return a string representation of the list.
+
+        Returns:
+            str: A string representation of the list.
+        """
+        return str(self._elements)
+
+    def __add__(self, other: Iterable[T]) -> ImmutableList[T]:
+        """
+        Return a new ImmutableList containing the elements of the list and the other list.
+
+        Args:
+            other: The list to add to the list.
+
+        Returns:
+            ImmutableList[T]: A new ImmutableList containing the elements of the list and the other list.
+        """
+        return ImmutableList(list(self) + list(other))
+
     @staticmethod
     def identity() -> ImmutableList[T]:
         """
@@ -120,50 +167,3 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
             ImmutableList[B]: A new ImmutableList with the results of applying the function.
         """
         return ImmutableList([x for mapped_list in self.fmap(f) for x in mapped_list])
-
-    def __eq__(self, other: object) -> bool:
-        """
-        Return True if the list is equal to the other object, False otherwise.
-
-        Args:
-            other: The object to compare to.
-
-        Returns:
-            bool: True if the list is equal to the other object, False otherwise.
-        """
-        if not isinstance(other, ImmutableList):
-            return False
-        return self._elements == other._elements
-
-    def __hash__(self) -> int:
-        return hash(tuple(self._elements))
-
-    def __repr__(self) -> str:
-        """
-        Return a string representation of the list.
-
-        Returns:
-            str: A string representation of the list.
-        """
-        return f"ImmutableList({self._elements!r})"
-
-    def __str__(self) -> str:
-        """
-        Return a string representation of the list.
-
-        Returns:
-            str: A string representation of the list.
-        """
-        return str(self._elements)
-
-    def __add__(self, other: Iterable[T]) -> ImmutableList[T]:
-        """
-        Return a new ImmutableList containing the elements of the list and the other list.
-
-        Args:
-            other: The list to add to the list.
-
-        Returns:
-            ImmutableList[T]: A new ImmutableList containing the elements of the list and the other list.
-        """
-        return ImmutableList(list(self) + list(other))
