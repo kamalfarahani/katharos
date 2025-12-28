@@ -53,7 +53,7 @@ class Monad[A](Applicative[A], ABC):
         >>> m = SomeMonad.ret(5)
         >>> result = m | (lambda x: SomeMonad.ret(x * 2))
 
-    Sequencing monads with skip (>>):
+    Sequencing monads with sequence (>>):
         >>> m1 = SomeMonad.ret(1)
         >>> m2 = SomeMonad.ret(2)
         >>> result = m1 >> m2  # Returns m2, discarding m1's value
@@ -88,7 +88,7 @@ class Monad[A](Applicative[A], ABC):
         """
         raise NotImplementedError()
 
-    def skip[B, M: Monad](self, other: M) -> Monad[B]:
+    def sequence[B, M: Monad](self, other: M) -> Monad[B]:
         """
         Sequence two monadic actions, discarding the result of the first.
 
@@ -114,7 +114,7 @@ class Monad[A](Applicative[A], ABC):
 
     def __rshift__[B, M: Monad](self, other: M) -> Monad[B]:
         """
-        Infix operator for skip (sequence two monadic actions).
+        Infix operator for sequence (sequence two monadic actions).
 
         Args:
             other: The Monad to sequence after this one.
@@ -122,4 +122,4 @@ class Monad[A](Applicative[A], ABC):
         Returns:
             Monad[B]: The result of the second Monad.
         """
-        return self.skip(other)
+        return self.sequence(other)
