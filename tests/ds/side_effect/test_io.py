@@ -1,7 +1,6 @@
 from collections.abc import Callable
 
 from katharos.ds.side_effect import IO
-from katharos.ds.side_effect.function_with_side_effect import FunctionWithSideEffect
 from katharos.functools import F
 
 
@@ -49,10 +48,7 @@ class TestFunctorLaws:
         assert isinstance(mapped.value, str)
 
     def test_functor_preserves_side_effects(self):
-        input_func = FunctionWithSideEffect.no_op()
-        output_func = FunctionWithSideEffect.no_op()
-        io = IO(42, input_func=input_func, output_func=output_func)
-
+        io = IO(42)
         mapped = io.fmap(lambda x: x * 2)
 
         assert isinstance(mapped, IO)
@@ -132,10 +128,7 @@ class TestApplicativeLaws:
         def f(x: int) -> int:
             return x * 2
 
-        input_func = FunctionWithSideEffect.no_op()
-        output_func = FunctionWithSideEffect.no_op()
-
-        value = IO(21, input_func=input_func, output_func=output_func)
+        value = IO(21)
         func_io = IO(f)
 
         result = value.ap(func_io)
@@ -196,12 +189,9 @@ class TestMonadLaws:
 
     def test_monad_bind_with_no_op(self):
         def f(x: int) -> IO[int]:
-            return IO(x * 2, input_func=FunctionWithSideEffect.no_op())
+            return IO(x * 2)
 
-        input_func = FunctionWithSideEffect.no_op()
-        output_func = FunctionWithSideEffect.no_op()
-
-        m = IO(21, input_func=input_func, output_func=output_func)
+        m = IO(21)
         result = m.bind(f)
 
         assert isinstance(result, IO)
@@ -269,10 +259,7 @@ class TestIOExecution:
     """
 
     def test_execute_with_no_op(self):
-        input_func = FunctionWithSideEffect.no_op()
-        output_func = FunctionWithSideEffect.no_op()
-
-        io = IO(42, input_func=input_func, output_func=output_func)
+        io = IO(42)
         io.execute()
 
         assert io.value == 42
