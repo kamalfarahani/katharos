@@ -16,7 +16,7 @@ class Maybe(Monad[A], ABC):
     """
 
     @classmethod
-    def pure(cls: type[Maybe], x: A) -> Maybe[A]:
+    def pure[T](cls: type[Maybe], x: T) -> Maybe[T]:
         """
         Return a Maybe containing the given value.
 
