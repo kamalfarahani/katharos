@@ -2,17 +2,21 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Callable
+from typing import TypeVar
 
 from katharos.algebra.monad import Monad
 
+A = TypeVar("A", covariant=True)
 
-class Maybe[A](Monad[A], ABC):
+
+class Maybe(Monad[A], ABC):
     """
     This class represents a Maybe type.
+    The Maybe type represents a value that may or may not be present.
     """
 
-    @staticmethod
-    def pure(x: A) -> Maybe[A]:
+    @classmethod
+    def pure(cls: type[Maybe], x: A) -> Maybe[A]:
         """
         Return a Maybe containing the given value.
 
@@ -24,8 +28,68 @@ class Maybe[A](Monad[A], ABC):
         """
         return Just(value=x)
 
+    def fmap[B](self, f: Callable[[A], B]) -> Maybe[B]:
+        """
+        Map a function over the value.
 
-class Nothing[A](Maybe[A]):
+        Args:
+            f: Function to apply to the value
+
+        Returns:
+            Maybe[B]: Maybe containing the mapped value
+        """
+        raise NotImplementedError()
+
+    def ap[B](self, wrapped_funcs: Maybe[Callable[[A], B]]) -> Maybe[B]:
+        """
+        Apply a function wrapped in a Maybe to the value.
+
+        Args:
+            wrapped_funcs: A Maybe containing a function to apply.
+
+        Returns:
+            Maybe[B]: The result of applying the function.
+        """
+        raise NotImplementedError()
+
+    def bind[B](self, f: Callable[[A], Maybe[B]]) -> Maybe[B]:
+        """
+        Bind a function to the value.
+
+        Args:
+            f: The function to apply.
+
+        Returns:
+            Maybe[B]: The result of applying the function.
+        """
+        raise NotImplementedError()
+
+    def __xor__[B](self, wrapped_funcs: Maybe[Callable[[A], B]]) -> Maybe[B]:
+        """
+        Exclusive or operator for Maybe monad.
+
+        Args:
+            wrapped_funcs: A Maybe containing a function to apply.
+
+        Returns:
+            Maybe[B]: The result of the exclusive or operation.
+        """
+        return self.ap(wrapped_funcs)
+
+    def __or__[B](self, f: Callable[[A], Maybe[B]]) -> Maybe[B]:
+        """
+        Pipe operator for Maybe monad.
+
+        Args:
+            f: A function that takes the value and returns a Maybe[B].
+
+        Returns:
+            Maybe[B]: The result of applying the function.
+        """
+        return self.bind(f)
+
+
+class Nothing(Maybe[A]):
     """
     This class represents a Nothing value
     """
@@ -47,10 +111,10 @@ class Nothing[A](Maybe[A]):
         apply a Nothing returns a Nothing.
 
         Args:
-            wrapped_funcs: The function to apply.
+            wrapped_funcs: A Maybe containing a function to apply.
 
         Returns:
-            Maybe[B]: A Nothing.
+            Nothing[B]: A Nothing.
         """
         return Nothing()
 
@@ -67,7 +131,7 @@ class Nothing[A](Maybe[A]):
         return Nothing()
 
 
-class Just[A](Maybe[A]):
+class Just(Maybe[A]):
     """
     This class represents a Just value
     """

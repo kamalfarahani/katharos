@@ -59,8 +59,8 @@ class Monad[A](Applicative[A], ABC):
         >>> result = m1 >> m2  # Returns m2, discarding m1's value
     """
 
-    @staticmethod
-    def ret(x: A) -> Self:
+    @classmethod
+    def ret[T](cls: type[Self], x: T) -> Self:
         """
         Return a Monad containing the given value.
 
@@ -70,7 +70,7 @@ class Monad[A](Applicative[A], ABC):
         Returns:
             Self: A Monad containing the given value.
         """
-        return Monad.pure(x)
+        return cls.pure(x)
 
     @abstractmethod
     def bind[B, M: Self](
@@ -102,7 +102,7 @@ class Monad[A](Applicative[A], ABC):
         """
         return other
 
-    def __or__[B](self, f: Callable[[A], Monad[B]]) -> Monad[B]:
+    def __or__[B, M: Self](self, f: Callable[[A], M]) -> Monad[B]:
         """
         Infix operator for bind.
 

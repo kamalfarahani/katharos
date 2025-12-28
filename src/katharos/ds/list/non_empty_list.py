@@ -100,8 +100,8 @@ class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
         """
         return self._elements[1:]
 
-    @staticmethod
-    def pure[A](x: A) -> NonEmptyList[A]:
+    @classmethod
+    def pure[A](cls: type[NonEmptyList], x: A) -> NonEmptyList[A]:
         """Return a singleton NonEmptyList containing the given element.
 
         Args:

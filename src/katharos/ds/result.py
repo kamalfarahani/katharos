@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Callable
+from typing import TypeVar
 
 from katharos.algebra import Monad
 
+A = TypeVar("A", covariant=True)
 
-class Result[A](Monad[A], ABC):
+
+class Result(Monad[A], ABC):
     """
     This class represents a computation that can either succeed with a value of type A
     or fail with an exception.
@@ -14,8 +17,8 @@ class Result[A](Monad[A], ABC):
     It implements the Monad interface for error handling.
     """
 
-    @staticmethod
-    def pure(x: A) -> Result[A]:
+    @classmethod
+    def pure[T](cls: type[Result], x: T) -> Result[T]:
         """
         Wrap a value in a Success.
 
@@ -27,8 +30,70 @@ class Result[A](Monad[A], ABC):
         """
         return Success(x)
 
+    def fmap[B](self, f: Callable[[A], B]) -> Result[B]:
+        """
+        Map a function over the value.
 
-class Failure[A](Result[A]):
+        Args:
+            f: Function to apply to the value
+
+        Returns:
+            Result[B]: Result containing the mapped value
+        """
+        raise NotImplementedError()
+
+    def ap[B](self, wrapped_funcs: Result[Callable[[A], B]]) -> Result[B]:
+        """
+        Apply a function wrapped in a Result to this Result.
+
+        Args:
+            wrapped_funcs: Result containing a function to apply
+
+        Returns:
+            Result[B]: Result of applying the function to this value
+        """
+        raise NotImplementedError()
+
+    def bind[B](self, f: Callable[[A], Result[B]]) -> Result[B]:
+        """
+        Bind a function that returns a Result to this Result.
+
+        Args:
+            f: Function that takes a value of type A and returns a Result of type B
+
+        Returns:
+            Result[B]: Result of applying the function to this value
+        """
+        raise NotImplementedError()
+
+    def __xor__[B](self, wrapped_funcs: Result[Callable[[A], B]]) -> Result[B]:
+        """
+        Infix operator for applicative application.
+
+        This enables the use of ^ operator for applying functions in the context of Result.
+
+        Args:
+            wrapped_funcs: Result containing a function to apply
+
+        Returns:
+            Result[B]: Result of applying the function to this value
+        """
+        return self.ap(wrapped_funcs)
+
+    def __or__[B](self, f: Callable[[A], Result[B]]) -> Result[B]:
+        """
+        Infix operator for bind.
+
+        Args:
+            f: A function that takes a value of type A and returns a Result of type B.
+
+        Returns:
+            Monad[B]: A Monad containing the result of applying the function to the value.
+        """
+        return self.bind(f)
+
+
+class Failure(Result[A]):
     """
     This class represents a failed computation with an exception.
     """
@@ -68,7 +133,7 @@ class Failure[A](Result[A]):
         """
         return Failure[B](self._error)
 
-    def bind[B](self, f: Callable[[A], Result[B]]) -> Result[B]:  # type: ignore
+    def bind[B](self, f: Callable[[A], Result[B]]) -> Result[B]:
         """
         Bind a function that returns a Result to this Failure.
 
@@ -100,7 +165,7 @@ class Failure[A](Result[A]):
         return f"Failure({self._error!r})"
 
 
-class Success[A](Result[A]):
+class Success(Result[A]):
     """
     This class represents a successful computation with a value.
     """
@@ -149,7 +214,7 @@ class Success[A](Result[A]):
             case _:
                 raise TypeError("Unexpected pattern in ap")
 
-    def bind[B](self, f: Callable[[A], Result[B]]) -> Result[B]:  # type: ignore
+    def bind[B](self, f: Callable[[A], Result[B]]) -> Result[B]:
         """
         Bind a function that returns a Result to this Success.
 
