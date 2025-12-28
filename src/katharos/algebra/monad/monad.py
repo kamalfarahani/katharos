@@ -102,7 +102,7 @@ class Monad[A](Applicative[A], ABC):
         """
         return other
 
-    def __or__[B](self, f: Callable[[A], Monad[B]]) -> Monad[B]:
+    def __or__[B, M: Self](self, f: Callable[[A], M]) -> Monad[B]:
         """
         Infix operator for bind.
 
