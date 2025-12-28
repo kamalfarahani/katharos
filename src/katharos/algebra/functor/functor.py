@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from typing import Self
 
 
 class Functor[A](ABC):
@@ -18,7 +19,7 @@ class Functor[A](ABC):
     """
 
     @abstractmethod
-    def fmap[B](self, f: Callable[[A], B]) -> Functor[B]:
+    def fmap[B](self, f: Callable[[A], B]) -> Self:
         """
         Map a function over the functor.
 
