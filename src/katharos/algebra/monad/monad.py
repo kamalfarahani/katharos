@@ -88,11 +88,9 @@ class Monad[A](Applicative[A], ABC):
         """
         raise NotImplementedError()
 
-    def skip[B](self, other: Monad[B]) -> Monad[B]:
+    def skip[B, M: Monad](self, other: M) -> Monad[B]:
         """
         Sequence two monadic actions, discarding the result of the first.
-
-        This is equivalent to `self.bind(lambda _: other)`.
 
         Args:
             other: The Monad to sequence after this one.
@@ -114,7 +112,7 @@ class Monad[A](Applicative[A], ABC):
         """
         return self.bind(f)
 
-    def __rshift__[B](self, other: Monad[B]) -> Monad[B]:
+    def __rshift__[B, M: Monad](self, other: M) -> Monad[B]:
         """
         Infix operator for skip (sequence two monadic actions).
 
