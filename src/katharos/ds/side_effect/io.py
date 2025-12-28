@@ -75,7 +75,7 @@ class IO(SideEffect[A]):
         """
         return super().bind(f)
 
-    def skip[B](self, other: IO[B]) -> IO[B]:
+    def sequence[B](self, other: IO[B]) -> IO[B]:
         """
         Sequence two monadic actions, discarding the result of the first.
 
@@ -131,7 +131,7 @@ class IO(SideEffect[A]):
         Returns:
             A new IO action that contains the value of the second IO action.
         """
-        return self.skip(other)
+        return self.sequence(other)
 
     @classmethod
     def pure[T](cls, x: T) -> IO[T]:
