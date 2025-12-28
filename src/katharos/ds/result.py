@@ -18,7 +18,7 @@ class Result(Monad[A], ABC):
     """
 
     @classmethod
-    def pure(cls: type[Result], x: A) -> Result[A]:
+    def pure[T](cls: type[Result], x: T) -> Result[T]:
         """
         Wrap a value in a Success.
 
