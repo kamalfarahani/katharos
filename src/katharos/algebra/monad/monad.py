@@ -60,7 +60,7 @@ class Monad[A](Applicative[A], ABC):
     """
 
     @classmethod
-    def ret(cls: type[Self], x: A) -> Self:
+    def ret[T](cls: type[Self], x: T) -> Self:
         """
         Return a Monad containing the given value.
 

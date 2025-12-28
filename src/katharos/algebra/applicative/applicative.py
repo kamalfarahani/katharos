@@ -38,7 +38,7 @@ class Applicative[A](Functor[A], ABC):
 
     @classmethod
     @abstractmethod
-    def pure(cls: type[Self], x: A) -> Self:
+    def pure[T](cls: type[Self], x: T) -> Self:
         """
         Return an Applicative containing the given value.
 
