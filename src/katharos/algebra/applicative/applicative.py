@@ -66,9 +66,9 @@ class Applicative[A](Functor[A], ABC):
         """
         raise NotImplementedError()
 
-    def __xor__[B](
+    def __xor__[B, App: Self](
         self,
-        wrapped_funcs,  # SubclassApplicative[Callable[[A], B]],
+        wrapped_funcs: App,  # SubclassApplicative[Callable[[A], B]],
     ) -> Applicative[B]:
         """
         Apply wrapped functions to this Applicative's value.
