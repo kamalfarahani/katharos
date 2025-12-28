@@ -28,7 +28,7 @@ class SideEffect[A](Monad[A]):
         return self._value
 
     @classmethod
-    def pure(cls: type[Self], x: A) -> Self:
+    def pure[T](cls: type[Self], x: A) -> Self:
         """
         Returns a side effect containing the value
 
@@ -52,9 +52,9 @@ class SideEffect[A](Monad[A]):
         """
         return type(self)(f(self.value))
 
-    def ap[B](
+    def ap[B, S: SideEffect](
         self,
-        wrapped_funcs: SideEffect[Callable[[A], B]],
+        wrapped_funcs: S,
     ) -> Self:
         """
         Apply a SideEffect containing a function to this SideEffect.
@@ -67,10 +67,10 @@ class SideEffect[A](Monad[A]):
         """
         return type(self)(wrapped_funcs.value(self.value))
 
-    def bind[B](
-        self,
-        f: Callable[[A], SideEffect[B]],
-    ) -> SideEffect[B]:
+    def bind[B, S: SideEffect](
+        self: S,
+        f: Callable[[A], S],  # f: Callable[[A], SideEffectSubclass[B]]
+    ) -> S:  # Should return SideEffectSubclass[B]
         """
         Bind a function that returns a SideEffect to this SideEffect.
 
@@ -83,9 +83,9 @@ class SideEffect[A](Monad[A]):
         return f(self.value)
 
     @abstractmethod
-    def effect(self) -> None:
+    def execute(self) -> None:
         """
-        Apply the side effect.
+        Execute the side effect.
 
         This method is responsible for executing the side effect.
         It should not return anything.
