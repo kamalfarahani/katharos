@@ -49,7 +49,7 @@ class TestResultChaining:
         def add(x: int) -> Callable[[int], int]:
             return lambda y: x + y
 
-        result = Success(10) ^ (Success(5) ^ Success(add))
+        result = Success(10) ** (Success(5) ** Success(add))
 
         assert isinstance(result, Success)
         assert result.value == 15

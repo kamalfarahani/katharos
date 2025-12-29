@@ -66,11 +66,11 @@ class Result(Monad[A], ABC):
         """
         raise NotImplementedError()
 
-    def __xor__[B](self, wrapped_funcs: Result[Callable[[A], B]]) -> Result[B]:
+    def __pow__[B](self, wrapped_funcs: Result[Callable[[A], B]]) -> Result[B]:
         """
         Infix operator for applicative application.
 
-        This enables the use of ^ operator for applying functions in the context of Result.
+        This enables the use of ** operator for applying functions in the context of Result.
 
         Args:
             wrapped_funcs: Result containing a function to apply

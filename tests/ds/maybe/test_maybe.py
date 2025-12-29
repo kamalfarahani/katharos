@@ -234,16 +234,16 @@ class TestOperators:
         assert isinstance(result, Nothing)
 
     def test_xor_operator_just(self):
-        result = Just(5) ^ Just(multiply_by_two)
+        result = Just(5) ** Just(multiply_by_two)
         assert isinstance(result, Just)
         assert result.value == 10
 
     def test_xor_operator_nothing_value(self):
-        result = Nothing() ^ Just(multiply_by_two)
+        result = Nothing() ** Just(multiply_by_two)
         assert isinstance(result, Nothing)
 
     def test_xor_operator_nothing_function(self):
-        result = Just(5) ^ Nothing()
+        result = Just(5) ** Nothing()
         assert isinstance(result, Nothing)
 
     def test_chained_pipe_operators(self):

@@ -151,8 +151,8 @@ class TestApplicativeLaws:
         v: Result[Callable[[int], int]] = Success(add_ten)
         w: Result[int] = Success(5)
 
-        left = w ^ v ^ u
-        right = w ^ (v ^ (u ^ Success(F.compose)))
+        left = (w**v) ** u
+        right = w ** (v ** (u ** Success(F.compose)))
 
         assert isinstance(left, Success)
         assert isinstance(right, Success)

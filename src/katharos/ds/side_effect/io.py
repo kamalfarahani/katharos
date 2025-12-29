@@ -92,7 +92,7 @@ class IO(SideEffect[A]):
 
         return io
 
-    def __xor__[B](self, wrapped_funcs: IO[Callable[[A], B]]) -> IO[B]:
+    def __pow__[B](self, wrapped_funcs: IO[Callable[[A], B]]) -> IO[B]:
         """
         Infix operator for IO applicative functor.
         Applies a function wrapped in IO to this IO action.
