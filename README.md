@@ -535,34 +535,38 @@ person = validate_name("") ** validate_age(30) ** Result.pure(create_person)
 **Example 4: ImmutableList as an Applicative**
 
 ```python
-from katharos.ds import ImmutableList
+from collections.abc import Callable
+
+from katharos.ds.list import ImmutableList
 
 # ImmutableList applies functions to values in a cartesian product manner
 # pure creates a singleton list
-value = ImmutableList.pure(5)  # ImmutableList([5])
+value = ImmutableList[int].pure(5)  # ImmutableList([5])
 
 # Applying wrapped functions
-funcs = ImmutableList([lambda x: x * 2, lambda x: x + 10])
-values = ImmutableList([1, 2, 3])
+funcs = ImmutableList[Callable[[int], int]](
+    [
+        lambda x: x * 2,
+        lambda x: x + 10,
+    ]
+)
+values = ImmutableList[int]([1, 2, 3])
 
 # Each function is applied to each value
-result = values ** funcs
+result = values**funcs
 # ImmutableList([2, 4, 6, 11, 12, 13])
 
-# Combining multiple lists
-add = lambda x: lambda y: x + y
-result = ImmutableList.pure(add) ** ImmutableList([1, 2]) ** ImmutableList([10, 20])
-# ImmutableList([11, 21, 12, 22])
 
 # Real-world example: Generating combinations
 def make_url(protocol: str) -> Callable[[str], Callable[[str], str]]:
     return lambda domain: lambda path: f"{protocol}://{domain}/{path}"
 
-protocols = ImmutableList(["http", "https"])
-domains = ImmutableList(["example.com", "test.com"])
-paths = ImmutableList(["api", "docs"])
 
-urls = protocols ** domains ** paths ** ImmutableList.pure(make_url) 
+protocols = ImmutableList[str](["http", "https"])
+domains = ImmutableList[str](["example.com", "test.com"])
+paths = ImmutableList[str](["api", "docs"])
+
+urls: ImmutableList[str] = paths**domains**protocols ** ImmutableList.pure(make_url)
 # ImmutableList([
 #     "http://example.com/api", "http://example.com/docs",
 #     "http://test.com/api", "http://test.com/docs",
@@ -586,6 +590,17 @@ class MyApplicative[A](Applicative[A]):
     
     def __init__(self, value: A) -> None:
         self._value = value
+```
+
+> Note: If your type is covariant, you should use `TypeVar` with the `covariant=True` parameter.
+
+```python
+from typing import TypeVar
+
+A = TypeVar('A', covariant=True)
+
+class MyApplicative(Applicative[A]):
+    ...
 ```
 
 **Step 2: Implement the `pure` Class Method**
@@ -650,119 +665,6 @@ class MyApplicative[A](Applicative[A]):
 ```python
     def __pow__[B](self, other: 'MyApplicative[Callable[[A], B]]') -> 'MyApplicative[B]':
         return self.ap(other)
-```
-
-**Step 5: Add Helper Methods (Optional)**
-
-```python
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, MyApplicative) and self._value == other._value
-    
-    def __repr__(self) -> str:
-        return f"MyApplicative({self._value!r})"
-```
-
-**Complete Example: Validated Applicative**
-
-Here's a complete example of a custom Applicative that accumulates validation errors:
-
-```python
-from katharos.algebra import Applicative
-from collections.abc import Callable
-from typing import Union
-
-class Validated[A](Applicative[A]):
-    """
-    An Applicative that accumulates errors instead of short-circuiting.
-    
-    Unlike Result, which stops at the first error, Validated collects
-    all errors, making it ideal for form validation.
-    """
-    
-    def __init__(self, value: Union[A, list[str]], is_valid: bool = True):
-        self._value = value
-        self._is_valid = is_valid
-    
-    @classmethod
-    def pure[T](cls, x: T) -> 'Validated[T]':
-        """Wrap a valid value."""
-        return Validated(x, is_valid=True)
-    
-    @classmethod
-    def invalid(cls, errors: list[str]) -> 'Validated':
-        """Create an invalid Validated with errors."""
-        return Validated(errors, is_valid=False)
-    
-    def fmap[B](self, f: Callable[[A], B]) -> 'Validated[B]':
-        """Map over valid values only."""
-        if self._is_valid:
-            return Validated(f(self._value), is_valid=True)
-        return Validated(self._value, is_valid=False)
-    
-    def ap[B](
-        self,
-        wrapped_funcs: 'Validated[Callable[[A], B]]'
-    ) -> 'Validated[B]':
-        """
-        Apply wrapped functions, accumulating errors.
-        
-        If both are invalid, errors are combined.
-        If one is invalid, that error is returned.
-        If both are valid, the function is applied.
-        """
-        if not self._is_valid and not wrapped_funcs._is_valid:
-            # Combine errors from both
-            return Validated(
-                self._value + wrapped_funcs._value,
-                is_valid=False
-            )
-        elif not self._is_valid:
-            return Validated(self._value, is_valid=False)
-        elif not wrapped_funcs._is_valid:
-            return Validated(wrapped_funcs._value, is_valid=False)
-        else:
-            # Both valid - apply function
-            return Validated(
-                wrapped_funcs._value(self._value),
-                is_valid=True
-            )
-    
-    @property
-    def is_valid(self) -> bool:
-        return self._is_valid
-    
-    @property
-    def value(self) -> Union[A, list[str]]:
-        return self._value
-    
-    def __repr__(self) -> str:
-        if self._is_valid:
-            return f"Valid({self._value!r})"
-        return f"Invalid({self._value!r})"
-
-# Using Validated for form validation
-def validate_username(username: str) -> Validated[str]:
-    if len(username) < 3:
-        return Validated.invalid(["Username too short"])
-    if not username.isalnum():
-        return Validated.invalid(["Username must be alphanumeric"])
-    return Validated.pure(username)
-
-def validate_email(email: str) -> Validated[str]:
-    if "@" not in email:
-        return Validated.invalid(["Invalid email format"])
-    return Validated.pure(email)
-
-def create_account(username: str) -> Callable[[str], dict]:
-    return lambda email: {"username": username, "email": email}
-
-# All valid
-account = validate_username("alice123") ** validate_email("alice@example.com") ** Validated.pure(create_account)
-# Valid({"username": "alice123", "email": "alice@example.com"})
-
-# Multiple errors accumulated
-account = validate_username("ab") ** validate_email("invalid") ** Validated.pure(create_account)
-# Invalid(["Username too short", "Invalid email format"])
 ```
 
 **Key Differences from Functor and Monad:**
