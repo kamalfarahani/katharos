@@ -87,24 +87,3 @@ class F:
             result = f(result, x)
 
         return result
-
-    @staticmethod
-    def sigma[A: Monoid](
-        M: type[A],
-        xs: Iterable[A],
-    ) -> A:
-        """
-        Calculate the sum of a collection of monoids.
-
-        Args:
-            M: A type of monoid
-            xs: A collection of monoids
-
-        Returns:
-            The sum of the monoids
-        """
-        return F.foldl(
-            f=matmul,
-            acc=M.identity(),
-            xs=xs,
-        )
