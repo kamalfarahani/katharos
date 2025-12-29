@@ -1,7 +1,8 @@
 from collections.abc import Callable, Iterable
 from operator import matmul
 
-from katharos.algebra import Monoid
+from katharos.algebra import Monoid, Semigroup
+from katharos.ds.list import NonEmptyList
 
 
 class F:
@@ -87,3 +88,19 @@ class F:
             result = f(result, x)
 
         return result
+
+    def sigma[A: Semigroup](xs: NonEmptyList[A]) -> A:
+        """
+        Combine all elements of a non-empty list using the semigroup operation.
+
+        Args:
+            xs: A non-empty list of semigroup elements
+
+        Returns:
+            A: The result of combining all elements using the semigroup's @ operator
+        """
+        return F.foldl(
+            matmul,
+            xs.head,
+            xs.tail,
+        )
