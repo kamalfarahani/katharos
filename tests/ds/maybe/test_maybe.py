@@ -87,16 +87,12 @@ class TestApplicativeLaws:
 
     def test_applicative_identity_just(self):
         v = Just(42)
-        identity = lambda x: x
-
-        result = v.ap(Maybe.pure(identity))
+        result = v.ap(Maybe.pure(F.id))
         assert result == v
 
     def test_applicative_identity_nothing(self):
         v = Nothing()
-        identity = lambda x: x
-
-        result = v.ap(Maybe.pure(identity))
+        result = v.ap(Maybe.pure(F.id))
         assert isinstance(result, Nothing)
 
     def test_applicative_homomorphism(self):
