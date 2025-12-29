@@ -20,6 +20,9 @@ class FunctionWithSideEffect:
             description="No operation",
         )
 
+    def __call__(self):
+        self.f()
+
     def __rshift__(
         self,
         other: "FunctionWithSideEffect",
