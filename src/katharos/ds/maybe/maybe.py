@@ -64,15 +64,15 @@ class Maybe(Monad[A], ABC):
         """
         raise NotImplementedError()
 
-    def __xor__[B](self, wrapped_funcs: Maybe[Callable[[A], B]]) -> Maybe[B]:
+    def __pow__[B](self, wrapped_funcs: Maybe[Callable[[A], B]]) -> Maybe[B]:
         """
-        Exclusive or operator for Maybe monad.
+        Infix operator for applicative application.
 
         Args:
             wrapped_funcs: A Maybe containing a function to apply.
 
         Returns:
-            Maybe[B]: The result of the exclusive or operation.
+            Maybe[B]: The result of applying the function to this value.
         """
         return self.ap(wrapped_funcs)
 
