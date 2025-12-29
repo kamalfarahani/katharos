@@ -204,3 +204,145 @@ m3 = MonoidMaybe(Just(ImmutableList([3, 4])))
 m4 = MonoidMaybe(Just(ImmutableList([5, 6])))
 result = m3 @ m4  # MonoidMaybe(Just(ImmutableList([3, 4, 5, 6])))
 ```
+
+### Functor
+
+A **Functor** is a type that can be mapped over, allowing you to apply a function to values inside a computational context without changing the structure itself. It's one of the most fundamental abstractions in functional programming.
+
+**Core Concept:**
+- A Functor wraps values in a context (e.g., `Maybe[A]`, `List[A]`, `Result[A]`)
+- It provides `fmap` to apply a function to the wrapped value(s) while preserving the context
+- The structure remains unchanged; only the values are transformed
+
+**Mathematical Laws:**
+
+Functors must satisfy two laws:
+
+1. **Identity Law**: `fmap(id) = id`
+   - Mapping the identity function should return the same functor
+   
+2. **Composition Law**: `fmap(g ∘ f) = fmap(g) ∘ fmap(f)`
+   - Mapping a composition of functions should be the same as composing the mapped functions
+
+**Implementation:**
+
+To create a Functor, inherit from the `Functor[A]` class and implement:
+- `fmap[B](self, f: Callable[[A], B]) -> Functor[B]`: Map a function over the functor's contents
+
+**Example 1: Creating a Custom Functor (Box)**
+
+```python
+from katharos.algebra import Functor
+from collections.abc import Callable
+
+class Box[A](Functor[A]):
+    """A simple container that wraps a single value."""
+    
+    def __init__(self, value: A) -> None:
+        self.value = value
+    
+    def fmap[B](self, f: Callable[[A], B]) -> 'Box[B]':
+        """Apply a function to the wrapped value."""
+        return Box(f(self.value))
+    
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Box) and self.value == other.value
+    
+    def __repr__(self) -> str:
+        return f"Box({self.value!r})"
+
+# Using the custom Functor
+box = Box(5)
+
+# Map a function over the value
+result = box.fmap(lambda x: x * 2)  # Box(10)
+
+# Functor laws verification
+# Identity law: fmap(id) = id
+identity = lambda x: x
+assert box.fmap(identity) == box
+
+# Composition law: fmap(g . f) = fmap(g) . fmap(f)
+f = lambda x: x + 3
+g = lambda x: x * 2
+assert box.fmap(lambda x: g(f(x))) == box.fmap(f).fmap(g)
+```
+
+**Example 2: Maybe as a Functor**
+
+```python
+from katharos.ds.maybe import Maybe, Just, Nothing
+
+# Maybe handles optional values
+just_value = Just(10)
+nothing_value = Nothing()
+
+# fmap applies the function only if a value exists
+result1 = just_value.fmap(lambda x: x * 2)  # Just(20)
+result2 = nothing_value.fmap(lambda x: x * 2)  # Nothing()
+
+# Chain multiple transformations
+result = Just(5).fmap(lambda x: x + 3).fmap(lambda x: x * 2)  # Just(16)
+
+# Safe computation without null checks
+def safe_divide(x: int) -> Maybe[float]:
+    return Just(10.0 / x) if x != 0 else Nothing()
+
+# Using fmap to transform the result
+result = safe_divide(2).fmap(lambda x: x + 1)  # Just(6.0)
+result = safe_divide(0).fmap(lambda x: x + 1)  # Nothing()
+```
+
+**Example 3: Result as a Functor for Error Handling**
+
+```python
+from katharos.ds import Result, Success, Failure
+
+# Result handles computations that can fail
+success = Success(42)
+failure = Failure(ValueError("Something went wrong"))
+
+# fmap applies the function only to successful values
+result1 = success.fmap(lambda x: x * 2)  # Success(84)
+result2 = failure.fmap(lambda x: x * 2)  # Failure(ValueError(...))
+
+# Chain operations - errors propagate automatically
+def parse_int(s: str) -> Result[int]:
+    try:
+        return Success(int(s))
+    except ValueError as e:
+        return Failure(e)
+
+# Transform successful results
+result = parse_int("42").fmap(lambda x: x * 2).fmap(lambda x: x + 10)  # Success(94)
+result = parse_int("invalid").fmap(lambda x: x * 2)  # Failure(ValueError(...))
+```
+
+**Example 4: ImmutableList as a Functor**
+
+```python
+from katharos.ds import ImmutableList
+
+# Lists are functors that map over each element
+numbers = ImmutableList([1, 2, 3, 4, 5])
+
+# fmap applies the function to each element
+doubled = numbers.fmap(lambda x: x * 2)  # ImmutableList([2, 4, 6, 8, 10])
+squared = numbers.fmap(lambda x: x ** 2)  # ImmutableList([1, 4, 9, 16, 25])
+
+# Chain transformations
+result = numbers.fmap(lambda x: x + 1).fmap(lambda x: x * 2)
+# ImmutableList([4, 6, 8, 10, 12])
+
+# Empty list preserves structure
+empty = ImmutableList([])
+result = empty.fmap(lambda x: x * 2)  # ImmutableList([])
+```
+
+**Common Use Cases:**
+- **Optional values**: Transform values that may or may not exist (`Maybe`)
+- **Error handling**: Transform successful results while propagating errors (`Result`)
+- **Collections**: Transform each element in a collection (`List`)
+- **Async operations**: Transform values that will be available in the future
+- **Parsing**: Transform parsed values without unwrapping the parser context
+- **Dependency injection**: Transform values in a context with dependencies
