@@ -1,10 +1,8 @@
 # Katharos
 
+Katharos is a functional programming library for Python that provides algebraic abstractions like Semigroups, Monoids, Functors, Applicatives, and Monads, along with immutable data structures to enable composable, type-safe, and side-effect-free code.
 
-<img src="./logo.png" alt="logo" width="200" height="200">
-
-Katharos that provides a set of functions and types for functional programming in `Python`.
-
+<img src="./logo.png" alt="logo" width="300" height="300">
 
 ## Modules
 
@@ -349,3 +347,432 @@ result = empty.fmap(lambda x: x * 2)  # ImmutableList([])
 - **Async operations**: Transform values that will be available in the future
 - **Parsing**: Transform parsed values without unwrapping the parser context
 - **Dependency injection**: Transform values in a context with dependencies
+
+### Applicative
+
+An **Applicative** functor is a functor with additional structure that allows you to apply functions wrapped in a context to values wrapped in a context. It sits between Functors and Monads in the hierarchy of functional abstractions.
+
+**Core Concept:**
+- An Applicative extends Functor with two key operations:
+  - `pure`: Lift a plain value into the applicative context
+  - `ap`: Apply a wrapped function to a wrapped value
+- It enables combining multiple independent computations in a context
+- Unlike Monads, Applicatives don't allow the result of one computation to determine the structure of the next
+
+**Mathematical Laws:**
+
+Applicatives must satisfy four laws:
+
+1. **Identity Law**: `v ** pure(id) = v`
+   - Applying the wrapped identity function returns the same value
+   
+2. **Composition Law**: `w ** (v ** (u ** pure(compose))) = (w ** v) ** u`
+   - Function composition works as expected in the applicative context
+   
+3. **Homomorphism Law**: `pure(x) ** pure(f) = pure(f(x))`
+   - Applying a wrapped function to a wrapped value is the same as wrapping the result
+   
+4. **Interchange Law**: `pure(y) ** u = u ** pure(lambda f: f(y))`
+   - The order of evaluation doesn't matter for pure values
+
+**Implementation:**
+
+To create an Applicative, inherit from the `Applicative[A]` class and implement:
+- `pure(x)`: A class method that wraps a value in the applicative context
+- `ap(self, wrapped_funcs)`: Apply wrapped functions to the wrapped value
+- `fmap[B](self, f)`: Inherited from Functor - map a function over the wrapped value
+
+**Example 1: Creating a Custom Applicative (Box)**
+
+```python
+from katharos.algebra import Applicative
+from collections.abc import Callable
+
+class Box[A](Applicative[A]):
+    """A simple container that wraps a single value."""
+    
+    def __init__(self, value: A) -> None:
+        self.value = value
+    
+    @classmethod
+    def pure[T](cls, x: T) -> 'Box[T]':
+        """Wrap a value in a Box."""
+        return Box(x)
+    
+    def fmap[B](self, f: Callable[[A], B]) -> 'Box[B]':
+        """Apply a function to the wrapped value."""
+        return Box(f(self.value))
+    
+    def ap[B](self, wrapped_funcs: 'Box[Callable[[A], B]]') -> 'Box[B]':
+        """Apply a wrapped function to this Box's value."""
+        return Box(wrapped_funcs.value(self.value))
+    
+    def __pow__[B](self, wrapped_funcs: 'Box[Callable[[A], B]]') -> 'Box[B]':
+        """
+        Enable the ** operator for applicative application.
+        
+        Note: When implementing your own Applicative subtype, you should
+        override this method with proper type annotations specific to your
+        type. Due to Python's type system limitations, the generic type
+        parameters don't always propagate correctly through inheritance.
+        """
+        return self.ap(wrapped_funcs)
+    
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Box) and self.value == other.value
+    
+    def __repr__(self) -> str:
+        return f"Box({self.value!r})"
+
+# Using the custom Applicative
+def double(x: int) -> int:
+    return x * 2
+
+value = Box(5)
+func = Box(double)
+
+# Apply wrapped function using ** operator
+result = value ** func  # Box(10)
+
+# Using pure to lift values
+pure_value = Box.pure(10)  # Box(10)
+
+# Applicative laws verification
+# Identity law
+identity = lambda x: x
+assert value ** Box.pure(identity) == value
+
+# Homomorphism law
+f = lambda x: x * 2
+x = 5
+assert Box.pure(x) ** Box.pure(f) == Box.pure(f(x))
+```
+
+**Example 2: Maybe as an Applicative**
+
+```python
+from katharos.ds.maybe import Maybe, Just, Nothing
+
+# Maybe handles optional computations
+# pure lifts a value into Just
+value = Maybe.pure(10)  # Just(10)
+
+# Applying a wrapped function
+func = Just(lambda x: x * 2)
+result = Just(5) ** func  # Just(10)
+
+# Nothing propagates through applicative operations
+result = Just(5) ** Nothing()  # Nothing()
+result = Nothing() ** Just(lambda x: x * 2)  # Nothing()
+
+# Combining multiple Maybe values
+# Useful for validation or combining optional values
+def add(x: int) -> Callable[[int], int]:
+    return lambda y: x + y
+
+result = Maybe.pure(add) ** Just(3) ** Just(5)  # Just(8)
+result = Maybe.pure(add) ** Just(3) ** Nothing()  # Nothing()
+
+# Real-world example: Form validation
+def create_user(name: str) -> Callable[[int], Callable[[str], dict]]:
+    return lambda age: lambda email: {
+        "name": name,
+        "age": age,
+        "email": email
+    }
+
+# All fields present
+user = Just("Alice") ** Just(30) ** Just("alice@example.com") ** Maybe.pure(create_user)
+# user = Just({"name": "Alice", "age": 30, "email": "alice@example.com"})
+
+# Missing field
+user = Just("Bob") ** Nothing() ** Just("bob@example.com") ** Maybe.pure(create_user)
+# user = Nothing()
+```
+
+**Example 3: Result as an Applicative for Error Handling**
+
+```python
+from katharos.ds import Result, Success, Failure
+
+# Result handles computations that can fail
+# pure lifts a value into Success
+value = Result.pure(42)  # Success(42)
+
+# Applying wrapped functions
+func = Success(lambda x: x * 2)
+result = Success(5) ** func  # Success(10)
+
+# Failures propagate
+result = Success(5) ** Failure(ValueError("Error"))  # Failure(ValueError("Error"))
+result = Failure(ValueError("Error")) ** Success(lambda x: x * 2)  # Failure(ValueError("Error"))
+
+# Combining multiple Results - useful for validation
+def validate_age(age: int) -> Result[int]:
+    if age < 0:
+        return Failure(ValueError("Age cannot be negative"))
+    if age > 150:
+        return Failure(ValueError("Age too high"))
+    return Success(age)
+
+def validate_name(name: str) -> Result[str]:
+    if not name:
+        return Failure(ValueError("Name cannot be empty"))
+    return Success(name)
+
+def create_person(name: str) -> Callable[[int], dict]:
+    return lambda age: {"name": name, "age": age}
+
+# All validations pass
+person = validate_name("Alice") ** validate_age(30) ** Result.pure(create_person)
+# person = Success({"name": "Alice", "age": 30})
+
+# One validation fails
+person = validate_name("") ** validate_age(30) ** Result.pure(create_person)
+# person = Failure(ValueError("Name cannot be empty"))
+```
+
+**Example 4: ImmutableList as an Applicative**
+
+```python
+from katharos.ds import ImmutableList
+
+# ImmutableList applies functions to values in a cartesian product manner
+# pure creates a singleton list
+value = ImmutableList.pure(5)  # ImmutableList([5])
+
+# Applying wrapped functions
+funcs = ImmutableList([lambda x: x * 2, lambda x: x + 10])
+values = ImmutableList([1, 2, 3])
+
+# Each function is applied to each value
+result = values ** funcs
+# ImmutableList([2, 4, 6, 11, 12, 13])
+
+# Combining multiple lists
+add = lambda x: lambda y: x + y
+result = ImmutableList.pure(add) ** ImmutableList([1, 2]) ** ImmutableList([10, 20])
+# ImmutableList([11, 21, 12, 22])
+
+# Real-world example: Generating combinations
+def make_url(protocol: str) -> Callable[[str], Callable[[str], str]]:
+    return lambda domain: lambda path: f"{protocol}://{domain}/{path}"
+
+protocols = ImmutableList(["http", "https"])
+domains = ImmutableList(["example.com", "test.com"])
+paths = ImmutableList(["api", "docs"])
+
+urls = protocols ** domains ** paths ** ImmutableList.pure(make_url) 
+# ImmutableList([
+#     "http://example.com/api", "http://example.com/docs",
+#     "http://test.com/api", "http://test.com/docs",
+#     "https://example.com/api", "https://example.com/docs",
+#     "https://test.com/api", "https://test.com/docs"
+# ])
+```
+
+**How to Write a Subtype of Applicative:**
+
+To create your own Applicative type, follow these steps:
+
+**Step 1: Define Your Type**
+
+```python
+from katharos.algebra import Applicative
+from collections.abc import Callable
+
+class MyApplicative[A](Applicative[A]):
+    """Your custom applicative type."""
+    
+    def __init__(self, value: A) -> None:
+        self._value = value
+```
+
+**Step 2: Implement the `pure` Class Method**
+
+```python
+    @classmethod
+    def pure[T](cls, x: T) -> 'MyApplicative[T]':
+        """
+        Lift a value into the applicative context.
+        
+        This should wrap the value in the minimal context.
+        
+        Args:
+            x: The value to wrap
+            
+        Returns:
+            MyApplicative[T]: The wrapped value
+        """
+        return MyApplicative(x)
+```
+
+**Step 3: Implement the `fmap` Method (from Functor)**
+
+```python
+    def fmap[B](self, f: Callable[[A], B]) -> 'MyApplicative[B]':
+        """
+        Map a function over the wrapped value.
+        
+        Args:
+            f: Function to apply to the value
+            
+        Returns:
+            MyApplicative[B]: New applicative with transformed value
+        """
+        return MyApplicative(f(self._value))
+```
+
+**Step 4: Implement the `ap` Method**
+
+```python
+    def ap[B](
+        self,
+        wrapped_funcs: 'MyApplicative[Callable[[A], B]]'
+    ) -> 'MyApplicative[B]':
+        """
+        Apply wrapped functions to this applicative's value.
+        
+        This is the key method that defines applicative behavior.
+        
+        Args:
+            wrapped_funcs: An applicative containing functions
+            
+        Returns:
+            MyApplicative[B]: Result of applying the wrapped function
+        """
+        # Extract the function and apply it to the value
+        return MyApplicative(wrapped_funcs._value(self._value))
+```
+
+**Step 5: Add Type Hint For  `__pow__`**
+
+```python
+    def __pow__[B](self, other: 'MyApplicative[Callable[[A], B]]') -> 'MyApplicative[B]':
+        return self.ap(other)
+```
+
+**Step 5: Add Helper Methods (Optional)**
+
+```python
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, MyApplicative) and self._value == other._value
+    
+    def __repr__(self) -> str:
+        return f"MyApplicative({self._value!r})"
+```
+
+**Complete Example: Validated Applicative**
+
+Here's a complete example of a custom Applicative that accumulates validation errors:
+
+```python
+from katharos.algebra import Applicative
+from collections.abc import Callable
+from typing import Union
+
+class Validated[A](Applicative[A]):
+    """
+    An Applicative that accumulates errors instead of short-circuiting.
+    
+    Unlike Result, which stops at the first error, Validated collects
+    all errors, making it ideal for form validation.
+    """
+    
+    def __init__(self, value: Union[A, list[str]], is_valid: bool = True):
+        self._value = value
+        self._is_valid = is_valid
+    
+    @classmethod
+    def pure[T](cls, x: T) -> 'Validated[T]':
+        """Wrap a valid value."""
+        return Validated(x, is_valid=True)
+    
+    @classmethod
+    def invalid(cls, errors: list[str]) -> 'Validated':
+        """Create an invalid Validated with errors."""
+        return Validated(errors, is_valid=False)
+    
+    def fmap[B](self, f: Callable[[A], B]) -> 'Validated[B]':
+        """Map over valid values only."""
+        if self._is_valid:
+            return Validated(f(self._value), is_valid=True)
+        return Validated(self._value, is_valid=False)
+    
+    def ap[B](
+        self,
+        wrapped_funcs: 'Validated[Callable[[A], B]]'
+    ) -> 'Validated[B]':
+        """
+        Apply wrapped functions, accumulating errors.
+        
+        If both are invalid, errors are combined.
+        If one is invalid, that error is returned.
+        If both are valid, the function is applied.
+        """
+        if not self._is_valid and not wrapped_funcs._is_valid:
+            # Combine errors from both
+            return Validated(
+                self._value + wrapped_funcs._value,
+                is_valid=False
+            )
+        elif not self._is_valid:
+            return Validated(self._value, is_valid=False)
+        elif not wrapped_funcs._is_valid:
+            return Validated(wrapped_funcs._value, is_valid=False)
+        else:
+            # Both valid - apply function
+            return Validated(
+                wrapped_funcs._value(self._value),
+                is_valid=True
+            )
+    
+    @property
+    def is_valid(self) -> bool:
+        return self._is_valid
+    
+    @property
+    def value(self) -> Union[A, list[str]]:
+        return self._value
+    
+    def __repr__(self) -> str:
+        if self._is_valid:
+            return f"Valid({self._value!r})"
+        return f"Invalid({self._value!r})"
+
+# Using Validated for form validation
+def validate_username(username: str) -> Validated[str]:
+    if len(username) < 3:
+        return Validated.invalid(["Username too short"])
+    if not username.isalnum():
+        return Validated.invalid(["Username must be alphanumeric"])
+    return Validated.pure(username)
+
+def validate_email(email: str) -> Validated[str]:
+    if "@" not in email:
+        return Validated.invalid(["Invalid email format"])
+    return Validated.pure(email)
+
+def create_account(username: str) -> Callable[[str], dict]:
+    return lambda email: {"username": username, "email": email}
+
+# All valid
+account = validate_username("alice123") ** validate_email("alice@example.com") ** Validated.pure(create_account)
+# Valid({"username": "alice123", "email": "alice@example.com"})
+
+# Multiple errors accumulated
+account = validate_username("ab") ** validate_email("invalid") ** Validated.pure(create_account)
+# Invalid(["Username too short", "Invalid email format"])
+```
+
+**Key Differences from Functor and Monad:**
+- **Functor**: Only maps functions over values (`fmap`)
+- **Applicative**: Can apply wrapped functions to wrapped values (`ap`), enabling combining multiple independent computations
+- **Monad**: Can chain dependent computations where each step depends on the previous result (`bind`)
+
+**Common Use Cases:**
+- **Validation**: Accumulate multiple validation errors
+- **Combining independent computations**: When you have multiple wrapped values to combine
+- **Parsing**: Apply parsers in sequence without dependencies
+- **Configuration**: Combine multiple configuration sources
+- **Form handling**: Validate multiple form fields independently
