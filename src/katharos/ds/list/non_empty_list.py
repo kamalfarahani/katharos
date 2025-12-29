@@ -162,3 +162,15 @@ class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
 
         flat: list[B] = [y for x in self._elements for y in f(x)]
         return NonEmptyList(head=flat[0], tail=flat[1:])
+
+    def op(self, other: NonEmptyList[T]) -> NonEmptyList[T]:
+        """
+        Combine this NonEmptyList with another NonEmptyList.
+
+        Args:
+            other: Another NonEmptyList to combine with.
+
+        Returns:
+            NonEmptyList[T]: The concatenated list.
+        """
+        return self.__add__(other)
