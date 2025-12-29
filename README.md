@@ -694,3 +694,427 @@ class MyApplicative(Applicative[A]):
 - **Parsing**: Apply parsers in sequence without dependencies
 - **Configuration**: Combine multiple configuration sources
 - **Form handling**: Validate multiple form fields independently
+
+### Monad
+
+A **Monad** is a powerful abstraction that represents computations as a series of steps. It extends Applicative with the ability to chain dependent computations, where each step can depend on the result of the previous step.
+
+**Core Concept:**
+- A Monad extends Applicative with the `bind` operation (also known as `flatMap` or `>>=`)
+- `bind` allows sequencing computations where the structure of the next computation depends on the value from the previous one
+- Unlike Applicatives, Monads can flatten nested structures, preventing "layers" from accumulating
+- The key difference: Applicatives combine independent computations, Monads chain dependent ones
+
+**Mathematical Laws:**
+
+Monads must satisfy three laws:
+
+1. **Left Identity Law**: `ret(a).bind(f) = f(a)`
+   - Wrapping a value and binding it with a function is the same as applying the function directly
+   
+2. **Right Identity Law**: `m.bind(ret) = m`
+   - Binding a monad with `ret` (or `pure`) returns the original monad
+   
+3. **Associativity Law**: `m.bind(f).bind(g) = m.bind(lambda x: f(x).bind(g))`
+   - The order of binding operations doesn't matter; chaining binds is associative
+
+**Implementation:**
+
+To create a Monad, inherit from the `Monad[A]` class and implement:
+- `pure(x)`: A class method that wraps a value in the monadic context (inherited from Applicative)
+- `fmap[B](self, f)`: Map a function over the wrapped value (inherited from Functor)
+- `ap(self, wrapped_funcs)`: Apply wrapped functions to wrapped values (inherited from Applicative)
+- `bind[B](self, f)`: Chain a computation that returns a monad
+
+**Example 1: Creating a Custom Monad (Box)**
+
+```python
+from katharos.algebra import Monad
+from collections.abc import Callable
+
+class Box[A](Monad[A]):
+    """A simple container that wraps a single value."""
+    
+    def __init__(self, value: A) -> None:
+        self.value = value
+    
+    @classmethod
+    def pure[T](cls, x: T) -> 'Box[T]':
+        """Wrap a value in a Box."""
+        return Box(x)
+    
+    def fmap[B](self, f: Callable[[A], B]) -> 'Box[B]':
+        """Apply a function to the wrapped value."""
+        return Box(f(self.value))
+    
+    def ap[B](self, wrapped_funcs: 'Box[Callable[[A], B]]') -> 'Box[B]':
+        """Apply a wrapped function to this Box's value."""
+        return Box(wrapped_funcs.value(self.value))
+    
+    def bind[B](self, f: Callable[[A], 'Box[B]']) -> 'Box[B]':
+        """
+        Chain a computation that returns a Box.
+        
+        This is the key method that makes Box a Monad.
+        Unlike fmap, which wraps the result, bind expects f to return
+        a Box, preventing nested Box[Box[B]] structures.
+        """
+        return f(self.value)
+    
+    def __pow__[B](self, wrapped_funcs: 'Box[Callable[[A], B]]') -> 'Box[B]':
+        """
+        Enable the ** operator for applicative application.
+        
+        Note: When implementing your own Monad subtype, you should
+        override this method with proper type annotations specific to your
+        type. Due to Python's type system limitations, the generic type
+        parameters don't always propagate correctly through inheritance.
+        """
+        return self.ap(wrapped_funcs)
+    
+    def __or__[B](self, f: Callable[[A], 'Box[B]']) -> 'Box[B]':
+        """
+        Enable the | operator for monadic bind.
+        
+        This provides a convenient infix notation for chaining computations.
+        """
+        return self.bind(f)
+    
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Box) and self.value == other.value
+    
+    def __repr__(self) -> str:
+        return f"Box({self.value!r})"
+
+# Using the custom Monad
+box = Box(5)
+
+# bind chains computations that return Box
+result = box.bind(lambda x: Box(x * 2))  # Box(10)
+
+# Using the | operator for bind
+result = box | (lambda x: Box(x * 2))  # Box(10)
+
+# Chain multiple operations - this is where Monad shines
+result = (Box(5)
+    | (lambda x: Box(x + 3))
+    | (lambda x: Box(x * 2)))  # Box(16)
+
+# Compare with fmap - notice the difference
+# fmap would create Box(Box(10)) if we returned Box from the function
+# bind flattens it to just Box(10)
+
+# Monad laws verification
+# Left identity: ret(a).bind(f) = f(a)
+f = lambda x: Box(x * 2)
+a = 5
+assert Box.pure(a).bind(f) == f(a)
+
+# Right identity: m.bind(ret) = m
+m = Box(10)
+assert m.bind(Box.pure) == m
+
+# Associativity: m.bind(f).bind(g) = m.bind(lambda x: f(x).bind(g))
+g = lambda x: Box(x + 1)
+assert m.bind(f).bind(g) == m.bind(lambda x: f(x).bind(g))
+```
+
+**Example 2: Maybe as a Monad**
+
+```python
+from katharos.ds.maybe import Maybe, Just, Nothing
+
+# Maybe handles optional computations with chaining
+# pure lifts a value into Just
+value = Maybe.pure(10)  # Just(10)
+
+# bind chains computations that might fail
+def safe_divide(x: float) -> Maybe[float]:
+    return Just(10.0 / x) if x != 0 else Nothing()
+
+def safe_sqrt(x: float) -> Maybe[float]:
+    return Just(x ** 0.5) if x >= 0 else Nothing()
+
+# Chain dependent computations using bind
+result = Just(4.0) | safe_sqrt | (lambda x: safe_divide(x))
+# Just(5.0) because sqrt(4) = 2, then 10/2 = 5
+
+# Nothing propagates through the chain
+result = Just(-4.0) | safe_sqrt | (lambda x: safe_divide(x))
+# Nothing() because sqrt of negative fails
+
+result = Just(0.0) | safe_sqrt | (lambda x: safe_divide(x))
+# Nothing() because division by zero fails
+
+# Real-world example: Database queries
+def find_user(user_id: int) -> Maybe[dict]:
+    # Simulate database lookup
+    users = {1: {"name": "Alice", "dept_id": 10}}
+    return Just(users[user_id]) if user_id in users else Nothing()
+
+def find_department(dept_id: int) -> Maybe[dict]:
+    # Simulate database lookup
+    depts = {10: {"name": "Engineering"}}
+    return Just(depts[dept_id]) if dept_id in depts else Nothing()
+
+# Chain dependent queries
+user_with_dept = (
+    find_user(1)
+    | (lambda user: find_department(user["dept_id"]))
+)
+# Just({"name": "Engineering"})
+
+# Missing user propagates Nothing
+user_with_dept = (
+    find_user(999)
+    | (lambda user: find_department(user["dept_id"]))
+)
+# Nothing() - second query never executes
+```
+
+**Example 3: Result as a Monad for Error Handling**
+
+```python
+from katharos.ds import Result, Success, Failure
+
+# Result handles computations that can fail with error propagation
+# pure lifts a value into Success
+value = Result.pure(42)  # Success(42)
+
+# bind chains computations that can fail
+def parse_int(s: str) -> Result[int]:
+    try:
+        return Success(int(s))
+    except ValueError as e:
+        return Failure(e)
+
+def divide(x: int) -> Result[float]:
+    if x == 0:
+        return Failure(ValueError("Division by zero"))
+    return Success(100.0 / x)
+
+def format_result(x: float) -> Result[str]:
+    return Success(f"Result: {x:.2f}")
+
+# Chain dependent computations using | operator
+result = (
+    parse_int("10")
+    | divide
+    | format_result
+)
+# Success("Result: 10.00")
+
+# Errors propagate through the chain
+result = (
+    parse_int("invalid")
+    | divide
+    | format_result
+)
+# Failure(ValueError("invalid literal for int()..."))
+
+result = (
+    parse_int("0")
+    | divide
+    | format_result
+)
+# Failure(ValueError("Division by zero"))
+
+# Real-world example: File processing pipeline
+def read_file(path: str) -> Result[str]:
+    try:
+        with open(path) as f:
+            return Success(f.read())
+    except Exception as e:
+        return Failure(e)
+
+def parse_json(content: str) -> Result[dict]:
+    try:
+        import json
+        return Success(json.loads(content))
+    except Exception as e:
+        return Failure(e)
+
+def validate_schema(data: dict) -> Result[dict]:
+    if "name" in data and "age" in data:
+        return Success(data)
+    return Failure(ValueError("Invalid schema"))
+
+# Chain file operations
+result = (
+    read_file("user.json")
+    | parse_json
+    | validate_schema
+)
+# Success({...}) or Failure(...) depending on each step
+```
+
+**Example 4: ImmutableList as a Monad**
+
+```python
+from katharos.ds import ImmutableList
+
+# ImmutableList as a Monad represents non-deterministic computations
+# pure creates a singleton list
+value = ImmutableList.pure(5)  # ImmutableList([5])
+
+# bind flattens nested lists (flatMap)
+def duplicate(x: int) -> ImmutableList[int]:
+    return ImmutableList([x, x])
+
+numbers = ImmutableList([1, 2, 3])
+
+# bind applies the function and flattens the result
+result = numbers | duplicate
+# ImmutableList([1, 1, 2, 2, 3, 3])
+
+# Compare with fmap - it would create nested lists
+nested = numbers.fmap(duplicate)
+# ImmutableList([ImmutableList([1, 1]), ImmutableList([2, 2]), ImmutableList([3, 3])])
+
+# Real-world example: Generating combinations
+def pairs_with(x: int) -> ImmutableList[tuple[int, int]]:
+    return ImmutableList([(x, 1), (x, 2), (x, 3)])
+
+result = ImmutableList([10, 20]) | pairs_with
+# ImmutableList([(10, 1), (10, 2), (10, 3), (20, 1), (20, 2), (20, 3)])
+
+# Nested bind for cartesian products
+def make_pair(x: int) -> ImmutableList[tuple[int, int]]:
+    return ImmutableList([2, 3, 4]).fmap(lambda y: (x, y))
+
+result = ImmutableList([1, 2]) | make_pair
+# ImmutableList([(1, 2), (1, 3), (1, 4), (2, 2), (2, 3), (2, 4)])
+```
+
+**How to Write a Subtype of Monad:**
+
+To create your own Monad type, follow these steps:
+
+**Step 1: Define Your Type**
+
+```python
+from katharos.algebra import Monad
+from collections.abc import Callable
+
+class MyMonad[A](Monad[A]):
+    """Your custom monad type."""
+    
+    def __init__(self, value: A) -> None:
+        self._value = value
+```
+
+> Note: If your type is covariant, you should use `TypeVar` with the `covariant=True` parameter.
+
+```python
+from typing import TypeVar
+
+A = TypeVar('A', covariant=True)
+
+class MyMonad(Monad[A]):
+    ...
+```
+
+**Step 2: Implement the `pure` Class Method (from Applicative)**
+
+```python
+    @classmethod
+    def pure[T](cls, x: T) -> 'MyMonad[T]':
+        """
+        Lift a value into the monadic context.
+        
+        This should wrap the value in the minimal context.
+        
+        Args:
+            x: The value to wrap
+            
+        Returns:
+            MyMonad[T]: The wrapped value
+        """
+        return MyMonad(x)
+```
+
+**Step 3: Implement the `fmap` Method (from Functor)**
+
+```python
+    def fmap[B](self, f: Callable[[A], B]) -> 'MyMonad[B]':
+        """
+        Map a function over the wrapped value.
+        
+        Args:
+            f: Function to apply to the value
+            
+        Returns:
+            MyMonad[B]: New monad with transformed value
+        """
+        return MyMonad(f(self._value))
+```
+
+**Step 4: Implement the `ap` Method (from Applicative)**
+
+```python
+    def ap[B](
+        self,
+        wrapped_funcs: 'MyMonad[Callable[[A], B]]'
+    ) -> 'MyMonad[B]':
+        """
+        Apply wrapped functions to this monad's value.
+        
+        Args:
+            wrapped_funcs: A monad containing functions
+            
+        Returns:
+            MyMonad[B]: Result of applying the wrapped function
+        """
+        return MyMonad(wrapped_funcs._value(self._value))
+```
+
+**Step 5: Implement the `bind` Method**
+
+```python
+    def bind[B](
+        self,
+        f: Callable[[A], 'MyMonad[B]']
+    ) -> 'MyMonad[B]':
+        """
+        Chain a computation that returns a monad.
+        
+        This is the key method that defines monadic behavior.
+        Unlike fmap, the function f returns a monad, and bind
+        flattens the result to prevent nested monads.
+        
+        Args:
+            f: A function that takes a value and returns a monad
+            
+        Returns:
+            MyMonad[B]: The result of applying f and flattening
+        """
+        # Apply the function to the value - it returns MyMonad[B]
+        # No need to wrap again, just return the result
+        return f(self._value)
+```
+
+**Step 6: Add Type Hints For Operators**
+
+```python
+    def __pow__[B](self, other: 'MyMonad[Callable[[A], B]]') -> 'MyMonad[B]':
+        """Enable ** operator for applicative application."""
+        return self.ap(other)
+    
+    def __or__[B](self, f: Callable[[A], 'MyMonad[B]']) -> 'MyMonad[B]':
+        """Enable | operator for monadic bind."""
+        return self.bind(f)
+```
+
+**Key Differences from Functor and Applicative:**
+- **Functor**: Only maps functions over values (`fmap`) - transforms values in context
+- **Applicative**: Can apply wrapped functions to wrapped values (`ap`) - combines independent computations
+- **Monad**: Can chain dependent computations where each step depends on the previous result (`bind`) - enables sequential, dependent operations
+
+**Common Use Cases:**
+- **Error handling**: Chain operations that can fail, with automatic error propagation
+- **Optional values**: Chain operations on values that might not exist
+- **Asynchronous operations**: Chain async operations where each depends on the previous result
+- **State management**: Thread state through a sequence of computations
+- **Parsing**: Chain parsers where each parser depends on the previous result
+- **Database queries**: Chain queries where each query depends on the previous result
+- **I/O operations**: Chain I/O operations while maintaining purity
