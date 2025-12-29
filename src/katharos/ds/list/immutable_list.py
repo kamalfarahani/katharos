@@ -151,7 +151,7 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
         Returns:
             ImmutableList[B]: A new ImmutableList with results of applying functions.
         """
-        return ImmutableList([f(x) for f in wrapped_funcs for x in self])
+        return ImmutableList[B]([f(x) for f in wrapped_funcs for x in self])
 
     def bind[B](
         self,
@@ -167,3 +167,18 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
             ImmutableList[B]: A new ImmutableList with the results of applying the function.
         """
         return ImmutableList([x for mapped_list in self.fmap(f) for x in mapped_list])
+
+    def __matmul__(self, other: ImmutableList[T]) -> ImmutableList[T]:
+        return self.op(other)
+
+    def __pow__[B](
+        self,
+        wrapped_funcs: ImmutableList[Callable[[T], B]],
+    ) -> ImmutableList[B]:
+        return self.ap(wrapped_funcs)
+
+    def __or__[B](
+        self,
+        f: Callable[[T], ImmutableList[B]],
+    ) -> ImmutableList[B]:
+        return self.bind(f)
