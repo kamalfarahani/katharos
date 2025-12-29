@@ -88,6 +88,18 @@ class Maybe(Monad[A], ABC):
         """
         return self.bind(f)
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Maybe):
+            return False
+
+        match self, other:
+            case Just(value=v1), Just(value=v2):
+                return v1 == v2
+            case Nothing(), Nothing():
+                return True
+            case _:
+                return False
+
 
 class Nothing(Maybe[A]):
     """
