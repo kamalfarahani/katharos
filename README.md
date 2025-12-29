@@ -493,7 +493,16 @@ user = Just("Bob") ** Nothing() ** Just("bob@example.com") ** Maybe.pure(create_
 **Example 3: Result as an Applicative for Error Handling**
 
 ```python
-from katharos.ds import Result, Success, Failure
+from typing import NamedTuple
+
+from katharos.ds.result import Failure, Result, Success
+from katharos.functools import F
+
+
+class Person(NamedTuple):
+    name: str
+    age: int
+
 
 # Result handles computations that can fail
 # pure lifts a value into Success
@@ -505,7 +514,10 @@ result = Success(5) ** func  # Success(10)
 
 # Failures propagate
 result = Success(5) ** Failure(ValueError("Error"))  # Failure(ValueError("Error"))
-result = Failure(ValueError("Error")) ** Success(lambda x: x * 2)  # Failure(ValueError("Error"))
+result = Failure(ValueError("Error")) ** Success(
+    lambda x: x * 2
+)  # Failure(ValueError("Error"))
+
 
 # Combining multiple Results - useful for validation
 def validate_age(age: int) -> Result[int]:
@@ -515,20 +527,24 @@ def validate_age(age: int) -> Result[int]:
         return Failure(ValueError("Age too high"))
     return Success(age)
 
+
 def validate_name(name: str) -> Result[str]:
     if not name:
         return Failure(ValueError("Name cannot be empty"))
     return Success(name)
 
-def create_person(name: str) -> Callable[[int], dict]:
-    return lambda age: {"name": name, "age": age}
+
+@F.curry
+def create_person(name: str, age: int) -> Person:
+    return Person(name=name, age=age)
+
 
 # All validations pass
-person = validate_name("Alice") ** validate_age(30) ** Result.pure(create_person)
+person = validate_age(30) ** validate_name("Alice") ** Result.pure(create_person)
 # person = Success({"name": "Alice", "age": 30})
 
 # One validation fails
-person = validate_name("") ** validate_age(30) ** Result.pure(create_person)
+person = validate_age(30) ** validate_name("") ** Result.pure(create_person)
 # person = Failure(ValueError("Name cannot be empty"))
 ```
 
