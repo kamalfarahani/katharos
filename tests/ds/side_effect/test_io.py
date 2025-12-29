@@ -116,8 +116,8 @@ class TestApplicativeLaws:
         v: IO[Callable[[int], int]] = IO(add_ten)
         w: IO[int] = IO(5)
 
-        left = w ^ v ^ u
-        right = w ^ (v ^ (u ^ IO(F.compose)))
+        left = (w**v) ** u
+        right = w**v**u ** IO.pure(F.compose)
 
         assert isinstance(left, IO)
         assert isinstance(right, IO)
@@ -225,7 +225,7 @@ class TestIOOperators:
         value = IO(21)
         func_io = IO(f)
 
-        result = value ^ func_io
+        result = value**func_io
 
         assert isinstance(result, IO)
         assert result.value == 42
