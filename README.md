@@ -1,7 +1,7 @@
 # Katharos
 
 
-<img src="./logo.png" alt="logo" width="100" height="100">
+<img src="./logo.png" alt="logo" width="200" height="200">
 
 Katharos that provides a set of functions and types for functional programming in `Python`.
 
