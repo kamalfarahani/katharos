@@ -23,10 +23,11 @@ class Applicative[A](Functor[A], ABC):
         **: Infix operator for ap (applicative application).
 
     Laws:
-        - Identity: v ** pure(id) = v
-        - Composition: w ** (v ** (u ** pure(compose))) = (w ** v) ** u
-        - Homomorphism: pure(x) ** pure(f) = pure(f(x))
-        - Interchange: pure(y) ** u = u ** pure(lambda f: f(y))
+        if App is an Applicative:
+            - Identity: v ** App.pure(id) = v
+            - Composition: w ** (v ** (u ** App.pure(compose))) = (w ** v) ** u
+            - Homomorphism: App.pure(x) ** App.pure(f) = App.pure(f(x))
+            - Interchange: App.pure(y) ** u = u ** App.pure(lambda f: f(y))
 
     Where:
         - id is the identity function: lambda x: x
