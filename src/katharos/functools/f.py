@@ -1,7 +1,7 @@
 from collections.abc import Callable, Iterable
 from operator import matmul
 
-from katharos.algebra import Monoid, Semigroup
+from katharos.algebra import Semigroup
 from katharos.ds.list import NonEmptyList
 
 
