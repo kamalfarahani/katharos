@@ -15,29 +15,27 @@ class IO(SideEffect[A]):
     It encapsulates a value along with input and output side-effect functions.
     """
 
+    io_func: FunctionWithSideEffect
+
     def __init__(
         self,
         value: A,
-        input_func: FunctionWithSideEffect = FunctionWithSideEffect.no_op(),
-        output_func: FunctionWithSideEffect = FunctionWithSideEffect.no_op(),
+        io_func: FunctionWithSideEffect = FunctionWithSideEffect.no_op(),
     ):
         """
         Initialize an IO action.
 
         Args:
-            input_func: Function to perform input side effects (defaults to no operation)
-            output_func: Function to perform output side effects (defaults to no operation)
+            func: Function to perform side effects (defaults to no operation)
         """
         super().__init__(value)
-        self.input_func = input_func
-        self.output_func = output_func
+        self.io_func = io_func
 
     def execute(self) -> None:
         """
         Execute the IO action by running input and output functions.
         """
-        self.input_func.func()
-        self.output_func.func()
+        self.io_func.f()
 
     def fmap[B](self, f: Callable[[A], B]) -> IO[B]:
         """
@@ -77,6 +75,23 @@ class IO(SideEffect[A]):
         """
         return super().bind(f)
 
+    def sequence[B](self, other: IO[B]) -> IO[B]:
+        """
+        Sequence two monadic actions, discarding the result of the first.
+
+        Args:
+            other: The IO to sequence after this one.
+
+        Returns:
+            IO[B]: The result of the second IO.
+        """
+        io = IO(
+            value=other.value,
+            io_func=self.io_func >> other.io_func,
+        )
+
+        return io
+
     def __xor__[B](self, wrapped_funcs: IO[Callable[[A], B]]) -> IO[B]:
         """
         Infix operator for IO applicative functor.
@@ -102,6 +117,21 @@ class IO(SideEffect[A]):
             A new IO action with the result of applying f to the value
         """
         return self.bind(f)
+
+    def __rshift__[B](self, other: IO[B]) -> IO[B]:
+        """
+        Infix operator for sequencing IO actions.
+
+        Sequences the first IO action with the second IO action, discarding
+        the value of the first IO action.
+
+        Args:
+            other: The second IO action to sequence.
+
+        Returns:
+            A new IO action that contains the value of the second IO action.
+        """
+        return self.sequence(other)
 
     @classmethod
     def pure[T](cls, x: T) -> IO[T]:

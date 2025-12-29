@@ -16,7 +16,7 @@ class Maybe(Monad[A], ABC):
     """
 
     @classmethod
-    def pure(cls: type[Maybe], x: A) -> Maybe[A]:
+    def pure[T](cls: type[Maybe], x: T) -> Maybe[T]:
         """
         Return a Maybe containing the given value.
 
@@ -87,6 +87,18 @@ class Maybe(Monad[A], ABC):
             Maybe[B]: The result of applying the function.
         """
         return self.bind(f)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Maybe):
+            return False
+
+        match self, other:
+            case Just(value=v1), Just(value=v2):
+                return v1 == v2
+            case Nothing(), Nothing():
+                return True
+            case _:
+                return False
 
 
 class Nothing(Maybe[A]):
