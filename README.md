@@ -185,7 +185,7 @@ list3 = ImmutableList([6, 7])
 assert (list1 @ list2) @ list3 == list1 @ (list2 @ list3)
 ```
 
-**Example 2: MonoidMaybe for Optional Values**
+**Example 3: MonoidMaybe for Optional Values**
 
 ```python
 from katharos.ds.maybe import Maybe, Just, Nothing, MonoidMaybe
