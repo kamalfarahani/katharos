@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Self
 
 
 class Semigroup(ABC):
@@ -12,7 +13,7 @@ class Semigroup(ABC):
     """
 
     @abstractmethod
-    def op[S: Semigroup](self: S, other: S) -> S:
+    def op(self: Self, other: Self) -> Self:
         """
         Combine this semigroup with another semigroup.
 
@@ -28,7 +29,7 @@ class Semigroup(ABC):
 
         raise NotImplementedError()
 
-    def __matmul__[S: Semigroup](self: S, other: S) -> S:
+    def __matmul__(self: Self, other: Self) -> Self:
         """
         Combine this semigroup with another semigroup.
         Must satisfy the associativity property: (a @ b) @ c = a @ (b @ c)

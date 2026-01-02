@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Self
 
 from katharos.algebra.applicative.applicative import Applicative
 
@@ -60,7 +59,7 @@ class Monad[A](Applicative[A], ABC):
     """
 
     @classmethod
-    def ret[T](cls: type[Self], x: T) -> Self:
+    def ret[T](cls: type[Monad], x: T) -> Monad[T]:
         """
         Return a Monad containing the given value.
 
@@ -68,14 +67,14 @@ class Monad[A](Applicative[A], ABC):
             x: The value to wrap in a Monad.
 
         Returns:
-            Self: A Monad containing the given value.
+            Monad[T]: A Monad containing the given value.
         """
         return cls.pure(x)
 
     @abstractmethod
-    def bind[B, M: Self](
+    def bind[B](
         self,
-        f: Callable[[A], M],
+        f: Callable[[A], Monad[B]],
     ) -> Monad[B]:
         """
         Monad bind operation.
@@ -88,7 +87,7 @@ class Monad[A](Applicative[A], ABC):
         """
         raise NotImplementedError()
 
-    def sequence[B, M: Monad](self, other: M) -> Monad[B]:
+    def sequence[B](self, other: Monad[B]) -> Monad[B]:
         """
         Sequence two monadic actions, discarding the result of the first.
 
@@ -100,7 +99,7 @@ class Monad[A](Applicative[A], ABC):
         """
         return other
 
-    def __or__[B, M: Self](self, f: Callable[[A], M]) -> Monad[B]:
+    def __or__[B](self, f: Callable[[A], Monad[B]]) -> Monad[B]:
         """
         Infix operator for bind.
 
@@ -112,7 +111,7 @@ class Monad[A](Applicative[A], ABC):
         """
         return self.bind(f)
 
-    def __rshift__[B, M: Monad](self, other: M) -> Monad[B]:
+    def __rshift__[B](self, other: Monad[B]) -> Monad[B]:
         """
         Infix operator for sequence (sequence two monadic actions).
 

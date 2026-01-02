@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Self
 
 from katharos.algebra.functor.functor import Functor
@@ -52,9 +53,11 @@ class Applicative[A](Functor[A], ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def ap[B, App: Self](
+    def ap[B](
         self,
-        wrapped_funcs: App,  # SubclassApplicative[Callable[[A], B]],
+        wrapped_funcs: Applicative[
+            Callable[[A], B]
+        ],  # SubclassApplicative[Callable[[A], B]],
     ) -> Applicative[B]:
         """
         Apply wrapped functions to this Applicative's value.
@@ -67,9 +70,9 @@ class Applicative[A](Functor[A], ABC):
         """
         raise NotImplementedError()
 
-    def __pow__[B, App: Self](
+    def __pow__[B](
         self,
-        wrapped_funcs: App,  # SubclassApplicative[Callable[[A], B]],
+        wrapped_funcs: Applicative[Callable[[A], B]],
     ) -> Applicative[B]:
         """
         Apply wrapped functions to this Applicative's value.
