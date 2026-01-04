@@ -44,7 +44,7 @@ To create a Semigroup, inherit from the `Semigroup` class and implement:
 ```python
 from katharos.algebra import Semigroup
 
-class Max(Semigroup):
+class Max(Semigroup["Max"]):
     """A Semigroup that keeps the maximum value."""
     
     def __init__(self, value: int) -> None:
@@ -124,7 +124,7 @@ To create a Monoid, inherit from the `Monoid` class and implement:
 ```python
 from katharos.algebra import Monoid
 
-class Sum(Monoid):
+class Sum(Monoid["Sum"]):
     """A Monoid for integer addition with 0 as identity."""
     
     def __init__(self, value: int) -> None:
@@ -236,7 +236,7 @@ To create a Functor, inherit from the `Functor[A]` class and implement:
 from katharos.algebra import Functor
 from collections.abc import Callable
 
-class Box[A](Functor[A]):
+class Box[A](Functor["Box", A]):
     """A simple container that wraps a single value."""
     
     def __init__(self, value: A) -> None:
@@ -388,7 +388,7 @@ To create an Applicative, inherit from the `Applicative[A]` class and implement:
 from katharos.algebra import Applicative
 from collections.abc import Callable
 
-class Box[A](Applicative[A]):
+class Box[A](Applicative["Box", A]):
     """A simple container that wraps a single value."""
     
     def __init__(self, value: A) -> None:
@@ -403,11 +403,12 @@ class Box[A](Applicative[A]):
         """Apply a function to the wrapped value."""
         return Box(f(self.value))
     
-    def ap[B](self, wrapped_funcs: 'Box[Callable[[A], B]]') -> 'Box[B]':
+    def ap[B](self, wrapped_funcs: Applicative['Box', Callable[[A], B]]) -> 'Box[B]':
         """Apply a wrapped function to this Box's value."""
+        wrapped_funcs = cast(Box[Callable[[A], B]], wrapped_funcs)
         return Box(wrapped_funcs.value(self.value))
     
-    def __pow__[B](self, wrapped_funcs: 'Box[Callable[[A], B]]') -> 'Box[B]':
+    def __pow__[B](self, wrapped_funcs: 'Applicative[Box, Callable[[A], B]]') -> 'Box[B]':
         """
         Enable the ** operator for applicative application.
         
@@ -601,7 +602,7 @@ To create your own Applicative type, follow these steps:
 from katharos.algebra import Applicative
 from collections.abc import Callable
 
-class MyApplicative[A](Applicative[A]):
+class MyApplicative[A](Applicative["MyApplicative", A]):
     """Your custom applicative type."""
     
     def __init__(self, value: A) -> None:
@@ -615,7 +616,7 @@ from typing import TypeVar
 
 A = TypeVar('A', covariant=True)
 
-class MyApplicative(Applicative[A]):
+class MyApplicative(Applicative["MyApplicative", A]):
     ...
 ```
 
@@ -659,7 +660,7 @@ class MyApplicative(Applicative[A]):
 ```python
     def ap[B](
         self,
-        wrapped_funcs: 'MyApplicative[Callable[[A], B]]'
+        wrapped_funcs: 'Applicative[MyApplicative, Callable[[A], B]]'
     ) -> 'MyApplicative[B]':
         """
         Apply wrapped functions to this applicative's value.
@@ -672,6 +673,8 @@ class MyApplicative(Applicative[A]):
         Returns:
             MyApplicative[B]: Result of applying the wrapped function
         """
+        wrapped_funcs = cast(MyApplicative[Callable[[A], B]], wrapped_funcs) # This line is needed because python doesn't support higher kinded types, also it's safe because we know an instance of `Applicative[MyApplicative, Callable[[A], B]]` is an instance of `MyApplicative[Callable[[A], B]]`
+        
         # Extract the function and apply it to the value
         return MyApplicative(wrapped_funcs._value(self._value))
 ```
@@ -679,7 +682,7 @@ class MyApplicative(Applicative[A]):
 **Step 5: Add Type Hint For  `__pow__`**
 
 ```python
-    def __pow__[B](self, other: 'MyApplicative[Callable[[A], B]]') -> 'MyApplicative[B]':
+    def __pow__[B](self, other: 'Applicative[MyApplicative, Callable[[A], B]]') -> 'MyApplicative[B]':
         return self.ap(other)
 ```
 
@@ -732,7 +735,7 @@ To create a Monad, inherit from the `Monad[A]` class and implement:
 from katharos.algebra import Monad
 from collections.abc import Callable
 
-class Box[A](Monad[A]):
+class Box[A](Monad["Box", A]):
     """A simple container that wraps a single value."""
     
     def __init__(self, value: A) -> None:
@@ -996,7 +999,7 @@ To create your own Monad type, follow these steps:
 from katharos.algebra import Monad
 from collections.abc import Callable
 
-class MyMonad[A](Monad[A]):
+class MyMonad[A](Monad["MyMonad", A]):
     """Your custom monad type."""
     
     def __init__(self, value: A) -> None:
@@ -1007,10 +1010,11 @@ class MyMonad[A](Monad[A]):
 
 ```python
 from typing import TypeVar
+from typing import cast
 
 A = TypeVar('A', covariant=True)
 
-class MyMonad(Monad[A]):
+class MyMonad(Monad["MyMonad", A]):
     ...
 ```
 
@@ -1054,7 +1058,7 @@ class MyMonad(Monad[A]):
 ```python
     def ap[B](
         self,
-        wrapped_funcs: 'MyMonad[Callable[[A], B]]'
+        wrapped_funcs: Applicative['MyMonad', Callable[[A], B]]
     ) -> 'MyMonad[B]':
         """
         Apply wrapped functions to this monad's value.
@@ -1065,6 +1069,7 @@ class MyMonad(Monad[A]):
         Returns:
             MyMonad[B]: Result of applying the wrapped function
         """
+        wrapped_funcs = cast(MyMonad[Callable[[A], B]], wrapped_funcs) # This line is needed because python doesn't support higher kinded types, also it's safe because we know an instance of `Applicative['MyMonad', Callable[[A], B]]` is an instance of `MyMonad[Callable[[A], B]]`
         return MyMonad(wrapped_funcs._value(self._value))
 ```
 
@@ -1073,7 +1078,7 @@ class MyMonad(Monad[A]):
 ```python
     def bind[B](
         self,
-        f: Callable[[A], 'MyMonad[B]']
+        f: Callable[[A], Monad['MyMonad', B]]
     ) -> 'MyMonad[B]':
         """
         Chain a computation that returns a monad.
@@ -1090,17 +1095,18 @@ class MyMonad(Monad[A]):
         """
         # Apply the function to the value - it returns MyMonad[B]
         # No need to wrap again, just return the result
+        f = cast(Callable[[A], MyMonad[B]]) # This line is needed because python doesn't support higher kinded types, also it's safe because we know and instance of `Monad['MyMonad', B]` is an instance of MyMonad[B]
         return f(self._value)
 ```
 
 **Step 6: Add Type Hints For Operators**
 
 ```python
-    def __pow__[B](self, other: 'MyMonad[Callable[[A], B]]') -> 'MyMonad[B]':
+    def __pow__[B](self, other: Applicative['MyMonad', Callable[[A], B]]) -> 'MyMonad[B]':
         """Enable ** operator for applicative application."""
         return self.ap(other)
     
-    def __or__[B](self, f: Callable[[A], 'MyMonad[B]']) -> 'MyMonad[B]':
+    def __or__[B](self, f: Callable[[A], Monad['MyMonad', B]]) -> 'MyMonad[B]':
         """Enable | operator for monadic bind."""
         return self.bind(f)
 ```
