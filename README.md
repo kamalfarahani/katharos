@@ -1124,3 +1124,633 @@ class MyMonad(Monad["MyMonad", A]):
 - **Parsing**: Chain parsers where each parser depends on the previous result
 - **Database queries**: Chain queries where each query depends on the previous result
 - **I/O operations**: Chain I/O operations while maintaining purity
+
+
+## ds (Data Structures)
+
+The `ds` module provides functional data structures that implement algebraic type classes (Functor, Applicative, Monad, Semigroup, Monoid). These data structures enable type-safe, composable functional programming patterns in Python.
+
+### Overview
+
+The module includes:
+- **Maybe**: Optional values with type-safe null handling
+- **Result**: Error handling without exceptions
+- **ImmutableList**: Immutable list with monadic operations
+- **NonEmptyList**: List guaranteed to have at least one element
+- **IO**: Encapsulation of side effects
+- **MonoidMaybe**: Monoid wrapper for Maybe values
+
+### Maybe
+
+The `Maybe` type represents computations that might fail or values that might be absent. It's an alternative to using `None` that forces explicit handling of the absence case.
+
+#### Constructors
+
+```python
+from katharos.ds import Maybe, Just, Nothing
+
+# Create a value that exists
+value = Just(42)
+
+# Create an absent value
+absent = Nothing()
+
+# Using pure (returns Just)
+value = Maybe.pure(42)
+```
+
+#### Basic Operations
+
+**Functor - Transform values:**
+```python
+# Map a function over a Just value
+result = Just(5).fmap(lambda x: x * 2)  # Just(10)
+
+# Map over Nothing returns Nothing
+result = Nothing().fmap(lambda x: x * 2)  # Nothing()
+```
+
+**Applicative - Apply wrapped functions:**
+```python
+# Apply a wrapped function to a wrapped value
+value = Just(5)
+func = Just(lambda x: x * 2)
+result = value.ap(func)  # Just(10)
+
+# Using ** operator
+result = value ** func  # Just(10)
+
+# If either is Nothing, result is Nothing
+result = Nothing() ** Just(lambda x: x * 2)  # Nothing()
+```
+
+**Monad - Chain dependent computations:**
+```python
+def safe_divide(x: float) -> Maybe[float]:
+    if x == 0:
+        return Nothing()
+    return Just(10.0 / x)
+
+def safe_sqrt(x: float) -> Maybe[float]:
+    if x < 0:
+        return Nothing()
+    return Just(x ** 0.5)
+
+# Chain operations with bind
+result = Just(2).bind(safe_divide).bind(safe_sqrt)  # Just(2.236...)
+
+# Using | operator for chaining
+result = Just(4) | safe_divide | safe_sqrt  # Just(1.581...)
+
+# Failure propagates automatically
+result = Just(0) | safe_divide | safe_sqrt  # Nothing()
+```
+
+#### Pattern Matching
+
+```python
+match maybe_value:
+    case Just(value=x):
+        print(f"Got value: {x}")
+    case Nothing():
+        print("No value")
+```
+
+#### Use Cases
+
+- **Null safety**: Replace `None` with explicit Maybe types
+- **Optional configuration**: Handle missing config values
+- **Database queries**: Represent records that might not exist
+- **Parsing**: Handle values that might fail to parse
+- **API responses**: Handle optional fields in responses
+
+### MonoidMaybe
+
+A Monoid wrapper for `Maybe` values where the inner type is a Semigroup. Enables combining Maybe values with a sensible identity element.
+
+```python
+from katharos.ds import MonoidMaybe, Just, Nothing
+
+# Create MonoidMaybe instances (assuming inner type is Semigroup)
+m1 = MonoidMaybe(Just(value1))
+m2 = MonoidMaybe(Just(value2))
+
+# Combine using monoid operation
+result = m1.op(m2)  # Combines inner values if both are Just
+
+# Identity element
+identity = MonoidMaybe.identity()  # MonoidMaybe(Nothing())
+
+# Nothing acts as identity
+MonoidMaybe(Nothing()).op(m1) == m1  # True
+m1.op(MonoidMaybe(Nothing())) == m1  # True
+```
+
+### Result
+
+The `Result` type represents computations that can either succeed with a value (`Success`) or fail with an exception (`Failure`). It provides railway-oriented programming for error handling.
+
+#### Constructors
+
+```python
+from katharos.ds import Result, Success, Failure
+
+# Create a successful result
+success = Success(42)
+
+# Create a failed result
+failure = Failure(ValueError("Something went wrong"))
+
+# Using pure (returns Success)
+success = Result.pure(42)
+```
+
+#### Basic Operations
+
+**Functor - Transform successful values:**
+```python
+# Map over Success
+result = Success(5).fmap(lambda x: x * 2)  # Success(10)
+
+# Map over Failure returns the same Failure
+result = Failure(ValueError("error")).fmap(lambda x: x * 2)  # Failure(ValueError("error"))
+```
+
+**Applicative - Apply wrapped functions:**
+```python
+# Apply a wrapped function
+value = Success(5)
+func = Success(lambda x: x * 2)
+result = value.ap(func)  # Success(10)
+
+# Using ** operator
+result = value ** func  # Success(10)
+
+# Failure propagates
+result = Failure(ValueError("error")) ** func  # Failure(ValueError("error"))
+```
+
+**Monad - Chain operations that can fail:**
+```python
+def parse_int(s: str) -> Result[int]:
+    try:
+        return Success(int(s))
+    except ValueError as e:
+        return Failure(e)
+
+def divide_by_two(x: int) -> Result[float]:
+    return Success(x / 2)
+
+# Chain operations with bind
+result = Success("42").bind(parse_int).bind(divide_by_two)  # Success(21.0)
+
+# Using | operator
+result = Success("42") | parse_int | divide_by_two  # Success(21.0)
+
+# Error propagates through the chain
+result = Success("not_a_number") | parse_int | divide_by_two  # Failure(ValueError(...))
+```
+
+#### Pattern Matching
+
+```python
+match result:
+    case Success(value=x):
+        print(f"Success: {x}")
+    case Failure(error=e):
+        print(f"Error: {e}")
+```
+
+#### Use Cases
+
+- **Error handling**: Replace try/except with functional error handling
+- **Validation**: Chain validation steps with automatic error propagation
+- **File I/O**: Handle file operations that can fail
+- **Network requests**: Handle API calls that can fail
+- **Data transformation pipelines**: Chain transformations with error handling
+
+### ImmutableList
+
+An immutable list implementation that supports Functor, Applicative, Monad, and Monoid operations. Provides a functional alternative to Python's mutable lists.
+
+#### Constructors
+
+```python
+from katharos.ds import ImmutableList
+
+# Create from a list
+lst = ImmutableList([1, 2, 3, 4, 5])
+
+# Create a singleton list
+singleton = ImmutableList.pure(42)  # ImmutableList([42])
+
+# Empty list (identity element)
+empty = ImmutableList.identity()  # ImmutableList([])
+```
+
+#### Basic Operations
+
+**Functor - Transform elements:**
+```python
+# Map a function over all elements
+numbers = ImmutableList([1, 2, 3, 4])
+doubled = numbers.fmap(lambda x: x * 2)  # ImmutableList([2, 4, 6, 8])
+
+# Type transformations
+strings = numbers.fmap(str)  # ImmutableList(['1', '2', '3', '4'])
+```
+
+**Applicative - Cartesian product of functions and values:**
+```python
+# Apply multiple functions to multiple values
+values = ImmutableList([1, 2, 3])
+funcs = ImmutableList([lambda x: x * 2, lambda x: x + 10])
+
+result = values.ap(funcs)
+# ImmutableList([2, 4, 6, 11, 12, 13])
+
+# Using ** operator
+result = values ** funcs
+```
+
+**Monad - Flatten nested lists:**
+```python
+# bind (flatMap) flattens the result
+def duplicate(x: int) -> ImmutableList[int]:
+    return ImmutableList([x, x])
+
+numbers = ImmutableList([1, 2, 3])
+result = numbers.bind(duplicate)  # ImmutableList([1, 1, 2, 2, 3, 3])
+
+# Using | operator
+result = numbers | duplicate
+
+# Generate combinations
+def pair_with_next(x: int) -> ImmutableList[tuple[int, int]]:
+    return ImmutableList([(x, x+1), (x, x+2)])
+
+result = ImmutableList([1, 2]) | pair_with_next
+# ImmutableList([(1, 2), (1, 3), (2, 3), (2, 4)])
+```
+
+**Monoid - Concatenation:**
+```python
+# Concatenate lists
+list1 = ImmutableList([1, 2, 3])
+list2 = ImmutableList([4, 5, 6])
+
+# Using op method
+result = list1.op(list2)  # ImmutableList([1, 2, 3, 4, 5, 6])
+
+# Using @ operator (semigroup operation)
+result = list1 @ list2  # ImmutableList([1, 2, 3, 4, 5, 6])
+
+# Using + operator
+result = list1 + list2  # ImmutableList([1, 2, 3, 4, 5, 6])
+
+# Identity element
+empty = ImmutableList.identity()
+list1.op(empty) == list1  # True
+```
+
+#### Sequence Operations
+
+```python
+# Length
+len(ImmutableList([1, 2, 3]))  # 3
+
+# Indexing
+lst = ImmutableList([10, 20, 30])
+lst[0]  # 10
+lst[1]  # 20
+
+# Membership
+3 in ImmutableList([1, 2, 3])  # True
+
+# Iteration
+for x in ImmutableList([1, 2, 3]):
+    print(x)
+
+# Convert to list
+list(ImmutableList([1, 2, 3]))  # [1, 2, 3]
+
+# Equality and hashing
+ImmutableList([1, 2]) == ImmutableList([1, 2])  # True
+hash(ImmutableList([1, 2]))  # Can be used in sets/dicts
+```
+
+#### Use Cases
+
+- **Immutable data structures**: Thread-safe data sharing
+- **Functional pipelines**: Chain transformations on collections
+- **List comprehensions**: Functional alternative with explicit types
+- **Combinations and permutations**: Generate combinations using bind
+- **Data processing**: Transform collections functionally
+
+### NonEmptyList
+
+A list guaranteed to contain at least one element. Useful when you need to ensure a collection is never empty.
+
+#### Constructors
+
+```python
+from katharos.ds import NonEmptyList
+
+# Create with head and tail
+nel = NonEmptyList(head=1, tail=[2, 3, 4])
+
+# Create singleton
+singleton = NonEmptyList.pure(42)  # NonEmptyList(head=42, tail=[])
+```
+
+#### Properties
+
+```python
+nel = NonEmptyList(head=1, tail=[2, 3, 4])
+
+# Access head (first element)
+nel.head  # 1
+
+# Access tail (remaining elements)
+nel.tail  # [2, 3, 4]
+```
+
+#### Operations
+
+**Functor:**
+```python
+nel = NonEmptyList(head=1, tail=[2, 3])
+doubled = nel.fmap(lambda x: x * 2)  # NonEmptyList(head=2, tail=[4, 6])
+```
+
+**Applicative:**
+```python
+values = NonEmptyList(head=1, tail=[2])
+funcs = NonEmptyList(head=lambda x: x * 2, tail=[lambda x: x + 10])
+result = values.ap(funcs)  # NonEmptyList with all combinations
+```
+
+**Monad:**
+```python
+def duplicate(x: int) -> NonEmptyList[int]:
+    return NonEmptyList(head=x, tail=[x])
+
+nel = NonEmptyList(head=1, tail=[2])
+result = nel.bind(duplicate)  # NonEmptyList(head=1, tail=[1, 2, 2])
+```
+
+**Semigroup (Concatenation):**
+```python
+nel1 = NonEmptyList(head=1, tail=[2])
+nel2 = NonEmptyList(head=3, tail=[4])
+
+# Using op method
+result = nel1.op(nel2)  # NonEmptyList(head=1, tail=[2, 3, 4])
+
+# Using + operator
+result = nel1 + nel2  # NonEmptyList(head=1, tail=[2, 3, 4])
+```
+
+#### Use Cases
+
+- **Aggregations**: Ensure at least one value for operations like max/min
+- **Configuration**: Require at least one option
+- **User input**: Validate non-empty collections
+- **Graph algorithms**: Represent paths that must have at least one node
+- **Fold operations**: Safe folding without needing initial value
+
+### IO
+
+The `IO` type encapsulates side effects, allowing you to describe I/O operations without immediately executing them. This maintains referential transparency in functional code.
+
+#### Constructors
+
+```python
+from katharos.ds import IO
+
+# Create an IO action with a value
+io = IO(42)
+
+# Using pure
+io = IO.pure(42)
+```
+
+#### Basic Operations
+
+**Functor - Transform the value:**
+```python
+io = IO(5)
+doubled = io.fmap(lambda x: x * 2)  # IO(10)
+
+# Value is not executed until you call execute()
+doubled.value  # 10
+```
+
+**Applicative - Apply wrapped functions:**
+```python
+value = IO(5)
+func = IO(lambda x: x * 2)
+
+result = value.ap(func)  # IO(10)
+
+# Using ** operator
+result = value ** func  # IO(10)
+```
+
+**Monad - Chain I/O operations:**
+```python
+def read_config(path: str) -> IO[dict]:
+    # In practice, this would read from file
+    return IO({"setting": "value"})
+
+def process_config(config: dict) -> IO[str]:
+    return IO(config.get("setting", "default"))
+
+# Chain operations
+result = IO("config.json").bind(read_config).bind(process_config)
+
+# Using | operator
+result = IO("config.json") | read_config | process_config
+```
+
+**Sequencing - Combine side effects:**
+```python
+from katharos.ds.side_effect import FunctionWithSideEffect
+
+def print_action():
+    print("Hello")
+
+def write_action():
+    print("World")
+
+io1 = IO(None, FunctionWithSideEffect(f=print_action))
+io2 = IO(None, FunctionWithSideEffect(f=write_action))
+
+# Sequence operations (>> operator)
+combined = io1 >> io2
+
+# Execute both side effects in order
+combined.execute()  # Prints: Hello\nWorld
+```
+
+#### Execution
+
+```python
+# Create an IO action
+io = IO(42)
+
+# Execute the side effects (if any)
+io.execute()
+
+# Access the value
+io.value  # 42
+```
+
+#### Use Cases
+
+- **File I/O**: Describe file operations without executing them
+- **Console I/O**: Describe print/input operations
+- **Database operations**: Describe queries without executing
+- **Network requests**: Describe HTTP calls without making them
+- **Testing**: Mock I/O operations by replacing IO actions
+- **Composition**: Build complex I/O operations from simple ones
+
+### Common Patterns
+
+#### Error Handling with Result
+
+```python
+from katharos.ds import Result, Success, Failure
+
+def validate_age(age: int) -> Result[int]:
+    if age < 0:
+        return Failure(ValueError("Age cannot be negative"))
+    if age > 150:
+        return Failure(ValueError("Age too high"))
+    return Success(age)
+
+def calculate_birth_year(age: int) -> Result[int]:
+    from datetime import datetime
+    return Success(datetime.now().year - age)
+
+# Chain validations
+result = Success(25) | validate_age | calculate_birth_year
+match result:
+    case Success(value=year):
+        print(f"Born in {year}")
+    case Failure(error=e):
+        print(f"Error: {e}")
+```
+
+#### Optional Values with Maybe
+
+```python
+from katharos.ds import Maybe, Just, Nothing
+
+def get_user(user_id: int) -> Maybe[dict]:
+    # Simulate database lookup
+    users = {1: {"name": "Alice"}, 2: {"name": "Bob"}}
+    if user_id in users:
+        return Just(users[user_id])
+    return Nothing()
+
+def get_name(user: dict) -> Maybe[str]:
+    return Just(user.get("name")) if "name" in user else Nothing()
+
+# Chain operations
+result = Just(1) | get_user | get_name
+match result:
+    case Just(value=name):
+        print(f"User name: {name}")
+    case Nothing():
+        print("User not found")
+```
+
+#### List Comprehensions with ImmutableList
+
+```python
+from katharos.ds import ImmutableList
+
+# Traditional list comprehension
+# result = [x * y for x in [1, 2, 3] for y in [10, 20]]
+
+# Functional equivalent using bind
+numbers = ImmutableList([1, 2, 3])
+multipliers = ImmutableList([10, 20])
+
+result = numbers.bind(
+    lambda x: multipliers.fmap(lambda y: x * y)
+)
+# ImmutableList([10, 20, 20, 40, 30, 60])
+```
+
+#### Combining Multiple Maybe Values
+
+```python
+from katharos.ds import Maybe, Just, Nothing
+
+def add(x: int) -> callable:
+    return lambda y: x + y
+
+# Applicative style - combine independent computations
+maybe_x = Just(5)
+maybe_y = Just(10)
+maybe_func = Just(add(5))
+
+result = maybe_y.ap(maybe_func)  # Just(15)
+
+# If any is Nothing, result is Nothing
+result = Nothing().ap(Just(lambda x: x + 1))  # Nothing()
+```
+
+### Operator Summary
+
+| Operator | Type Class | Method | Description |
+|----------|-----------|---------|-------------|
+| `fmap(f)` | Functor | - | Map function over wrapped value |
+| `**` | Applicative | `ap` | Apply wrapped function to wrapped value |
+| `\|` | Monad | `bind` | Chain dependent computations |
+| `>>` | Monad | `sequence` | Sequence actions, discard first result |
+| `@` | Semigroup | `op` | Combine two values |
+| `+` | - | - | Concatenation (lists) |
+
+### Type Safety
+
+All data structures are fully typed with Python's type system:
+
+```python
+from katharos.ds import Maybe, Just, ImmutableList
+
+# Type inference works correctly
+numbers: Maybe[int] = Just(42)
+strings: ImmutableList[str] = ImmutableList(["a", "b", "c"])
+
+# Type transformations are tracked
+result: Maybe[str] = numbers.fmap(str)  # Maybe[int] -> Maybe[str]
+```
+
+### Algebraic Laws
+
+All data structures satisfy their respective algebraic laws:
+
+**Functor Laws:**
+1. Identity: `x.fmap(id) == x`
+2. Composition: `x.fmap(f).fmap(g) == x.fmap(lambda x: g(f(x)))`
+
+**Applicative Laws:**
+1. Identity: `v.ap(pure(id)) == v`
+2. Homomorphism: `pure(x).ap(pure(f)) == pure(f(x))`
+3. Interchange: `pure(y).ap(u) == u.ap(pure(lambda f: f(y)))`
+
+**Monad Laws:**
+1. Left identity: `pure(x).bind(f) == f(x)`
+2. Right identity: `m.bind(pure) == m`
+3. Associativity: `m.bind(f).bind(g) == m.bind(lambda x: f(x).bind(g))`
+
+**Monoid Laws:**
+1. Left identity: `identity.op(x) == x`
+2. Right identity: `x.op(identity) == x`
+3. Associativity: `(x.op(y)).op(z) == x.op(y.op(z))`
+
+These laws ensure predictable, composable behavior across all operations.
+
