@@ -1689,7 +1689,7 @@ result = numbers.bind(
 ```python
 from katharos.ds import Maybe, Just, Nothing
 
-def add(x: int) -> callable:
+def add(x: int) -> Callable[[int], int]:
     return lambda y: x + y
 
 # Applicative style - combine independent computations
@@ -1712,7 +1712,6 @@ result = Nothing().ap(Just(lambda x: x + 1))  # Nothing()
 | `\|` | Monad | `bind` | Chain dependent computations |
 | `>>` | Monad | `sequence` | Sequence actions, discard first result |
 | `@` | Semigroup | `op` | Combine two values |
-| `+` | - | - | Concatenation (lists) |
 
 ### Type Safety
 
