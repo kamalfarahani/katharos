@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from katharos.algebra import Monad, Monoid
+from katharos.algebra.applicative.applicative import Applicative
 
 from .base_immutable_list import BaseImmutableList
 
 T = TypeVar(name="T", covariant=True)
 
 
-class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
+class ImmutableList(
+    BaseImmutableList[T],
+    Monad["ImmutableList[Any]", T],
+    Monoid["ImmutableList[T]"],
+):
     """
     A covariant immutable list implementation.
 
@@ -59,6 +64,12 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
         return self._elements == other._elements
 
     def __hash__(self) -> int:
+        """
+        Return the hash value of the list.
+
+        Returns:
+            int: The hash value of the list.
+        """
         return hash(tuple(self._elements))
 
     def __repr__(self) -> str:
@@ -102,7 +113,7 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
         return ImmutableList([])
 
     @classmethod
-    def pure(cls: type[ImmutableList], x: T) -> ImmutableList[T]:
+    def pure[T_1](cls: type[ImmutableList[T_1]], x: T_1) -> ImmutableList[T_1]:
         """
         Return a singleton ImmutableList containing the given element.
 
@@ -140,7 +151,7 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
 
     def ap[B](
         self,
-        wrapped_funcs: ImmutableList[Callable[[T], B]],
+        wrapped_funcs: Applicative[ImmutableList, Callable[[T], B]],
     ) -> ImmutableList[B]:
         """
         Apply functions in this ImmutableList to values in another ImmutableList.
@@ -151,14 +162,17 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
         Returns:
             ImmutableList[B]: A new ImmutableList with results of applying functions.
         """
+        assert isinstance(wrapped_funcs, ImmutableList), (
+            "wrapped_funcs must be an ImmutableList of functions"
+        )
         return ImmutableList[B]([f(x) for f in wrapped_funcs for x in self])
 
     def bind[B](
         self,
-        f: Callable[[T], ImmutableList[B]],
+        f: Callable[[T], Monad[ImmutableList, B]],
     ) -> ImmutableList[B]:
         """
-        Bind (flatMap) this ImmutableList with a function that returns another ImmutableList.
+        Bind (flatMap) this ImmutableList with a function that returns another Monad.
 
         Args:
             f: A function that takes an element and returns an ImmutableList.
@@ -166,19 +180,57 @@ class ImmutableList(BaseImmutableList[T], Monad[T], Monoid):
         Returns:
             ImmutableList[B]: A new ImmutableList with the results of applying the function.
         """
-        return ImmutableList([x for mapped_list in self.fmap(f) for x in mapped_list])
+        result = ImmutableList[B]([])
+        for mapped_list in self.fmap(f):
+            assert isinstance(mapped_list, ImmutableList), (
+                f"Expected ImmutableList, got {type(mapped_list)}"
+            )
+            result = result + mapped_list
+
+        return result
 
     def __matmul__(self, other: ImmutableList[T]) -> ImmutableList[T]:
+        """
+        Infix operator for semigroup operation (concatenation).
+        Enables syntax like list1 @ list2 for concatenation.
+        Equivalent to the + operator.
+
+        Args:
+            other: Another ImmutableList to concatenate with this one.
+
+        Returns:
+            ImmutableList[T]: A new ImmutableList containing all elements from both lists.
+        """
         return self.op(other)
 
     def __pow__[B](
         self,
-        wrapped_funcs: ImmutableList[Callable[[T], B]],
+        wrapped_funcs: Applicative[ImmutableList, Callable[[T], B]],
     ) -> ImmutableList[B]:
+        """
+        Apply functions using the applicative style (** operator).
+        This enables applicative-style function application.
+
+        Args:
+            wrapped_funcs: An Applicative of functions to apply.
+
+        Returns:
+            ImmutableList[B]: A new ImmutableList with results of applying functions.
+        """
         return self.ap(wrapped_funcs)
 
     def __or__[B](
         self,
-        f: Callable[[T], ImmutableList[B]],
+        f: Callable[[T], Monad[ImmutableList, B]],
     ) -> ImmutableList[B]:
+        """
+        Chain operations using the Kleisli composition (|) operator.
+        This enables monadic chaining where each function returns a Monad.
+
+        Args:
+            f: A function that takes an element and returns a Monad[ImmutableList, B].
+
+        Returns:
+            ImmutableList[B]: A new ImmutableList with the results of chaining operations.
+        """
         return self.bind(f)
