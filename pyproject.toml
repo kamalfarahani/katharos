@@ -1,7 +1,7 @@
 [project]
 name = "katharos"
 version = "0.1.0"
-description = "Add your description here"
+description = "A functional programming library for Python that provides algebraic abstractions like Semigroups, Monoids, Functors, Applicatives, and Monads, along with immutable data structures to enable composable, type-safe, and side-effect-free code."
 readme = "README.md"
 authors = [
     { name = "Kamal", email = "kamal.farahani90@gmail.com" }
@@ -9,9 +9,13 @@ authors = [
 requires-python = ">=3.13"
 dependencies = []
 
-[project.scripts]
-katharos = "katharos:main"
-
 [build-system]
 requires = ["uv_build>=0.8.17,<0.9.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipython>=9.8.0",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+]
