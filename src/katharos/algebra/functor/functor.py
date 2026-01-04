@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 
 
-class Functor[A](ABC):
+class Functor[F, A](ABC):
     """
     A functor is a type that implements the fmap method,
     allowing functions to be mapped over the structure.
@@ -18,7 +18,7 @@ class Functor[A](ABC):
     """
 
     @abstractmethod
-    def fmap[B](self, f: Callable[[A], B]) -> Functor[B]:
+    def fmap[B](self, f: Callable[[A], B]) -> Functor[F, B]:
         """
         Map a function over the functor.
 

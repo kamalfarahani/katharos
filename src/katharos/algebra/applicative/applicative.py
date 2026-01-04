@@ -7,7 +7,7 @@ from typing import Self
 from katharos.algebra.functor.functor import Functor
 
 
-class Applicative[A](Functor[A], ABC):
+class Applicative[App, A](Functor[App, A], ABC):
     """
     An Applicative functor is a functor with additional structure that allows
     for function application within a computational context.
@@ -40,7 +40,7 @@ class Applicative[A](Functor[A], ABC):
 
     @classmethod
     @abstractmethod
-    def pure[T](cls: type[Self], x: T) -> Self:
+    def pure[T](cls: type[Self], x: T) -> Applicative[App, T]:
         """
         Return an Applicative containing the given value.
 
@@ -55,10 +55,8 @@ class Applicative[A](Functor[A], ABC):
     @abstractmethod
     def ap[B](
         self,
-        wrapped_funcs: Applicative[
-            Callable[[A], B]
-        ],  # SubclassApplicative[Callable[[A], B]],
-    ) -> Applicative[B]:
+        wrapped_funcs: Applicative[App, Callable[[A], B]],
+    ) -> Applicative[App, B]:
         """
         Apply wrapped functions to this Applicative's value.
 
@@ -72,8 +70,8 @@ class Applicative[A](Functor[A], ABC):
 
     def __pow__[B](
         self,
-        wrapped_funcs: Applicative[Callable[[A], B]],
-    ) -> Applicative[B]:
+        wrapped_funcs: Applicative[App, Callable[[A], B]],
+    ) -> Applicative[App, B]:
         """
         Apply wrapped functions to this Applicative's value.
 
@@ -81,7 +79,7 @@ class Applicative[A](Functor[A], ABC):
             wrapped_funcs: An Applicative containing functions from A to B.
 
         Returns:
-            Applicative[B]: An Applicative containing the result of applying the function.
+            Applicative[App, B]: An Applicative containing the result of applying the function.
 
         """
         return self.ap(wrapped_funcs)
