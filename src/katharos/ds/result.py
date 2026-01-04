@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC
+from ast import Call
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from katharos.algebra import Monad
 from katharos.algebra.applicative.applicative import Applicative
@@ -246,9 +247,8 @@ class Success(Result[A]):
         Returns:
             The result of applying f to the value
         """
-        result = f(self._value)
-        assert isinstance(result, Result), "bind must return a Result"
-        return result
+        f = cast(Callable[[A], Result[B]], f)
+        return f(self._value)
 
     @property
     def value(self) -> A:
