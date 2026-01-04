@@ -1754,3 +1754,575 @@ All data structures satisfy their respective algebraic laws:
 
 These laws ensure predictable, composable behavior across all operations.
 
+## functools
+
+The `functools` module provides utility functions for functional programming, including function composition, identity, and fold operations. All utilities are available through the `F` class as static methods.
+
+### Overview
+
+The module provides:
+- **compose**: Function composition
+- **id**: Identity function
+- **foldl**: Left fold over iterables
+- **foldr**: Right fold over iterables
+- **sigma**: Combine semigroup elements
+
+### F Class
+
+All utilities are accessed through the `F` class as static methods. No instantiation is required.
+
+```python
+from katharos.functools import F
+```
+
+### compose
+
+Compose two functions together, creating a new function that applies them in sequence.
+
+**Signature:**
+```python
+F.compose[A, B, C](f: Callable[[B], C]) -> Callable[[Callable[[A], B]], Callable[[A], C]]
+```
+
+**Description:**
+
+Function composition follows mathematical notation: `(f ∘ g)(x) = f(g(x))`. The `compose` function takes a function `f` and returns a function that takes another function `g`, producing a composed function that applies `g` first, then `f`.
+
+**Examples:**
+
+```python
+from katharos.functools import F
+
+# Basic composition
+def add_one(x: int) -> int:
+    return x + 1
+
+def multiply_by_two(x: int) -> int:
+    return x * 2
+
+# Compose: multiply_by_two(add_one(x))
+composed = F.compose(multiply_by_two)(add_one)
+result = composed(3)  # (3 + 1) * 2 = 8
+
+# String operations
+def to_upper(s: str) -> str:
+    return s.upper()
+
+def add_exclamation(s: str) -> str:
+    return s + "!"
+
+composed = F.compose(add_exclamation)(to_upper)
+result = composed("hello")  # "HELLO!"
+
+# Type transformations
+def int_to_str(x: int) -> str:
+    return str(x)
+
+def str_length(s: str) -> int:
+    return len(s)
+
+composed = F.compose(str_length)(int_to_str)
+result = composed(12345)  # 5
+```
+
+**Multiple Compositions:**
+
+```python
+def add_one(x: int) -> int:
+    return x + 1
+
+def multiply_by_two(x: int) -> int:
+    return x * 2
+
+def subtract_three(x: int) -> int:
+    return x - 3
+
+# Compose multiple functions
+# subtract_three(multiply_by_two(add_one(x)))
+composed = F.compose(subtract_three)(
+    F.compose(multiply_by_two)(add_one)
+)
+result = composed(5)  # ((5 + 1) * 2) - 3 = 9
+```
+
+**Use Cases:**
+- **Pipeline construction**: Build data transformation pipelines
+- **Function reuse**: Combine existing functions without creating new ones
+- **Point-free style**: Write code without explicitly mentioning arguments
+- **Abstraction**: Create higher-level operations from simpler ones
+
+### id
+
+The identity function returns its argument unchanged. Useful as a default or no-op function.
+
+**Signature:**
+```python
+F.id[A](x: A) -> A
+```
+
+**Description:**
+
+The identity function is the neutral element for function composition: `compose(f)(id) = f` and `compose(id)(f) = f`. It's commonly used in functional programming as a default function or to satisfy type requirements.
+
+**Examples:**
+
+```python
+from katharos.functools import F
+
+# Basic usage
+F.id(42)        # 42
+F.id("hello")   # "hello"
+F.id([1, 2, 3]) # [1, 2, 3]
+F.id(None)      # None
+
+# Identity preserves object identity
+lst = [1, 2, 3]
+F.id(lst) is lst  # True
+
+# Used with fmap (from Functor)
+from katharos.ds import Just
+
+maybe_value = Just(42)
+same_value = maybe_value.fmap(F.id)  # Just(42)
+
+# Used as a default function
+def process(value: int, transform: Callable[[int], int] = F.id) -> int:
+    return transform(value)
+
+process(10)              # 10 (uses identity)
+process(10, lambda x: x * 2)  # 20 (uses custom function)
+```
+
+**Use Cases:**
+- **Default function parameter**: Provide a no-op default
+- **Testing functor laws**: Verify `fmap(id) = id`
+- **Placeholder**: Use where a function is required but no transformation is needed
+- **Function composition identity**: Neutral element in composition
+
+### foldl
+
+Left fold (reduce) a function over an iterable, processing elements from left to right.
+
+**Signature:**
+```python
+F.foldl[A, B](f: Callable[[B, A], B], acc: B, xs: Iterable[A]) -> B
+```
+
+**Description:**
+
+Left fold processes elements from left to right, accumulating a result. The function `f` takes the accumulator as the first argument and the current element as the second. This is equivalent to Python's `functools.reduce` but with explicit initial value.
+
+**Process:** `foldl(f, acc, [x1, x2, x3]) = f(f(f(acc, x1), x2), x3)`
+
+**Examples:**
+
+```python
+from katharos.functools import F
+
+# Sum of numbers
+result = F.foldl(lambda acc, x: acc + x, 0, [1, 2, 3, 4])
+# 0 + 1 = 1, 1 + 2 = 3, 3 + 3 = 6, 6 + 4 = 10
+# Result: 10
+
+# String concatenation
+result = F.foldl(lambda acc, x: acc + x, "", ["a", "b", "c"])
+# "" + "a" = "a", "a" + "b" = "ab", "ab" + "c" = "abc"
+# Result: "abc"
+
+# Build a list
+result = F.foldl(lambda acc, x: acc + [x], [], [1, 2, 3])
+# Result: [1, 2, 3]
+
+# Reverse a list
+result = F.foldl(lambda acc, x: [x] + acc, [], [1, 2, 3])
+# [] + [1] = [1], [2, 1], [3, 2, 1]
+# Result: [3, 2, 1]
+
+# Product of numbers
+result = F.foldl(lambda acc, x: acc * x, 1, [2, 3, 4])
+# Result: 24
+
+# Count elements
+result = F.foldl(lambda acc, x: acc + 1, 0, [10, 20, 30])
+# Result: 3
+
+# Maximum value
+result = F.foldl(lambda acc, x: max(acc, x), float('-inf'), [3, 7, 2, 9, 1])
+# Result: 9
+```
+
+**With Generators:**
+
+```python
+# Works with any iterable
+result = F.foldl(lambda acc, x: acc + x, 0, (x for x in range(1, 5)))
+# Result: 10
+```
+
+**Use Cases:**
+- **Aggregation**: Sum, product, min, max operations
+- **List construction**: Build lists from iterables
+- **State accumulation**: Thread state through a sequence
+- **Custom reductions**: Any operation that combines elements sequentially
+
+### foldr
+
+Right fold (reduce) a function over an iterable, processing elements from right to left.
+
+**Signature:**
+```python
+F.foldr[A, B](f: Callable[[A, B], B], acc: B, xs: Iterable[A]) -> B
+```
+
+**Description:**
+
+Right fold processes elements from right to left, accumulating a result. The function `f` takes the current element as the first argument and the accumulator as the second. This is useful for operations where order matters or for building right-associative structures.
+
+**Process:** `foldr(f, acc, [x1, x2, x3]) = f(x1, f(x2, f(x3, acc)))`
+
+**Examples:**
+
+```python
+from katharos.functools import F
+
+# Sum of numbers
+result = F.foldr(lambda x, acc: x + acc, 0, [1, 2, 3, 4])
+# f(1, f(2, f(3, f(4, 0))))
+# Result: 10
+
+# String concatenation
+result = F.foldr(lambda x, acc: x + acc, "", ["a", "b", "c"])
+# f("a", f("b", f("c", "")))
+# "a" + ("b" + ("c" + "")) = "abc"
+# Result: "abc"
+
+# Build a list (preserves order)
+result = F.foldr(lambda x, acc: [x] + acc, [], [1, 2, 3])
+# Result: [1, 2, 3]
+
+# Subtraction (demonstrates right-associativity)
+result = F.foldr(lambda x, acc: x - acc, 0, [1, 2, 3])
+# 1 - (2 - (3 - 0)) = 1 - (2 - 3) = 1 - (-1) = 2
+# Result: 2
+
+# Compare with foldl for non-associative operations
+foldl_result = F.foldl(lambda acc, x: acc - x, 0, [1, 2, 3])
+# (0 - 1) - 2 - 3 = -6
+# Result: -6 (different from foldr!)
+
+# Product of numbers
+result = F.foldr(lambda x, acc: x * acc, 1, [2, 3, 4])
+# Result: 24
+```
+
+**Use Cases:**
+- **Right-associative operations**: Operations where right-to-left matters
+- **List construction**: Build lists while preserving order
+- **Tree building**: Construct right-leaning trees
+- **Lazy evaluation**: Can short-circuit in lazy languages (not applicable in Python)
+
+### Fold Comparison
+
+**Associative Operations:**
+
+For associative operations (like addition, multiplication), `foldl` and `foldr` produce the same result:
+
+```python
+# Addition is associative: (a + b) + c = a + (b + c)
+F.foldl(lambda acc, x: acc + x, 0, [1, 2, 3, 4])  # 10
+F.foldr(lambda x, acc: x + acc, 0, [1, 2, 3, 4])  # 10
+```
+
+**Non-Associative Operations:**
+
+For non-associative operations (like subtraction), they produce different results:
+
+```python
+# Subtraction is not associative
+F.foldl(lambda acc, x: acc - x, 0, [1, 2, 3])  # -6
+F.foldr(lambda x, acc: x - acc, 0, [1, 2, 3])  # 2
+```
+
+**Performance Considerations:**
+
+- `foldl` is generally more efficient in strict languages like Python
+- `foldr` requires converting the iterable to a list and reversing it
+- For large iterables with associative operations, prefer `foldl`
+
+### sigma
+
+Combine all elements of a non-empty list using the semigroup operation (`@` operator).
+
+**Signature:**
+```python
+F.sigma[A: Semigroup](xs: NonEmptyList[A]) -> A
+```
+
+**Description:**
+
+The `sigma` function (Σ) combines all elements in a non-empty list using their semigroup operation. This is a specialized fold that uses the `@` operator (matmul) which is overloaded for semigroup types.
+
+**Examples:**
+
+```python
+from katharos.functools import F
+from katharos.ds import NonEmptyList, ImmutableList
+
+# Combine ImmutableLists (which are Semigroups)
+lists = NonEmptyList(
+    head=ImmutableList([1, 2]),
+    tail=[ImmutableList([3, 4]), ImmutableList([5, 6])]
+)
+result = F.sigma(lists)
+# ImmutableList([1, 2]) @ ImmutableList([3, 4]) @ ImmutableList([5, 6])
+# Result: ImmutableList([1, 2, 3, 4, 5, 6])
+
+# Combine NonEmptyLists
+nels = NonEmptyList(
+    head=NonEmptyList(head=1, tail=[2]),
+    tail=[NonEmptyList(head=3, tail=[4])]
+)
+result = F.sigma(nels)
+# Result: NonEmptyList(head=1, tail=[2, 3, 4])
+```
+
+**Custom Semigroups:**
+
+```python
+from katharos.algebra import Semigroup
+
+class Sum(Semigroup["Sum"]):
+    def __init__(self, value: int):
+        self.value = value
+    
+    def op(self, other: "Sum") -> "Sum":
+        return Sum(self.value + other.value)
+
+# Combine Sum instances
+sums = NonEmptyList(
+    head=Sum(1),
+    tail=[Sum(2), Sum(3), Sum(4)]
+)
+result = F.sigma(sums)
+# Result: Sum(10)
+```
+
+**Use Cases:**
+- **Concatenation**: Combine multiple lists or strings
+- **Aggregation**: Sum or combine custom semigroup types
+- **Monoid operations**: Combine elements with associative operations
+- **Data merging**: Merge multiple data structures
+
+### Common Patterns
+
+#### Building Pipelines with Compose
+
+```python
+from katharos.functools import F
+
+# Define transformations
+def parse_int(s: str) -> int:
+    return int(s)
+
+def double(x: int) -> int:
+    return x * 2
+
+def to_string(x: int) -> str:
+    return f"Result: {x}"
+
+# Build pipeline
+pipeline = F.compose(to_string)(F.compose(double)(parse_int))
+
+# Use pipeline
+result = pipeline("21")  # "Result: 42"
+```
+
+#### Implementing Map with Fold
+
+```python
+from katharos.functools import F
+
+def map_with_foldl(f, xs):
+    return F.foldl(lambda acc, x: acc + [f(x)], [], xs)
+
+result = map_with_foldl(lambda x: x * 2, [1, 2, 3, 4])
+# Result: [2, 4, 6, 8]
+```
+
+#### Implementing Filter with Fold
+
+```python
+from katharos.functools import F
+
+def filter_with_foldl(predicate, xs):
+    return F.foldl(
+        lambda acc, x: acc + [x] if predicate(x) else acc,
+        [],
+        xs
+    )
+
+result = filter_with_foldl(lambda x: x % 2 == 0, [1, 2, 3, 4, 5, 6])
+# Result: [2, 4, 6]
+```
+
+#### Counting with Fold
+
+```python
+from katharos.functools import F
+
+def count_if(predicate, xs):
+    return F.foldl(
+        lambda acc, x: acc + 1 if predicate(x) else acc,
+        0,
+        xs
+    )
+
+result = count_if(lambda x: x > 5, [1, 3, 6, 8, 2, 9])
+# Result: 3
+```
+
+#### Grouping with Fold
+
+```python
+from katharos.functools import F
+
+def group_by(key_func, xs):
+    def add_to_group(acc, x):
+        key = key_func(x)
+        if key not in acc:
+            acc[key] = []
+        acc[key].append(x)
+        return acc
+    
+    return F.foldl(add_to_group, {}, xs)
+
+result = group_by(lambda x: x % 2, [1, 2, 3, 4, 5, 6])
+# Result: {1: [1, 3, 5], 0: [2, 4, 6]}
+```
+
+#### Flattening Lists with Fold
+
+```python
+from katharos.functools import F
+
+def flatten(nested_list):
+    return F.foldl(lambda acc, x: acc + x, [], nested_list)
+
+result = flatten([[1, 2], [3, 4], [5, 6]])
+# Result: [1, 2, 3, 4, 5, 6]
+```
+
+### Integration with Other Modules
+
+#### With Maybe
+
+```python
+from katharos.functools import F
+from katharos.ds import Just, Nothing
+
+# Use id with Maybe
+Just(42).fmap(F.id)  # Just(42)
+
+# Use compose with Maybe operations
+def safe_divide(x: float):
+    return Nothing() if x == 0 else Just(10.0 / x)
+
+def safe_sqrt(x: float):
+    return Nothing() if x < 0 else Just(x ** 0.5)
+
+# Compose doesn't work directly with monadic functions,
+# but you can use bind (|) operator instead
+result = Just(2) | safe_divide | safe_sqrt
+```
+
+#### With ImmutableList
+
+```python
+from katharos.functools import F
+from katharos.ds import ImmutableList
+
+# Use compose with fmap
+add_one = lambda x: x + 1
+double = lambda x: x * 2
+
+transform = F.compose(double)(add_one)
+result = ImmutableList([1, 2, 3]).fmap(transform)
+# ImmutableList([4, 6, 8])
+
+# Use foldl to sum list elements
+numbers = ImmutableList([1, 2, 3, 4, 5])
+total = F.foldl(lambda acc, x: acc + x, 0, numbers)
+# 15
+```
+
+#### With Result
+
+```python
+from katharos.functools import F
+from katharos.ds import Success, Failure
+
+# Use id with Result
+Success(42).fmap(F.id)  # Success(42)
+
+# Use compose for transformations
+parse = lambda s: int(s)
+double = lambda x: x * 2
+
+transform = F.compose(double)(parse)
+result = Success("21").fmap(transform)
+# Success(42)
+```
+
+### Best Practices
+
+**1. Use compose for pure functions:**
+```python
+# Good: Compose pure functions
+transform = F.compose(f)(g)
+
+# Avoid: Don't compose functions with side effects
+# Bad example (side effects in composition)
+```
+
+**2. Choose the right fold:**
+```python
+# Use foldl for efficiency (left-to-right)
+F.foldl(lambda acc, x: acc + x, 0, large_list)
+
+# Use foldr when order matters (right-to-left)
+F.foldr(lambda x, acc: [x] + acc, [], items)
+```
+
+**3. Leverage id for clarity:**
+```python
+# Good: Use id as a clear no-op
+def process(value, transform=F.id):
+    return transform(value)
+
+# Avoid: Don't create custom identity functions
+# Bad: lambda x: x  # Use F.id instead
+```
+
+**4. Type annotations with compose:**
+```python
+# Good: Clear type annotations
+def f(x: int) -> str:
+    return str(x)
+
+def g(x: float) -> int:
+    return int(x)
+
+composed: Callable[[float], str] = F.compose(f)(g)
+```
+
+### Summary
+
+The `functools` module provides essential functional programming utilities:
+
+- **F.compose**: Combine functions into pipelines
+- **F.id**: Identity function for defaults and testing
+- **F.foldl**: Efficient left-to-right reduction
+- **F.foldr**: Right-to-left reduction for order-sensitive operations
+- **F.sigma**: Combine semigroup elements
+
+These utilities enable point-free style programming, function composition, and powerful data transformations while maintaining type safety and functional purity.
