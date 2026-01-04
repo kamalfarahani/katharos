@@ -340,6 +340,52 @@ empty = ImmutableList([])
 result = empty.fmap(lambda x: x * 2)  # ImmutableList([])
 ```
 
+**How to Write a Subtype of Functor:**
+
+To create your own Functor type, follow these steps:
+
+**Step 1: Define Your Type**
+
+```python
+from katharos.algebra import Functor
+from collections.abc import Callable
+
+class MyFunctor[A](Functor["MyFunctor", A]):
+    """Your custom functor type."""
+    
+    def __init__(self, value: A) -> None:
+        self._value = value
+```
+
+> Note: If your type is covariant, you should use `TypeVar` with the `covariant=True` parameter.
+
+```python
+from typing import TypeVar
+
+A = TypeVar('A', covariant=True)
+
+class MyFunctor(Functor["MyFunctor", A]):
+    ...
+```
+
+**Step 2: Implement the `fmap` Method**
+
+```python
+    def fmap[B](self, f: Callable[[A], B]) -> 'MyFunctor[B]':
+        """
+        Map a function over the wrapped value.
+        
+        This is the key method that defines functor behavior.
+        
+        Args:
+            f: Function to apply to the value
+            
+        Returns:
+            MyFunctor[B]: New functor with transformed value
+        """
+        return MyFunctor(f(self._value))
+```
+
 **Common Use Cases:**
 - **Optional values**: Transform values that may or may not exist (`Maybe`)
 - **Error handling**: Transform successful results while propagating errors (`Result`)
