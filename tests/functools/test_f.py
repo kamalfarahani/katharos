@@ -73,7 +73,8 @@ class TestFoldr:
         assert result == 10
 
     def test_foldr_empty_list(self):
-        result = F.foldr(lambda x, acc: x + acc, 0, [])
+        empty: list[int] = []
+        result = F.foldr(lambda x, acc: x + acc, 0, empty)
         assert result == 0
 
     def test_foldr_single_element(self):
@@ -107,7 +108,8 @@ class TestFoldl:
         assert result == 10
 
     def test_foldl_empty_list(self):
-        result = F.foldl(lambda acc, x: acc + x, 0, [])
+        empty: list[int] = []
+        result = F.foldl(lambda acc, x: acc + x, 0, empty)
         assert result == 0
 
     def test_foldl_single_element(self):
