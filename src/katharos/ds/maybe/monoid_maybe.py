@@ -6,7 +6,7 @@ from katharos.algebra.semigroup import Semigroup
 from .maybe import Just, Maybe, Nothing
 
 
-class MonoidMaybe[A: Semigroup](Monoid):
+class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
     def __init__(self, maybe: Maybe[A]) -> None:
         """
         Initialize the MonoidMaybe with a Maybe value.
