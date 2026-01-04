@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from katharos.algebra import Monad, Monoid
 from katharos.algebra.applicative.applicative import Applicative
@@ -162,9 +162,7 @@ class ImmutableList(
         Returns:
             ImmutableList[B]: A new ImmutableList with results of applying functions.
         """
-        assert isinstance(wrapped_funcs, ImmutableList), (
-            "wrapped_funcs must be an ImmutableList of functions"
-        )
+        wrapped_funcs = cast(ImmutableList[Callable[[T], B]], wrapped_funcs)
         return ImmutableList[B]([f(x) for f in wrapped_funcs for x in self])
 
     def bind[B](
@@ -180,14 +178,8 @@ class ImmutableList(
         Returns:
             ImmutableList[B]: A new ImmutableList with the results of applying the function.
         """
-        result = ImmutableList[B]([])
-        for mapped_list in self.fmap(f):
-            assert isinstance(mapped_list, ImmutableList), (
-                f"Expected ImmutableList, got {type(mapped_list)}"
-            )
-            result = result + mapped_list
-
-        return result
+        f = cast(Callable[[T], ImmutableList[B]], f)
+        return ImmutableList[B]([x for elem in self for x in f(elem)])
 
     def __matmul__(self, other: ImmutableList[T]) -> ImmutableList[T]:
         """

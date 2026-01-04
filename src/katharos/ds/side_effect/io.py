@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from katharos.algebra import Monad
 from katharos.algebra.applicative.applicative import Applicative
@@ -88,8 +88,7 @@ class IO(Monad["IO[Any]", A]):
         Returns:
             A new IO action with the result of applying the function
         """
-        assert isinstance(wrapped_funcs, IO), "Wrapped function must be instance of IO"
-        return IO(wrapped_funcs.value(self.value))
+        return IO(wrapped_funcs.value(self.value))  # type: ignore
 
     def bind[B](
         self,
@@ -105,9 +104,8 @@ class IO(Monad["IO[Any]", A]):
         Returns:
             A new IO action with the result of applying f to the value
         """
-        result = f(self.value)
-        assert isinstance(result, IO), "Result must be instance of IO"
-        return result
+        f = cast(Callable[[A], IO[B]], f)
+        return f(self.value)
 
     def sequence[B](self, other: Monad[IO, B]) -> IO[B]:
         """
@@ -119,8 +117,7 @@ class IO(Monad["IO[Any]", A]):
         Returns:
             IO[B]: The result of the second IO.
         """
-        assert isinstance(other, IO), "Other must be instance of IO"
-
+        other = cast(IO[B], other)
         io = IO(
             value=other.value,
             io_func=self.io_func >> other.io_func,

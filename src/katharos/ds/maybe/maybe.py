@@ -233,10 +233,4 @@ class Just(Maybe[A]):
         Returns:
             Maybe[B]: The result of applying f to the contained value.
         """
-        result = f(self.value)
-
-        assert isinstance(result, Maybe), (
-            f"bind must return a Maybe, got {type(result)}"
-        )
-
-        return result
+        return f(self.value)  # type: ignore
