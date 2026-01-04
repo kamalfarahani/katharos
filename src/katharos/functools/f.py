@@ -89,6 +89,7 @@ class F:
 
         return result
 
+    @staticmethod
     def sigma[A: Semigroup](xs: NonEmptyList[A]) -> A:
         """
         Combine all elements of a non-empty list using the semigroup operation.

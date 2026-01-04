@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from katharos.algebra import Monad, Semigroup
+from katharos.algebra.applicative.applicative import Applicative
 
 from .base_immutable_list import BaseImmutableList
 
 T = TypeVar(name="T", covariant=True)
 
 
-class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
+class NonEmptyList(
+    BaseImmutableList[T],
+    Monad["NonEmptyList[Any]", T],
+    Semigroup["NonEmptyList[T]"],
+):
     """
     A non-empty list implementation.
     """
@@ -47,9 +52,6 @@ class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
     def __hash__(self) -> int:
         """
         Returns the hash value of the list.
-
-        Args:
-            None
 
         Returns:
             int: The hash value of the list.
@@ -130,7 +132,7 @@ class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
 
     def ap[B](
         self,
-        wrapped_funcs: NonEmptyList[Callable[[T], B]],
+        wrapped_funcs: Applicative[NonEmptyList, Callable[[T], B]],
     ) -> NonEmptyList[B]:
         """Apply functions in this NonEmptyList to values in another NonEmptyList.
 
@@ -140,6 +142,9 @@ class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
         Returns:
             NonEmptyList[B]: A new NonEmptyList with results of applying the functions.
         """
+        assert isinstance(wrapped_funcs, NonEmptyList), (
+            "wrapped_funcs must be a NonEmptyList of functions"
+        )
 
         applied: list[B] = [f(x) for f in wrapped_funcs for x in self]
         return NonEmptyList(
@@ -149,7 +154,7 @@ class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
 
     def bind[B](
         self,
-        f: Callable[[T], NonEmptyList[B]],
+        f: Callable[[T], Monad[NonEmptyList, B]],
     ) -> NonEmptyList[B]:
         """Bind (flatMap) this NonEmptyList with a function that returns another NonEmptyList.
 
@@ -159,9 +164,13 @@ class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
         Returns:
             NonEmptyList[B]: A new NonEmptyList with the results of applying the function.
         """
+        result = []
+        for x in self._elements:
+            nested = f(x)
+            assert isinstance(nested, NonEmptyList), "f must return a NonEmptyList"
+            result.extend(nested)
 
-        flat: list[B] = [y for x in self._elements for y in f(x)]
-        return NonEmptyList(head=flat[0], tail=flat[1:])
+        return NonEmptyList(head=result[0], tail=result[1:])
 
     def op(self, other: NonEmptyList[T]) -> NonEmptyList[T]:
         """
@@ -173,4 +182,4 @@ class NonEmptyList(BaseImmutableList[T], Monad[T], Semigroup):
         Returns:
             NonEmptyList[T]: The concatenated list.
         """
-        return self.__add__(other)
+        return self + other
