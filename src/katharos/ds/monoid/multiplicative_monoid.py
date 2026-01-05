@@ -4,6 +4,9 @@ from typing import Protocol, Self
 class MultiplicativeMonoid(Protocol):
     """
     A protocol for types that form a multiplicative monoid.
+
+    A multiplicative monoid has an identity element (one) and an associative
+    multiplication operation.
     """
 
     @classmethod
