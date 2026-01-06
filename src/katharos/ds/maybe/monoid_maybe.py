@@ -7,6 +7,16 @@ from .maybe import Just, Maybe, Nothing
 
 
 class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
+    @classmethod
+    def identity(cls) -> MonoidMaybe[A]:
+        """
+        Return the identity element of the MonoidMaybe monoid.
+
+        Returns:
+            MonoidMaybe[A]: A MonoidMaybe containing Nothing, which acts as the identity.
+        """
+        return MonoidMaybe(maybe=Nothing())
+
     def __init__(self, maybe: Maybe[A]) -> None:
         """
         Initialize the MonoidMaybe with a Maybe value.
@@ -45,13 +55,3 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
                 return MonoidMaybe(maybe=Just(value=v_1 @ v_2))
             case _:
                 raise ValueError("Invalid input")
-
-    @staticmethod
-    def identity() -> MonoidMaybe[A]:
-        """
-        Return the identity element of the MonoidMaybe monoid.
-
-        Returns:
-            MonoidMaybe[A]: A MonoidMaybe containing Nothing, which acts as the identity.
-        """
-        return MonoidMaybe(maybe=Nothing())

@@ -102,8 +102,8 @@ class ImmutableList(
         """
         return ImmutableList(list(self) + list(other))
 
-    @staticmethod
-    def identity() -> ImmutableList[T]:
+    @classmethod
+    def identity(cls: type[ImmutableList[T]]) -> ImmutableList[T]:
         """
         Return the identity element for the monoid operation.
 

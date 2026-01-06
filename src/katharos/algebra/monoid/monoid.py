@@ -12,9 +12,9 @@ class Monoid[M](Semigroup[M]):
     A monoid is a semigroup with an identity element.
     """
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def identity() -> M:
+    def identity(cls) -> M:
         """
         Return the identity element of the monoid.
         Must satisfy: a @ identity = a and identity @ a = a for all a in the monoid.
