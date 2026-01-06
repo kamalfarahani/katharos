@@ -170,7 +170,7 @@ class Failure(Result[A, E]):
         return Failure[B, E](self._error)
 
     @property
-    def error(self) -> Exception:
+    def error(self) -> E:
         """
         Get the error contained in this Failure.
 
@@ -272,6 +272,3 @@ class Success(Result[A, E]):
             A string representation showing "Success(value)"
         """
         return f"Success({self._value!r})"
-
-
-x = Failure(2)
