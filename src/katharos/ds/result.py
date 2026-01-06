@@ -118,7 +118,7 @@ class Failure(Result[A, E]):
 
     __match_args__ = ("error",)
 
-    def __init__(self, error: Exception):
+    def __init__(self, error: E):
         """
         Initialize a Failure with an exception.
 
@@ -272,3 +272,6 @@ class Success(Result[A, E]):
             A string representation showing "Success(value)"
         """
         return f"Success({self._value!r})"
+
+
+x = Failure(2)
