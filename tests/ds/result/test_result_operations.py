@@ -6,7 +6,7 @@ import pytest
 from katharos.ds.result import Failure, Result, Success
 
 
-def divide_safe(x: float, y: float) -> Result[float]:
+def divide_safe(x: float, y: float) -> Result[float, Exception]:
     if y == 0:
         return Failure(DivisionByZero("Division by zero"))
     return Success(x / y)
@@ -17,7 +17,7 @@ class TestResultChaining:
         def add_ten(x: int) -> int:
             return x + 10
 
-        def mul_two_result(x: int) -> Result[int]:
+        def mul_two_result(x: int) -> Result[int, Exception]:
             return Success(x * 2)
 
         def sub_five(x: int) -> int:
@@ -34,8 +34,8 @@ class TestResultChaining:
         def add_ten(x: int) -> int:
             return x + 10
 
-        def fail(x: int) -> Result[int]:
-            return Failure[int](error)
+        def fail(x: int) -> Result[int, Exception]:
+            return Failure[int, Exception](error)
 
         def mul_two(x: int) -> int:
             return x * 2
@@ -55,13 +55,13 @@ class TestResultChaining:
         assert result.value == 15
 
     def test_complex_computation_chain(self):
-        def divide_by_two(x: float) -> Result[float]:
+        def divide_by_two(x: float) -> Result[float, Exception]:
             return divide_safe(x, 2)
 
         def add_ten(x: float) -> float:
             return x + 10
 
-        def divide_by_five(x: float) -> Result[float]:
+        def divide_by_five(x: float) -> Result[float, Exception]:
             return divide_safe(x, 5)
 
         result = Success(100).bind(divide_by_two).fmap(add_ten).bind(divide_by_five)
@@ -70,13 +70,13 @@ class TestResultChaining:
         assert result.value == 12.0
 
     def test_complex_computation_chain_with_failure(self):
-        def divide_by_two(x: float) -> Result[float]:
+        def divide_by_two(x: float) -> Result[float, Exception]:
             return divide_safe(x, 2)
 
-        def add_ten(x: float) -> Result[float]:
+        def add_ten(x: float) -> Result[float, Exception]:
             return Success(x + 10)
 
-        def divide_by_zero(x: float) -> Result[float]:
+        def divide_by_zero(x: float) -> Result[float, Exception]:
             return divide_safe(x, 0)
 
         result = Success(100) | divide_by_two | add_ten | divide_by_zero
@@ -96,7 +96,7 @@ class TestResultPatternMatching:
 
     def test_match_failure(self):
         error = ValueError("test error")
-        result = Failure[int](error)
+        result = Failure[int, Exception](error)
 
         match result:
             case Success(value=_):
