@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import decimal
+
 from katharos.algebra import Monoid
 
 from .multiplicative_monoid import MultiplicativeMonoid
 
 
-class Product[S: MultiplicativeMonoid](Monoid["Product[S]"]):
+class Product[
+    S: (
+        MultiplicativeMonoid,
+        int,
+        float,
+        complex,
+        decimal.Decimal,
+    )
+](Monoid["Product[S]"]):
     """
     A monoid for multiplication operations.
     """
@@ -30,9 +40,12 @@ class Product[S: MultiplicativeMonoid](Monoid["Product[S]"]):
         if cls._S_type is None:  # type: ignore
             raise TypeError("You must specify the type, e.g., Product[int].identity()")
 
-        one_val = cls._S_type.one()  # type: ignore
+        if cls._S_type in (int, float, complex, decimal.Decimal):  # type: ignore
+            one_val = cls._S_type(1)  # type: ignore
+        else:
+            one_val = cls._S_type.one()  # type: ignore
 
-        return cls(one_val)
+        return cls(one_val)  # type: ignore
 
     def __init__(self, value: S) -> None:
         """

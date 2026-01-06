@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import decimal
+
 from katharos.algebra import Monoid
 
 from .additive_monoid import AdditiveMonoid
 
 
-class Sum[S: AdditiveMonoid](Monoid["Sum[S]"]):
+class Sum[
+    S: (
+        AdditiveMonoid,
+        int,
+        float,
+        complex,
+        decimal.Decimal,
+    )
+](Monoid["Sum[S]"]):
     """
     A monoid for addition operations.
 
@@ -33,9 +43,12 @@ class Sum[S: AdditiveMonoid](Monoid["Sum[S]"]):
         if cls._S_type is None:  # type: ignore
             raise TypeError("You must specify the type, e.g., Sum[int].identity()")
 
-        zero_val = cls._S_type.zero()  # type: ignore
+        if cls._S_type in (int, float, complex, decimal.Decimal):  # type: ignore
+            zero_val = cls._S_type(0)  # type: ignore
+        else:
+            zero_val = cls._S_type.zero()  # type: ignore
 
-        return cls(zero_val)
+        return cls(zero_val)  # type: ignore
 
     def __init__(self, value: S) -> None:
         """
