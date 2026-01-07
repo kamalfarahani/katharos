@@ -5,7 +5,6 @@ from collections.abc import Callable
 from typing import Any, Generic, TypeVar, cast
 
 from katharos.algebra import Monad
-from katharos.algebra.applicative.applicative import Applicative
 
 A = TypeVar("A", covariant=True)
 E = TypeVar("E", bound=Exception, covariant=True)
@@ -48,9 +47,9 @@ class Result(
         """
         raise NotImplementedError()
 
-    def ap[B](
+    def ap[B](  # type: ignore
         self,
-        wrapped_funcs: Applicative[Result[Any, E], Callable[[A], B]],
+        wrapped_funcs: Result[Callable[[A], B], E],
     ) -> Result[B, E]:
         """
         Apply a function wrapped in a Result to this Result.
@@ -63,9 +62,9 @@ class Result(
         """
         raise NotImplementedError()
 
-    def bind[B](
+    def bind[B](  # type: ignore
         self,
-        f: Callable[[A], Monad[Result[Any, E], B]],
+        f: Callable[[A], Result[B, E]],
     ) -> Result[B, E]:
         """
         Bind a function that returns a Result to this Result.
@@ -78,9 +77,9 @@ class Result(
         """
         raise NotImplementedError()
 
-    def __pow__[B](
+    def __pow__[B](  # type: ignore
         self,
-        wrapped_funcs: Applicative[Result[Any, E], Callable[[A], B]],
+        wrapped_funcs: Result[Callable[[A], B], E],
     ) -> Result[B, E]:
         """
         Infix operator for applicative application.
@@ -95,9 +94,9 @@ class Result(
         """
         return self.ap(wrapped_funcs)
 
-    def __or__[B](
+    def __or__[B](  # type: ignore
         self,
-        f: Callable[[A], Monad[Result[Any, E], B]],
+        f: Callable[[A], Result[B, E]],
     ) -> Result[B, E]:
         """
         Infix operator for bind.
@@ -141,7 +140,7 @@ class Failure(Result[A, E]):
 
     def ap[B](
         self,
-        wrapped_funcs: Applicative[Result[Any, E], Callable[[A], B]],
+        wrapped_funcs: Result[Callable[[A], B], E],
     ) -> Result[B, E]:
         """
         Apply a function wrapped in a Result to this Failure.
@@ -156,7 +155,7 @@ class Failure(Result[A, E]):
 
     def bind[B](
         self,
-        f: Callable[[A], Monad[Result[Any, E], B]],
+        f: Callable[[A], Result[B, E]],
     ) -> Result[B, E]:
         """
         Bind a function that returns a Result to this Failure.
@@ -219,7 +218,7 @@ class Success(Result[A, E]):
 
     def ap[B](
         self,
-        wrapped_funcs: Applicative[Result[Any, E], Callable[[A], B]],
+        wrapped_funcs: Result[Callable[[A], B], E],
     ) -> Result[B, E]:
         """
         Apply a function wrapped in a Result to this Success.
@@ -240,7 +239,7 @@ class Success(Result[A, E]):
 
     def bind[B](
         self,
-        f: Callable[[A], Monad[Result[Any, E], B]],
+        f: Callable[[A], Result[B, E]],
     ) -> Result[B, E]:
         """
         Bind a function that returns a Result to this Success.
@@ -251,7 +250,6 @@ class Success(Result[A, E]):
         Returns:
             The result of applying f to the value
         """
-        f = cast(Callable[[A], Result[B, E]], f)
         return f(self._value)
 
     @property
