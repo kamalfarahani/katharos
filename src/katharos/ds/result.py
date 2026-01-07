@@ -2,15 +2,19 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Callable
-from typing import Any, TypeVar, cast
+from typing import Any, Generic, TypeVar, cast
 
 from katharos.algebra import Monad
-from katharos.algebra.applicative.applicative import Applicative
 
 A = TypeVar("A", covariant=True)
+E = TypeVar("E", bound=Exception, covariant=True)
 
 
-class Result(Monad["Result[Any]", A], ABC):
+class Result(
+    Generic[A, E],
+    Monad["Result[Any, E]", A],
+    ABC,
+):
     """
     This class represents a computation that can either succeed with a value of type A
     or fail with an exception.
@@ -19,7 +23,7 @@ class Result(Monad["Result[Any]", A], ABC):
     """
 
     @classmethod
-    def pure[T](cls: type[Result], x: T) -> Success[T]:
+    def pure[T](cls: type[Result], x: T) -> Success[T, E]:
         """
         Wrap a value in a Success.
 
@@ -31,7 +35,7 @@ class Result(Monad["Result[Any]", A], ABC):
         """
         return Success(x)
 
-    def fmap[B](self, f: Callable[[A], B]) -> Result[B]:
+    def fmap[B](self, f: Callable[[A], B]) -> Result[B, E]:
         """
         Map a function over the value.
 
@@ -43,10 +47,10 @@ class Result(Monad["Result[Any]", A], ABC):
         """
         raise NotImplementedError()
 
-    def ap[B](
+    def ap[B](  # type: ignore
         self,
-        wrapped_funcs: Applicative[Result, Callable[[A], B]],
-    ) -> Result[B]:
+        wrapped_funcs: Result[Callable[[A], B], E],
+    ) -> Result[B, E]:
         """
         Apply a function wrapped in a Result to this Result.
 
@@ -58,10 +62,10 @@ class Result(Monad["Result[Any]", A], ABC):
         """
         raise NotImplementedError()
 
-    def bind[B](
+    def bind[B](  # type: ignore
         self,
-        f: Callable[[A], Monad[Result, B]],
-    ) -> Result[B]:
+        f: Callable[[A], Result[B, E]],
+    ) -> Result[B, E]:
         """
         Bind a function that returns a Result to this Result.
 
@@ -73,10 +77,10 @@ class Result(Monad["Result[Any]", A], ABC):
         """
         raise NotImplementedError()
 
-    def __pow__[B](
+    def __pow__[B](  # type: ignore
         self,
-        wrapped_funcs: Applicative[Result, Callable[[A], B]],
-    ) -> Result[B]:
+        wrapped_funcs: Result[Callable[[A], B], E],
+    ) -> Result[B, E]:
         """
         Infix operator for applicative application.
 
@@ -90,10 +94,10 @@ class Result(Monad["Result[Any]", A], ABC):
         """
         return self.ap(wrapped_funcs)
 
-    def __or__[B](
+    def __or__[B](  # type: ignore
         self,
-        f: Callable[[A], Monad[Result, B]],
-    ) -> Result[B]:
+        f: Callable[[A], Result[B, E]],
+    ) -> Result[B, E]:
         """
         Infix operator for bind.
 
@@ -106,14 +110,14 @@ class Result(Monad["Result[Any]", A], ABC):
         return self.bind(f)
 
 
-class Failure(Result[A]):
+class Failure(Result[A, E]):
     """
     This class represents a failed computation with an exception.
     """
 
     __match_args__ = ("error",)
 
-    def __init__(self, error: Exception):
+    def __init__(self, error: E):
         """
         Initialize a Failure with an exception.
 
@@ -122,7 +126,7 @@ class Failure(Result[A]):
         """
         self._error = error
 
-    def fmap[B](self, f: Callable[[A], B]) -> Result[B]:
+    def fmap[B](self, f: Callable[[A], B]) -> Result[B, E]:
         """
         Map a function over the error (no-op for Failure).
 
@@ -132,12 +136,12 @@ class Failure(Result[A]):
         Returns:
             Self as Failure (no change)
         """
-        return Failure[B](self._error)
+        return Failure[B, E](self._error)
 
     def ap[B](
         self,
-        wrapped_funcs: Applicative[Result, Callable[[A], B]],
-    ) -> Result[B]:
+        wrapped_funcs: Result[Callable[[A], B], E],
+    ) -> Result[B, E]:
         """
         Apply a function wrapped in a Result to this Failure.
 
@@ -147,12 +151,12 @@ class Failure(Result[A]):
         Returns:
             Self as Failure (no change)
         """
-        return Failure[B](self._error)
+        return Failure[B, E](self._error)
 
     def bind[B](
         self,
-        f: Callable[[A], Monad[Result, B]],
-    ) -> Result[B]:
+        f: Callable[[A], Result[B, E]],
+    ) -> Result[B, E]:
         """
         Bind a function that returns a Result to this Failure.
 
@@ -162,10 +166,10 @@ class Failure(Result[A]):
         Returns:
             Self as Failure (no change)
         """
-        return Failure[B](self._error)
+        return Failure[B, E](self._error)
 
     @property
-    def error(self) -> Exception:
+    def error(self) -> E:
         """
         Get the error contained in this Failure.
 
@@ -184,7 +188,7 @@ class Failure(Result[A]):
         return f"Failure({self._error!r})"
 
 
-class Success(Result[A]):
+class Success(Result[A, E]):
     """
     This class represents a successful computation with a value.
     """
@@ -200,7 +204,7 @@ class Success(Result[A]):
         """
         self._value = value
 
-    def fmap[B](self, f: Callable[[A], B]) -> Result[B]:
+    def fmap[B](self, f: Callable[[A], B]) -> Success[B, E]:
         """
         Map a function over the value in this Success.
 
@@ -214,8 +218,8 @@ class Success(Result[A]):
 
     def ap[B](
         self,
-        wrapped_funcs: Applicative[Result, Callable[[A], B]],
-    ) -> Result[B]:
+        wrapped_funcs: Result[Callable[[A], B], E],
+    ) -> Result[B, E]:
         """
         Apply a function wrapped in a Result to this Success.
 
@@ -229,14 +233,14 @@ class Success(Result[A]):
             case Success(value=func):
                 return Success(func(self._value))
             case Failure(error=e):
-                return Failure[B](e)
+                return Failure[B, E](e)
             case _:
                 raise TypeError("Unexpected pattern in ap")
 
     def bind[B](
         self,
-        f: Callable[[A], Monad[Result, B]],
-    ) -> Result[B]:
+        f: Callable[[A], Result[B, E]],
+    ) -> Result[B, E]:
         """
         Bind a function that returns a Result to this Success.
 
@@ -246,7 +250,6 @@ class Success(Result[A]):
         Returns:
             The result of applying f to the value
         """
-        f = cast(Callable[[A], Result[B]], f)
         return f(self._value)
 
     @property

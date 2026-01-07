@@ -42,7 +42,7 @@ class TestResultTypeTransformations:
         assert result.value == [2, 4, 6]
 
     def test_nested_result_flattening(self):
-        def identity_result(x: Result[int]) -> Result[int]:
+        def identity_result(x: Result[int, Exception]) -> Result[int, Exception]:
             return x
 
         nested = Success(Success(42))

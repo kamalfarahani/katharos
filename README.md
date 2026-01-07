@@ -211,7 +211,7 @@ result = m3 @ m4  # MonoidMaybe(Just(ImmutableList([3, 4, 5, 6])))
 A **Functor** is a type that can be mapped over, allowing you to apply a function to values inside a computational context without changing the structure itself. It's one of the most fundamental abstractions in functional programming.
 
 **Core Concept:**
-- A Functor wraps values in a context (e.g., `Maybe[A]`, `List[A]`, `Result[A]`)
+- A Functor wraps values in a context (e.g., `Maybe[A]`, `List[A]`, `Result[A, E]`)
 - It provides `fmap` to apply a function to the wrapped value(s) while preserving the context
 - The structure remains unchanged; only the values are transformed
 
@@ -308,7 +308,7 @@ result1 = success.fmap(lambda x: x * 2)  # Success(84)
 result2 = failure.fmap(lambda x: x * 2)  # Failure(ValueError(...))
 
 # Chain operations - errors propagate automatically
-def parse_int(s: str) -> Result[int]:
+def parse_int(s: str) -> Result[int, ValueError]:
     try:
         return Success(int(s))
     except ValueError as e:
@@ -567,7 +567,7 @@ result = Failure(ValueError("Error")) ** Success(
 
 
 # Combining multiple Results - useful for validation
-def validate_age(age: int) -> Result[int]:
+def validate_age(age: int) -> Result[int, ValueError]:
     if age < 0:
         return Failure(ValueError("Age cannot be negative"))
     if age > 150:
@@ -575,7 +575,7 @@ def validate_age(age: int) -> Result[int]:
     return Success(age)
 
 
-def validate_name(name: str) -> Result[str]:
+def validate_name(name: str) -> Result[str, ValueError]:
     if not name:
         return Failure(ValueError("Name cannot be empty"))
     return Success(name)
@@ -931,18 +931,18 @@ from katharos.ds import Result, Success, Failure
 value = Result.pure(42)  # Success(42)
 
 # bind chains computations that can fail
-def parse_int(s: str) -> Result[int]:
+def parse_int(s: str) -> Result[int, ValueError]:
     try:
         return Success(int(s))
     except ValueError as e:
         return Failure(e)
 
-def divide(x: int) -> Result[float]:
+def divide(x: int) -> Result[float, ValueError]:
     if x == 0:
         return Failure(ValueError("Division by zero"))
     return Success(100.0 / x)
 
-def format_result(x: float) -> Result[str]:
+def format_result(x: float) -> Result[str, Exception]:
     return Success(f"Result: {x:.2f}")
 
 # Chain dependent computations using | operator
@@ -969,21 +969,21 @@ result = (
 # Failure(ValueError("Division by zero"))
 
 # Real-world example: File processing pipeline
-def read_file(path: str) -> Result[str]:
+def read_file(path: str) -> Result[str, Exception]:
     try:
         with open(path) as f:
             return Success(f.read())
     except Exception as e:
         return Failure(e)
 
-def parse_json(content: str) -> Result[dict]:
+def parse_json(content: str) -> Result[dict, Exception]:
     try:
         import json
         return Success(json.loads(content))
     except Exception as e:
         return Failure(e)
 
-def validate_schema(data: dict) -> Result[dict]:
+def validate_schema(data: dict) -> Result[dict, ValueError]:
     if "name" in data and "age" in data:
         return Success(data)
     return Failure(ValueError("Invalid schema"))
@@ -1338,13 +1338,13 @@ result = Failure(ValueError("error")) ** func  # Failure(ValueError("error"))
 
 **Monad - Chain operations that can fail:**
 ```python
-def parse_int(s: str) -> Result[int]:
+def parse_int(s: str) -> Result[int, ValueError]:
     try:
         return Success(int(s))
     except ValueError as e:
         return Failure(e)
 
-def divide_by_two(x: int) -> Result[float]:
+def divide_by_two(x: int) -> Result[float, Exception]:
     return Success(x / 2)
 
 # Chain operations with bind
@@ -1668,14 +1668,14 @@ io.value  # 42
 ```python
 from katharos.ds import Result, Success, Failure
 
-def validate_age(age: int) -> Result[int]:
+def validate_age(age: int) -> Result[int, ValueError]:
     if age < 0:
         return Failure(ValueError("Age cannot be negative"))
     if age > 150:
         return Failure(ValueError("Age too high"))
     return Success(age)
 
-def calculate_birth_year(age: int) -> Result[int]:
+def calculate_birth_year(age: int) -> Result[int, Exception]:
     from datetime import datetime
     return Success(datetime.now().year - age)
 
@@ -2371,3 +2371,7 @@ The `functools` module provides essential functional programming utilities:
 - **F.sigma**: Combine semigroup elements
 
 These utilities enable point-free style programming, function composition, and powerful data transformations while maintaining type safety and functional purity.
+
+## License
+
+MIT License

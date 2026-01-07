@@ -21,7 +21,7 @@ class TestFunctorLaws:
 
     def test_functor_identity_failure(self):
         error = ValueError("test error")
-        result = Failure[int](error)
+        result = Failure[int, Exception](error)
 
         mapped = result.fmap(F.id)
 
@@ -56,7 +56,7 @@ class TestFunctorLaws:
             return x + 10
 
         error = ValueError("test error")
-        result = Failure[int](error)
+        result = Failure[int, Exception](error)
 
         def composed(x: int) -> int:
             return f(g(x))
@@ -90,7 +90,7 @@ class TestApplicativeLaws:
     def test_applicative_identity_success(self):
         value = Success(42)
         id_int: Callable[[int], int] = F.id
-        s: Result[Callable[[int], int]] = Success(id_int)
+        s: Result[Callable[[int], int], Exception] = Success(id_int)
         result = value.ap(s)
 
         assert isinstance(result, Success)
@@ -101,7 +101,7 @@ class TestApplicativeLaws:
             return x
 
         error = ValueError("test error")
-        value = Failure[int](error)
+        value = Failure[int, Exception](error)
 
         result = value.ap(Success(identity))
 
@@ -147,9 +147,9 @@ class TestApplicativeLaws:
         def add_ten(x: int) -> int:
             return x + 10
 
-        u: Result[Callable[[int], int]] = Success(mul_two)
-        v: Result[Callable[[int], int]] = Success(add_ten)
-        w: Result[int] = Success(5)
+        u: Result[Callable[[int], int], Exception] = Success(mul_two)
+        v: Result[Callable[[int], int], Exception] = Success(add_ten)
+        w: Result[int, Exception] = Success(5)
 
         left = (w**v) ** u
         right = w ** (v ** (u ** Success(F.compose)))
@@ -173,7 +173,7 @@ class TestApplicativeLaws:
             return x * 2
 
         error = ValueError("value error")
-        value = Failure[int](error)
+        value = Failure[int, Exception](error)
 
         result = value.ap(Success(f))
 
@@ -184,7 +184,7 @@ class TestApplicativeLaws:
         func_error = ValueError("function error")
         value_error = ValueError("value error")
 
-        result = Failure[int](value_error).ap(Failure(func_error))
+        result = Failure[int, Exception](value_error).ap(Failure(func_error))
 
         assert isinstance(result, Failure)
         assert result.error == value_error
@@ -199,7 +199,7 @@ class TestMonadLaws:
     """
 
     def test_monad_left_identity_success(self):
-        def f(a: int) -> Result[int]:
+        def f(a: int) -> Result[int, Exception]:
             return Success(a * 2)
 
         x = 42
@@ -215,8 +215,8 @@ class TestMonadLaws:
     def test_monad_left_identity_to_failure(self):
         error = ValueError("test error")
 
-        def f(a: int) -> Result[int]:
-            return Failure[int](error)
+        def f(a: int) -> Result[int, Exception]:
+            return Failure[int, Exception](error)
 
         x = 42
 
@@ -238,7 +238,7 @@ class TestMonadLaws:
 
     def test_monad_right_identity_failure(self):
         error = ValueError("test error")
-        m = Failure[int](error)
+        m = Failure[int, Exception](error)
 
         result = m.bind(Result.pure)
 
@@ -246,15 +246,15 @@ class TestMonadLaws:
         assert result.error == error
 
     def test_monad_associativity_success(self):
-        def f(x: int) -> Result[int]:
+        def f(x: int) -> Result[int, Exception]:
             return Success(x + 10)
 
-        def g(x: int) -> Result[int]:
+        def g(x: int) -> Result[int, Exception]:
             return Success(x * 2)
 
         m = Success(5)
 
-        def bind_f_then_g(x: int) -> Result[int]:
+        def bind_f_then_g(x: int) -> Result[int, Exception]:
             return f(x).bind(g)
 
         left = m.bind(f).bind(g)
@@ -266,16 +266,16 @@ class TestMonadLaws:
         assert left.value == 30
 
     def test_monad_associativity_failure_in_first(self):
-        def f(x: int) -> Result[int]:
+        def f(x: int) -> Result[int, Exception]:
             return Success(x + 10)
 
-        def g(x: int) -> Result[int]:
+        def g(x: int) -> Result[int, Exception]:
             return Success(x * 2)
 
         error = ValueError("first error")
-        m = Failure[int](error)
+        m = Failure[int, Exception](error)
 
-        def bind_f_then_g(x: int) -> Result[int]:
+        def bind_f_then_g(x: int) -> Result[int, Exception]:
             return f(x).bind(g)
 
         left = m.bind(f).bind(g)
@@ -289,15 +289,15 @@ class TestMonadLaws:
     def test_monad_associativity_failure_in_f(self):
         error = ValueError("f error")
 
-        def f(x: int) -> Result[int]:
-            return Failure[int](error)
+        def f(x: int) -> Result[int, Exception]:
+            return Failure[int, Exception](error)
 
-        def g(x: int) -> Result[int]:
+        def g(x: int) -> Result[int, Exception]:
             return Success(x * 2)
 
         m = Success(5)
 
-        def bind_f_then_g(x: int) -> Result[int]:
+        def bind_f_then_g(x: int) -> Result[int, Exception]:
             return f(x).bind(g)
 
         left = m.bind(f).bind(g)
@@ -311,15 +311,15 @@ class TestMonadLaws:
     def test_monad_associativity_failure_in_g(self):
         error = ValueError("g error")
 
-        def f(x: int) -> Result[int]:
+        def f(x: int) -> Result[int, Exception]:
             return Success(x + 10)
 
-        def g(x: int) -> Result[int]:
-            return Failure[int](error)
+        def g(x: int) -> Result[int, Exception]:
+            return Failure[int, Exception](error)
 
         m = Success(5)
 
-        def bind_f_then_g(x: int) -> Result[int]:
+        def bind_f_then_g(x: int) -> Result[int, Exception]:
             return f(x).bind(g)
 
         left = m.bind(f).bind(g)
