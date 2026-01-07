@@ -8,7 +8,7 @@ from katharos.algebra import Monad
 from katharos.algebra.applicative.applicative import Applicative
 
 A = TypeVar("A", covariant=True)
-E = TypeVar("E", bound=Exception)
+E = TypeVar("E", bound=Exception, covariant=True)
 
 
 class Result(
