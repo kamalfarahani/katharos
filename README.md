@@ -2371,3 +2371,7 @@ The `functools` module provides essential functional programming utilities:
 - **F.sigma**: Combine semigroup elements
 
 These utilities enable point-free style programming, function composition, and powerful data transformations while maintaining type safety and functional purity.
+
+## License
+
+MIT License
