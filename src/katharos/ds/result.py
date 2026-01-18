@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Generic, TypeVar
 
 from katharos.algebra import Monad
 
 A = TypeVar("A", covariant=True)
-E = TypeVar("E", bound=Exception, covariant=True)
+E = TypeVar("E", bound=BaseException, covariant=True)
 
 
 class Result(
