@@ -52,7 +52,7 @@ class Monad[Mon, A](Applicative[Mon, A], ABC):
         >>> m = SomeMonad.ret(5)
         >>> result = m | (lambda x: SomeMonad.ret(x * 2))
 
-    Sequencing monads with sequence (>>):
+    Sequencing monads with then (>>):
         >>> m1 = SomeMonad.ret(1)
         >>> m2 = SomeMonad.ret(2)
         >>> result = m1 >> m2  # Returns m2, discarding m1's value
@@ -87,7 +87,7 @@ class Monad[Mon, A](Applicative[Mon, A], ABC):
         """
         raise NotImplementedError()
 
-    def sequence[B](self, other: Monad[Mon, B]) -> Monad[Mon, B]:
+    def then[B](self, other: Monad[Mon, B]) -> Monad[Mon, B]:
         """
         Sequence two monadic actions, discarding the result of the first.
 
@@ -113,7 +113,7 @@ class Monad[Mon, A](Applicative[Mon, A], ABC):
 
     def __rshift__[B](self, other: Monad[Mon, B]) -> Monad[Mon, B]:
         """
-        Infix operator for sequence (sequence two monadic actions).
+        Infix operator for then (sequence two monadic actions).
 
         Args:
             other: The Monad to sequence after this one.
@@ -121,4 +121,4 @@ class Monad[Mon, A](Applicative[Mon, A], ABC):
         Returns:
             Monad[Mon, B]: The result of the second Monad.
         """
-        return self.sequence(other)
+        return self.then(other)

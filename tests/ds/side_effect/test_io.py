@@ -314,3 +314,132 @@ class TestIOPure:
 
         assert isinstance(io_dict, IO)
         assert io_dict.value == {"key": "value"}
+
+
+class TestThenShouldConcatenateSideEffectFunctions:
+    """
+    Test that the then method (>>) properly concatenates side effect functions.
+    """
+
+    def test_then_concatenates_side_effects(self):
+        effects = []
+
+        def effect1():
+            effects.append("first")
+
+        def effect2():
+            effects.append("second")
+
+        from katharos.ds.side_effect.function_with_side_effect import (
+            FunctionWithSideEffect,
+        )
+
+        io1 = IO(42, FunctionWithSideEffect(f=effect1, description="effect1"))
+        io2 = IO(100, FunctionWithSideEffect(f=effect2, description="effect2"))
+
+        result = io1 >> io2
+
+        assert isinstance(result, IO)
+        assert result.value == 100
+
+        result.execute()
+        assert effects == ["first", "second"]
+
+    def test_then_discards_first_value(self):
+        io1 = IO(42)
+        io2 = IO(100)
+
+        result = io1 >> io2
+
+        assert isinstance(result, IO)
+        assert result.value == 100
+
+    def test_then_chains_multiple_ios(self):
+        effects = []
+
+        def effect1():
+            effects.append(1)
+
+        def effect2():
+            effects.append(2)
+
+        def effect3():
+            effects.append(3)
+
+        from katharos.ds.side_effect.function_with_side_effect import (
+            FunctionWithSideEffect,
+        )
+
+        io1 = IO(10, FunctionWithSideEffect(f=effect1, description="effect1"))
+        io2 = IO(20, FunctionWithSideEffect(f=effect2, description="effect2"))
+        io3 = IO(30, FunctionWithSideEffect(f=effect3, description="effect3"))
+
+        result = io1 >> io2 >> io3
+
+        assert isinstance(result, IO)
+        assert result.value == 30
+
+        result.execute()
+        assert effects == [1, 2, 3]
+
+    def test_then_with_no_op_side_effects(self):
+        io1 = IO(42)
+        io2 = IO(100)
+
+        result = io1 >> io2
+
+        assert isinstance(result, IO)
+        assert result.value == 100
+
+        result.execute()
+
+    def test_then_preserves_side_effect_descriptions(self):
+        from katharos.ds.side_effect.function_with_side_effect import (
+            FunctionWithSideEffect,
+        )
+
+        io1 = IO(
+            42,
+            FunctionWithSideEffect(f=lambda: None, description="First effect"),
+        )
+        io2 = IO(
+            100,
+            FunctionWithSideEffect(f=lambda: None, description="Second effect"),
+        )
+
+        result = io1 >> io2
+
+        assert isinstance(result, IO)
+        assert "First effect" in result.io_func.description
+        assert "Second effect" in result.io_func.description
+
+    def test_then_executes_effects_in_order(self):
+        execution_order = []
+
+        def effect1():
+            execution_order.append("A")
+
+        def effect2():
+            execution_order.append("B")
+
+        def effect3():
+            execution_order.append("C")
+
+        from katharos.ds.side_effect.function_with_side_effect import (
+            FunctionWithSideEffect,
+        )
+
+        io1 = IO(1, FunctionWithSideEffect(f=effect1))
+        io2 = IO(2, FunctionWithSideEffect(f=effect2))
+        io3 = IO(3, FunctionWithSideEffect(f=effect3))
+
+        result = (io1 >> io2) >> io3
+
+        result.execute()
+        assert execution_order == ["A", "B", "C"]
+
+        execution_order.clear()
+
+        result2 = io1 >> (io2 >> io3)
+        result2.execute()
+        assert execution_order == ["A", "B", "C"]

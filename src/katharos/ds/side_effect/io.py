@@ -107,9 +107,10 @@ class IO(Monad["IO[Any]", A]):
         f = cast(Callable[[A], IO[B]], f)
         return f(self.value)
 
-    def sequence[B](self, other: Monad[IO, B]) -> IO[B]:
+    def then[B](self, other: Monad[IO, B]) -> IO[B]:
         """
-        Sequence two monadic actions, discarding the result of the first.
+        Sequence two monadic actions, discarding the result of the first
+        but keep the side effects of the first IO.
 
         Args:
             other: The IO to sequence after this one.
@@ -167,4 +168,4 @@ class IO(Monad["IO[Any]", A]):
         Returns:
             A new IO action that contains the value of the second IO action.
         """
-        return self.sequence(other)
+        return self.then(other)
