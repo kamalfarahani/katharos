@@ -4,6 +4,12 @@ Katharos is a functional programming library for Python that provides algebraic 
 
 <img src="./logo.png" alt="logo" width="300" height="300">
 
+## Installation
+
+```bash
+pip install katharos
+```
+
 ## Modules
 
 - `algebra`: Provides a set of algebraic structures for functional programming.
