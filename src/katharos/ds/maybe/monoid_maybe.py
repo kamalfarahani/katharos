@@ -3,7 +3,7 @@ from __future__ import annotations
 from katharos.algebra.monoid import Monoid
 from katharos.algebra.semigroup import Semigroup
 
-from .maybe import Just, Maybe, Nothing
+from .maybe import Maybe
 
 
 class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
@@ -15,7 +15,7 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
         Returns:
             MonoidMaybe[A]: A MonoidMaybe containing Nothing, which acts as the identity.
         """
-        return MonoidMaybe(maybe=Nothing())
+        return MonoidMaybe(maybe=Maybe[A]())
 
     def __init__(self, maybe: Maybe[A]) -> None:
         """
@@ -46,12 +46,10 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
         Returns:
             MonoidMaybe[A]: The result of combining the two MonoidMaybes.
         """
-        match self.maybe, other.maybe:
-            case Nothing(), _:
+        match self.maybe.value, other.maybe.value:
+            case None, _:
                 return other
-            case _, Nothing():
+            case _, None:
                 return self
-            case Just(value=v_1), Just(value=v_2):
-                return MonoidMaybe(maybe=Just(value=v_1 @ v_2))
-            case _:
-                raise ValueError("Invalid input")
+            case v_1, v_2:
+                return MonoidMaybe(maybe=Maybe(value=v_1 @ v_2))
