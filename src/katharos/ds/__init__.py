@@ -1,6 +1,6 @@
 from .list import ImmutableList, NonEmptyList
 from .maybe import Maybe, MonoidMaybe
-from .result import Failure, Result, Success
+from .result import Result
 from .side_effect import IO
 
 __all__ = [
@@ -8,8 +8,6 @@ __all__ = [
     "NonEmptyList",
     "Maybe",
     "MonoidMaybe",
-    "Failure",
     "Result",
-    "Success",
     "IO",
 ]

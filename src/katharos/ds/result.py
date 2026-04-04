@@ -1,29 +1,76 @@
 from __future__ import annotations
 
-from abc import ABC
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, cast, final
 
 from katharos.algebra import Monad
+from katharos.algebra.applicative.applicative import Applicative
 
 A = TypeVar("A", covariant=True)
 E = TypeVar("E", bound=BaseException, covariant=True)
 
 
+@final
 class Result(
     Generic[A, E],
     Monad["Result[Any, E]", A],
-    ABC,
 ):
     """
-    This class represents a computation that can either succeed with a value of type A
-    or fail with an exception.
+    A Result monad for error handling without exceptions.
 
-    It implements the Monad interface for error handling.
+    The Result type encapsulates a computation that can either succeed with a value
+    of type A or fail with an exception of type E. It implements the Monad, Applicative,
+    and Functor interfaces for composable error handling.
+
+    A Result can be in one of two states:
+    - Success: Contains a value of type A (non-exception)
+    - Failure: Contains an exception of type E
+
+    Type Parameters:
+        A: The type of the success value
+        E: The type of the exception (must be a subclass of BaseException)
+
+    Examples:
+        >>> success = Result(42)
+        >>> success.is_success()
+        True
+        >>> success
+        Success(42)
+
+        >>> failure = Result(ValueError("error"))
+        >>> failure.is_failure()
+        True
+        >>> failure
+        Failure(ValueError('error'))
+
+        >>> success.fmap(lambda x: x * 2)
+        Success(84)
+
+        >>> failure.fmap(lambda x: x * 2)
+        Failure(ValueError('error'))
+
+        >>> Result(5) | (lambda x: Result(x + 1))
+        Success(6)
+
+    Note:
+        This class is marked as @final and cannot be subclassed. Use `is_success()`
+        and `is_failure()` methods to check the state instead of type checking.
+        The class supports the following operators:
+        - `|` (pipe): Monadic bind operation
+        - `**` (power): Applicative application
     """
 
+    def __init__(self, value: A | E) -> None:
+        """
+        Initialize the Result.
+
+        Args:
+            value: The value to wrap, either A or E
+        """
+        self._value = value
+
     @classmethod
-    def pure[T](cls: type[Result], x: T) -> Success[T, E]:
+    def pure[T](cls: type[Result], x: T) -> Result[T, E]:
         """
         Wrap a value in a Success.
 
@@ -32,8 +79,14 @@ class Result(
 
         Returns:
             A Success containing the value
+
+        Raises:
+            TypeError: If the value is an exception
         """
-        return Success(x)
+        if isinstance(x, BaseException):
+            raise TypeError("Cannot create a Result with an exception as the value")
+
+        return Result(x)
 
     def fmap[B](self, f: Callable[[A], B]) -> Result[B, E]:
         """
@@ -45,11 +98,15 @@ class Result(
         Returns:
             Result[B]: Result containing the mapped value
         """
-        raise NotImplementedError()
+        if isinstance(self._value, BaseException):
+            casted_self = cast(Result[B, E], self)
+            return casted_self
 
-    def ap[B](  # type: ignore
+        return Result(f(self._value))
+
+    def ap[B](
         self,
-        wrapped_funcs: Result[Callable[[A], B], E],
+        wrapped_funcs: Applicative[Result[Any, E], Callable[[A], B]],
     ) -> Result[B, E]:
         """
         Apply a function wrapped in a Result to this Result.
@@ -60,11 +117,21 @@ class Result(
         Returns:
             Result[B]: Result of applying the function to this value
         """
-        raise NotImplementedError()
+        wrapped_funcs = cast(Result[Callable[[A], B], E], wrapped_funcs)
+        if isinstance(self._value, BaseException) or isinstance(
+            wrapped_funcs._value, BaseException
+        ):
+            casted_self = cast(Result[B, E], self)
+            return casted_self
 
-    def bind[B](  # type: ignore
+        casted_self = cast(A, self._value)
+        inner_func = cast(Callable[[A], B], wrapped_funcs._value)
+
+        return Result(inner_func(casted_self))
+
+    def bind[B](
         self,
-        f: Callable[[A], Result[B, E]],
+        f: Callable[[A], Monad[Result[Any, E], B]],
     ) -> Result[B, E]:
         """
         Bind a function that returns a Result to this Result.
@@ -75,11 +142,36 @@ class Result(
         Returns:
             Result[B]: Result of applying the function to this value
         """
-        raise NotImplementedError()
+        f = cast(Callable[[A], Result[B, E]], f)
+        if isinstance(self._value, BaseException):
+            return Result[B, E](self._value)  # type: ignore
 
-    def __pow__[B](  # type: ignore
+        return f(self._value)
+
+    def is_success(self) -> bool:
+        """
+        Check if this Result is a Success.
+
+        Returns:
+            True if this is a Success, False otherwise
+        """
+        if isinstance(self._value, BaseException):
+            return False
+
+        return True
+
+    def is_failure(self) -> bool:
+        """
+        Check if this Result is a Failure.
+
+        Returns:
+            True if this is a Failure, False otherwise
+        """
+        return not self.is_success()
+
+    def __pow__[B](
         self,
-        wrapped_funcs: Result[Callable[[A], B], E],
+        wrapped_funcs: Applicative[Result[Any, E], Callable[[A], B]],
     ) -> Result[B, E]:
         """
         Infix operator for applicative application.
@@ -90,13 +182,13 @@ class Result(
             wrapped_funcs: Result containing a function to apply
 
         Returns:
-            Result[B]: Result of applying the function to this value
+            Result[B, E]: Result of applying the function to this value
         """
         return self.ap(wrapped_funcs)
 
-    def __or__[B](  # type: ignore
+    def __or__[B](
         self,
-        f: Callable[[A], Result[B, E]],
+        f: Callable[[A], Monad[Result[Any, E], B]],
     ) -> Result[B, E]:
         """
         Infix operator for bind.
@@ -105,168 +197,18 @@ class Result(
             f: A function that takes a value of type A and returns a Result of type B.
 
         Returns:
-            Monad[B]: A Monad containing the result of applying the function to the value.
+            Result[B, E]: Result of applying the function to this value
         """
         return self.bind(f)
 
-
-class Failure(Result[A, E]):
-    """
-    This class represents a failed computation with an exception.
-    """
-
-    __match_args__ = ("error",)
-
-    def __init__(self, error: E):
-        """
-        Initialize a Failure with an exception.
-
-        Args:
-            error: The exception that caused the failure
-        """
-        self._error = error
-
-    def fmap[B](self, f: Callable[[A], B]) -> Result[B, E]:
-        """
-        Map a function over the error (no-op for Failure).
-
-        Args:
-            f: Function to apply (ignored for Failure)
-
-        Returns:
-            Self as Failure (no change)
-        """
-        return Failure[B, E](self._error)
-
-    def ap[B](
-        self,
-        wrapped_funcs: Result[Callable[[A], B], E],
-    ) -> Result[B, E]:
-        """
-        Apply a function wrapped in a Result to this Failure.
-
-        Args:
-            wrapped_funcs: Result containing a function to apply
-
-        Returns:
-            Self as Failure (no change)
-        """
-        return Failure[B, E](self._error)
-
-    def bind[B](
-        self,
-        f: Callable[[A], Result[B, E]],
-    ) -> Result[B, E]:
-        """
-        Bind a function that returns a Result to this Failure.
-
-        Args:
-            f: Function that takes a value and returns a Result
-
-        Returns:
-            Self as Failure (no change)
-        """
-        return Failure[B, E](self._error)
-
-    @property
-    def error(self) -> E:
-        """
-        Get the error contained in this Failure.
-
-        Returns:
-            The exception that caused the failure
-        """
-        return self._error
-
     def __repr__(self) -> str:
         """
-        Return a string representation of this Failure.
+        String representation of the Result.
 
         Returns:
-            A string representation showing "Failure(exception)"
+            str: String representation of the Result
         """
-        return f"Failure({self._error!r})"
-
-
-class Success(Result[A, E]):
-    """
-    This class represents a successful computation with a value.
-    """
-
-    __match_args__ = ("value",)
-
-    def __init__(self, value: A):
-        """
-        Initialize a Success with a value.
-
-        Args:
-            value: The successful result value
-        """
-        self._value = value
-
-    def fmap[B](self, f: Callable[[A], B]) -> Success[B, E]:
-        """
-        Map a function over the value in this Success.
-
-        Args:
-            f: Function to apply to the value
-
-        Returns:
-            A new Success containing the result of applying f to the value
-        """
-        return Success(f(self._value))
-
-    def ap[B](
-        self,
-        wrapped_funcs: Result[Callable[[A], B], E],
-    ) -> Result[B, E]:
-        """
-        Apply a function wrapped in a Result to this Success.
-
-        Args:
-            wrapped_funcs: Result containing a function to apply
-
-        Returns:
-            A new Success with the result of applying the function
-        """
-        match wrapped_funcs:
-            case Success(value=func):
-                return Success(func(self._value))
-            case Failure(error=e):
-                return Failure[B, E](e)
-            case _:
-                raise TypeError("Unexpected pattern in ap")
-
-    def bind[B](
-        self,
-        f: Callable[[A], Result[B, E]],
-    ) -> Result[B, E]:
-        """
-        Bind a function that returns a Result to this Success.
-
-        Args:
-            f: Function that takes the value and returns a Result
-
-        Returns:
-            The result of applying f to the value
-        """
-        return f(self._value)
-
-    @property
-    def value(self) -> A:
-        """
-        Get the value contained in this Success.
-
-        Returns:
-            The successful result value
-        """
-        return self._value
-
-    def __repr__(self) -> str:
-        """
-        Return a string representation of this Success.
-
-        Returns:
-            A string representation showing "Success(value)"
-        """
-        return f"Success({self._value!r})"
+        if self.is_success():
+            return f"Success({self._value!r})"
+        else:
+            return f"Failure({self._value!r})"
