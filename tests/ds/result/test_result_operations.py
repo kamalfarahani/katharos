@@ -1,15 +1,13 @@
 from collections.abc import Callable
 from decimal import DivisionByZero
 
-import pytest
-
-from katharos.ds.result import Failure, Result, Success
+from katharos.ds.result import Result
 
 
 def divide_safe(x: float, y: float) -> Result[float, Exception]:
     if y == 0:
-        return Failure(DivisionByZero("Division by zero"))
-    return Success(x / y)
+        return Result(DivisionByZero("Division by zero"))
+    return Result(x / y)
 
 
 class TestResultChaining:
@@ -18,14 +16,14 @@ class TestResultChaining:
             return x + 10
 
         def mul_two_result(x: int) -> Result[int, Exception]:
-            return Success(x * 2)
+            return Result(x * 2)
 
         def sub_five(x: int) -> int:
             return x - 5
 
-        result = Success(5).fmap(add_ten).bind(mul_two_result).fmap(sub_five)
+        result = Result(5).fmap(add_ten).bind(mul_two_result).fmap(sub_five)
 
-        assert isinstance(result, Success)
+        assert result.is_success()
         assert result.value == 25
 
     def test_chaining_stops_at_failure(self):
@@ -35,23 +33,23 @@ class TestResultChaining:
             return x + 10
 
         def fail(x: int) -> Result[int, Exception]:
-            return Failure[int, Exception](error)
+            return Result[int, Exception](error)
 
         def mul_two(x: int) -> int:
             return x * 2
 
-        result = Success(5).fmap(add_ten).bind(fail).fmap(mul_two)
+        result = Result(5).fmap(add_ten).bind(fail).fmap(mul_two)
 
-        assert isinstance(result, Failure)
-        assert result.error == error
+        assert result.is_failure()
+        assert result.value == error
 
     def test_chaining_with_applicative(self):
         def add(x: int) -> Callable[[int], int]:
             return lambda y: x + y
 
-        result = Success(10) ** (Success(5) ** Success(add))
+        result = Result(10) ** (Result(5) ** Result(add))
 
-        assert isinstance(result, Success)
+        assert result.is_success()
         assert result.value == 15
 
     def test_complex_computation_chain(self):
@@ -64,9 +62,9 @@ class TestResultChaining:
         def divide_by_five(x: float) -> Result[float, Exception]:
             return divide_safe(x, 5)
 
-        result = Success(100).bind(divide_by_two).fmap(add_ten).bind(divide_by_five)
+        result = Result(100).bind(divide_by_two).fmap(add_ten).bind(divide_by_five)
 
-        assert isinstance(result, Success)
+        assert result.is_success()
         assert result.value == 12.0
 
     def test_complex_computation_chain_with_failure(self):
@@ -74,32 +72,28 @@ class TestResultChaining:
             return divide_safe(x, 2)
 
         def add_ten(x: float) -> Result[float, Exception]:
-            return Success(x + 10)
+            return Result(x + 10)
 
         def divide_by_zero(x: float) -> Result[float, Exception]:
             return divide_safe(x, 0)
 
-        result = Success(100) | divide_by_two | add_ten | divide_by_zero
-        assert isinstance(result, Failure)
-        assert isinstance(result.error, ZeroDivisionError)
+        result = Result(100) | divide_by_two | add_ten | divide_by_zero
+        assert result.is_failure()
+        assert isinstance(result.value, DivisionByZero)
 
 
-class TestResultPatternMatching:
-    def test_match_success(self):
-        result = Success(42)
+class TestResultStateChecking:
+    def test_check_success_state(self):
+        result = Result(42)
 
-        match result:
-            case Success(value=v):
-                assert v == 42
-            case Failure(error=_):
-                pytest.fail("Should not match Failure")
+        assert result.is_success()
+        assert not result.is_failure()
+        assert result.value == 42
 
-    def test_match_failure(self):
+    def test_check_failure_state(self):
         error = ValueError("test error")
-        result = Failure[int, Exception](error)
+        result = Result[int, Exception](error)
 
-        match result:
-            case Success(value=_):
-                pytest.fail("Should not match Success")
-            case Failure(error=e):
-                assert e == error
+        assert result.is_failure()
+        assert not result.is_success()
+        assert result.value == error

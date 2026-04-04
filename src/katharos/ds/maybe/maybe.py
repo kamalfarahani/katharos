@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from abc import ABC
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast, final
 
 from katharos.algebra.applicative.applicative import Applicative
 from katharos.algebra.monad import Monad
@@ -10,14 +9,46 @@ from katharos.algebra.monad import Monad
 A = TypeVar("A", covariant=True)
 
 
-class Maybe(Monad["Maybe[Any]", A], ABC):
+@final
+class Maybe(Monad["Maybe[Any]", A]):
     """
-    This class represents a Maybe type.
-    The Maybe type represents a value that may or may not be present.
+    A Maybe monad representing an optional value.
+
+    The Maybe type encapsulates a value that may or may not be present, providing
+    a type-safe way to handle optional values without using None checks. It implements
+    the Monad, Applicative, and Functor interfaces.
+
+    A Maybe can be in one of two states:
+    - Just(value): Contains a value
+    - Nothing(): Contains no value (value is None)
+
+    Args:
+        value: The optional value to wrap. Defaults to None.
+
+    Examples:
+        >>> just_value = Maybe(5)
+        >>> just_value.fmap(lambda x: x * 2)
+        Just(10)
+
+        >>> nothing = Maybe()
+        >>> nothing.fmap(lambda x: x * 2)
+        Nothing()
+
+        >>> Maybe(3) | (lambda x: Maybe(x + 1))
+        Just(4)
     """
 
+    def __init__(self, value: A | None = None) -> None:
+        """
+        Initialize a Maybe with an optional value.
+
+        Args:
+            value: The optional value to wrap. Defaults to None.
+        """
+        self.value = value
+
     @classmethod
-    def pure[T](cls: type[Maybe], x: T) -> Just[T]:
+    def pure[T](cls: type[Maybe], x: T) -> Maybe[T]:
         """
         Return a Maybe containing the given value.
 
@@ -25,9 +56,9 @@ class Maybe(Monad["Maybe[Any]", A], ABC):
             x: The value to wrap in a Maybe.
 
         Returns:
-            Maybe[A]: A Just containing the given value.
+            Maybe[A]: A Maybe containing the given value.
         """
-        return Just(value=x)
+        return Maybe(value=x)
 
     def fmap[B](self, f: Callable[[A], B]) -> Maybe[B]:
         """
@@ -39,7 +70,10 @@ class Maybe(Monad["Maybe[Any]", A], ABC):
         Returns:
             Maybe[B]: Maybe containing the mapped value
         """
-        raise NotImplementedError()
+        if self.value is None:
+            return Maybe[B]()
+
+        return Maybe[B](f(self.value))
 
     def ap[B](
         self,
@@ -54,7 +88,12 @@ class Maybe(Monad["Maybe[Any]", A], ABC):
         Returns:
             Maybe[B]: The result of applying the function.
         """
-        raise NotImplementedError()
+        wrapped_funcs = cast(Maybe[Callable[[A], B]], wrapped_funcs)
+
+        if self.value is None or wrapped_funcs.value is None:
+            return Maybe[B]()
+
+        return Maybe[B](wrapped_funcs.value(self.value))
 
     def bind[B](
         self,
@@ -69,7 +108,29 @@ class Maybe(Monad["Maybe[Any]", A], ABC):
         Returns:
             Maybe[B]: The result of applying the function.
         """
-        raise NotImplementedError()
+        f = cast(Callable[[A], Maybe[B]], f)
+        if self.value is None:
+            return Maybe[B]()
+
+        return f(self.value)
+
+    def is_just(self) -> bool:
+        """
+        Check if the Maybe contains a value.
+
+        Returns:
+            bool: True if the Maybe contains a value, False otherwise.
+        """
+        return self.value is not None
+
+    def is_nothing(self) -> bool:
+        """
+        Check if the Maybe does not contain a value.
+
+        Returns:
+            bool: True if the Maybe does not contain a value, False otherwise.
+        """
+        return self.value is None
 
     def __pow__[B](
         self,
@@ -102,135 +163,34 @@ class Maybe(Monad["Maybe[Any]", A], ABC):
         return self.bind(f)
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another Maybe.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            bool: True if the Maybe is equal to the other object, False otherwise.
+        """
         if not isinstance(other, Maybe):
             return False
 
-        match self, other:
-            case Just(value=v1), Just(value=v2):
-                return v1 == v2
-            case Nothing(), Nothing():
-                return True
-            case _:
-                return False
+        return self.value == other.value
 
-
-class Nothing(Maybe[A]):
-    """
-    This class represents a Nothing value
-    """
-
-    def fmap[B](self, f: Callable[[A], B]) -> Nothing[B]:
+    def __repr__(self) -> str:
         """
-        fmap over a Nothing returns a Nothing.
-
-        Args:
-            f: The function to apply.
+        Return a string representation of the Maybe.
 
         Returns:
-            Maybe[B]: A Nothing.
+            str: "Just(value)" if the Maybe contains a value, "Nothing()" otherwise.
         """
-        return Nothing()
+        return f"Just({self.value})" if self.value is not None else "Nothing()"
 
-    def ap[B](
-        self,
-        wrapped_funcs: Applicative[Maybe, Callable[[A], B]],
-    ) -> Nothing[B]:
+    def __hash__(self) -> int:
         """
-        apply a Nothing returns a Nothing.
-
-        Args:
-            wrapped_funcs: A Maybe containing a function to apply.
+        Return a hash of the Maybe.
 
         Returns:
-            Nothing[B]: A Nothing.
+            int: The hash of the Maybe.
         """
-        return Nothing()
-
-    def bind[B](
-        self,
-        f: Callable[[A], Monad[Maybe, B]],
-    ) -> Nothing[B]:
-        """
-        bind a Nothing returns a Nothing.
-
-        Args:
-            f: The function to apply.
-
-        Returns:
-            Maybe[B]: A Nothing.
-        """
-        return Nothing()
-
-
-class Just(Maybe[A]):
-    """
-    This class represents a Just value
-    """
-
-    __match_args__ = ("value",)
-
-    def __init__(self, value: A) -> None:
-        """
-        Initialize the Just with a value.
-
-        Args:
-            value: The value to wrap in a Just.
-        """
-        self._value = value
-
-    @property
-    def value(self) -> A:
-        """
-        Returns the value of Just.
-
-        Returns:
-            A: The value of Just.
-        """
-        return self._value
-
-    def fmap[B](self, f: Callable[[A], B]) -> Just[B]:
-        """
-        fmap a function over a Just value.
-
-        Args:
-            f: The function to apply to the value.
-
-        Returns:
-            Just[B]: A Just containing the result of applying f to the value.
-        """
-        return Just(f(self.value))
-
-    def ap[B](
-        self,
-        wrapped_funcs: Applicative[Maybe, Callable[[A], B]],
-    ) -> Maybe[B]:
-        """
-        Apply wrapped functions to this Just's value.
-
-        Args:
-            wrapped_funcs: A Maybe containing a function from A to B.
-
-        Returns:
-            Maybe[B]: A Just containing the result of applying the function,
-                      or Nothing if wrapped_funcs is Nothing.
-        """
-        match wrapped_funcs:
-            case Just(value=func):
-                return Just(func(self.value))
-            case _:
-                return Nothing()
-
-    def bind[B](
-        self,
-        f: Callable[[A], Monad[Maybe, B]],
-    ) -> Maybe[B]:
-        """
-        Bind a function to the Just value.
-
-        Args:
-            f: A function that takes a value of type A and returns a Maybe of type B.
-
-        Returns:
-            Maybe[B]: The result of applying f to the contained value.
-        """
-        return f(self.value)  # type: ignore
+        return hash(self.value)

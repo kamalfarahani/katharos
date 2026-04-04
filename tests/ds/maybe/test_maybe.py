@@ -1,4 +1,4 @@
-from katharos.ds.maybe.maybe import Just, Maybe, Nothing
+from katharos.ds.maybe import Maybe
 from katharos.functools import F
 
 
@@ -16,28 +16,31 @@ def to_string(x: float) -> str:
 
 def safe_divide(x: float) -> Maybe[float]:
     if x == 0:
-        return Nothing()
-    return Just(10.0 / x)
+        return Maybe()
+    return Maybe(10.0 / x)
 
 
 def safe_sqrt(x: float) -> Maybe[float]:
     if x < 0:
-        return Nothing()
-    return Just(x**0.5)
+        return Maybe()
+    return Maybe(x**0.5)
 
 
 class TestMaybeBasics:
     def test_just_creation(self):
-        m = Just(5)
+        m = Maybe(5)
         assert m.value == 5
+        assert m.is_just()
+        assert not m.is_nothing()
 
     def test_nothing_creation(self):
-        m = Nothing()
-        assert isinstance(m, Nothing)
+        m = Maybe()
+        assert m.is_nothing()
+        assert not m.is_just()
 
     def test_pure(self):
         m = Maybe.pure(42)
-        assert isinstance(m, Just)
+        assert m.is_just()
         assert m.value == 42
 
 
@@ -49,16 +52,16 @@ class TestFunctorLaws:
     """
 
     def test_functor_identity_just(self):
-        m = Just(10)
+        m = Maybe(10)
         assert m.fmap(F.id).value == m.value
 
     def test_functor_identity_nothing(self):
-        m = Nothing()
+        m = Maybe()
         result = m.fmap(F.id)
-        assert isinstance(result, Nothing)
+        assert result.is_nothing()
 
     def test_functor_composition_just(self):
-        m = Just(5)
+        m = Maybe(5)
 
         left = m.fmap(lambda x: to_string(multiply_by_two(x)))
         right = m.fmap(multiply_by_two).fmap(to_string)
@@ -67,13 +70,13 @@ class TestFunctorLaws:
         assert left.value == "10"
 
     def test_functor_composition_nothing(self):
-        m = Nothing()
+        m = Maybe()
 
         left = m.fmap(lambda x: to_string(multiply_by_two(x)))
         right = m.fmap(multiply_by_two).fmap(to_string)
 
-        assert isinstance(left, Nothing)
-        assert isinstance(right, Nothing)
+        assert left.is_nothing()
+        assert right.is_nothing()
 
 
 class TestApplicativeLaws:
@@ -86,14 +89,14 @@ class TestApplicativeLaws:
     """
 
     def test_applicative_identity_just(self):
-        v = Just(42)
+        v = Maybe(42)
         result = v.ap(Maybe.pure(F.id))
         assert result == v
 
     def test_applicative_identity_nothing(self):
-        v = Nothing()
+        v = Maybe()
         result = v.ap(Maybe.pure(F.id))
-        assert isinstance(result, Nothing)
+        assert result.is_nothing()
 
     def test_applicative_homomorphism(self):
         x = 10
@@ -103,42 +106,42 @@ class TestApplicativeLaws:
         right = Maybe.pure(f(x))
 
         assert left == right
-        assert isinstance(left, Just)
+        assert left.is_just()
         assert left.value == 20
 
     def test_applicative_interchange_just(self):
         y = 5
-        u = Just(multiply_by_two)
+        u = Maybe(multiply_by_two)
 
-        left = Just(y).ap(u)
+        left = Maybe(y).ap(u)
         right = u.ap(Maybe.pure(lambda f: f(y)))
 
         assert left == right
-        assert isinstance(left, Just)
+        assert left.is_just()
         assert left.value == 10
 
     def test_applicative_composition(self):
-        u = Just(multiply_by_two)
-        v = Just(add_one)
-        w = Just(5)
+        u = Maybe(multiply_by_two)
+        v = Maybe(add_one)
+        w = Maybe(5)
 
         left = w.ap(v).ap(u)
         right = w.ap(v.ap(u.ap(Maybe.pure(F.compose))))
 
         assert left == right
-        assert isinstance(left, Just)
+        assert left.is_just()
         assert left.value == 12
 
     def test_applicative_nothing_function(self):
-        v = Just(42)
-        result = v.ap(Nothing())
-        assert isinstance(result, Nothing)
+        v = Maybe(42)
+        result = v.ap(Maybe())
+        assert result.is_nothing()
 
     def test_applicative_nothing_value(self):
-        f = Just(add_one)
-        v = Nothing()
+        f = Maybe(add_one)
+        v = Maybe()
         result = v.ap(f)
-        assert isinstance(result, Nothing)
+        assert result.is_nothing()
 
 
 class TestMonadLaws:
@@ -157,7 +160,7 @@ class TestMonadLaws:
         right = f(a)
 
         assert left == right
-        assert isinstance(left, Just)
+        assert left.is_just()
         assert left.value == 2.0
 
     def test_monad_left_identity_nothing_result(self):
@@ -167,11 +170,11 @@ class TestMonadLaws:
         left = Maybe.pure(a).bind(f)
         right = f(a)
 
-        assert isinstance(left, Nothing)
-        assert isinstance(right, Nothing)
+        assert left.is_nothing()
+        assert right.is_nothing()
 
     def test_monad_right_identity_just(self):
-        m = Just(42)
+        m = Maybe(42)
 
         left = m.bind(Maybe.pure)
         right = m
@@ -179,101 +182,101 @@ class TestMonadLaws:
         assert left == right
 
     def test_monad_right_identity_nothing(self):
-        m = Nothing()
+        m = Maybe()
 
         left = m.bind(Maybe.pure)
 
-        assert isinstance(left, Nothing)
+        assert left.is_nothing()
 
     def test_monad_associativity(self):
-        m = Just(4.0)
+        m = Maybe(4.0)
         f = safe_sqrt
 
         def g(x: float) -> Maybe[float]:
-            return Just(x * 2)
+            return Maybe(x * 2)
 
         left = m.bind(f).bind(g)
         right = m.bind(lambda x: f(x).bind(g))
 
         assert left == right
-        assert isinstance(left, Just)
+        assert left.is_just()
         assert left.value == 4.0
 
     def test_monad_associativity_with_nothing(self):
-        m = Just(-4.0)
+        m = Maybe(-4.0)
         f = safe_sqrt
 
         def g(x: float) -> Maybe[float]:
-            return Just(x * 2)
+            return Maybe(x * 2)
 
         left = m.bind(f).bind(g)
         right = m.bind(lambda x: f(x).bind(g))
 
-        assert isinstance(left, Nothing)
-        assert isinstance(right, Nothing)
+        assert left.is_nothing()
+        assert right.is_nothing()
 
     def test_monad_chain_operations(self):
-        result = Just(2).bind(safe_divide).bind(safe_sqrt)
-        assert isinstance(result, Just)
+        result = Maybe(2).bind(safe_divide).bind(safe_sqrt)
+        assert result.is_just()
         assert isinstance(result.value, float)
         assert abs(result.value - 2.236067977) < 0.0001
 
     def test_monad_chain_with_nothing(self):
-        result = Just(0).bind(safe_divide).bind(safe_sqrt)
-        assert isinstance(result, Nothing)
+        result = Maybe(0).bind(safe_divide).bind(safe_sqrt)
+        assert result.is_nothing()
 
 
 class TestOperators:
     def test_pipe_operator_just(self):
-        result = Just(5) | safe_divide
-        assert isinstance(result, Just)
+        result = Maybe(5) | safe_divide
+        assert result.is_just()
         assert result.value == 2.0
 
     def test_pipe_operator_nothing(self):
-        result = Nothing() | safe_divide
-        assert isinstance(result, Nothing)
+        result = Maybe() | safe_divide
+        assert result.is_nothing()
 
     def test_xor_operator_just(self):
-        result = Just(5) ** Just(multiply_by_two)
-        assert isinstance(result, Just)
+        result = Maybe(5) ** Maybe(multiply_by_two)
+        assert result.is_just()
         assert result.value == 10
 
     def test_xor_operator_nothing_value(self):
-        result = Nothing() ** Just(multiply_by_two)
-        assert isinstance(result, Nothing)
+        result = Maybe() ** Maybe(multiply_by_two)
+        assert result.is_nothing()
 
     def test_xor_operator_nothing_function(self):
-        result = Just(5) ** Nothing()
-        assert isinstance(result, Nothing)
+        result = Maybe(5) ** Maybe()
+        assert result.is_nothing()
 
     def test_chained_pipe_operators(self):
-        result = Just(4) | safe_divide | safe_sqrt
-        assert isinstance(result, Just)
+        result = Maybe(4) | safe_divide | safe_sqrt
+        assert result.is_just()
         assert isinstance(result.value, float)
         assert abs(result.value - 1.5811388) < 0.0001
 
 
 class TestEdgeCases:
     def test_fmap_multiple_times(self):
-        result = Just(1).fmap(add_one).fmap(multiply_by_two).fmap(add_one)
+        result = Maybe(1).fmap(add_one).fmap(multiply_by_two).fmap(add_one)
         assert result.value == 5
 
     def test_bind_returning_nothing(self):
-        result = Just(0).bind(safe_divide)
-        assert isinstance(result, Nothing)
+        result = Maybe(0).bind(safe_divide)
+        assert result.is_nothing()
 
     def test_nothing_propagation(self):
-        result = Nothing().fmap(add_one).bind(safe_divide).fmap(multiply_by_two)
-        assert isinstance(result, Nothing)
+        result = Maybe().fmap(add_one).bind(safe_divide).fmap(multiply_by_two)
+        assert result.is_nothing()
 
     def test_complex_chain(self):
         result: Maybe[float] = (
-            Just(2)
+            Maybe(2)
             .fmap(multiply_by_two)
             .bind(safe_divide)
             .fmap(add_one)
             .bind(safe_sqrt)
         )
-        assert isinstance(result, Just)
+        assert result.is_just()
         assert isinstance(result.value, float)
         assert abs(result.value - 1.8708287) < 0.0001
