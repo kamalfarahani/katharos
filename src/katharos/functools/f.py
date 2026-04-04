@@ -1,4 +1,6 @@
+import inspect
 from collections.abc import Callable, Iterable
+from functools import wraps
 from operator import matmul
 
 from katharos.algebra import Semigroup
@@ -105,3 +107,46 @@ class F:
             xs.head,
             xs.tail,
         )
+
+    @staticmethod
+    def curry(f: Callable) -> Callable:
+        """
+        Transform a multi-argument function into a curried version.
+
+        Currying converts a function that takes multiple arguments into a sequence
+        of functions, each taking a single argument.
+
+        Args:
+            f: A function to curry
+
+        Returns:
+            A curried version of the function
+
+        Examples:
+            >>> def add(x: int, y: int, z: int) -> int:
+            ...     return x + y + z
+            >>> curried_add = F.curry(add)
+            >>> curried_add(1)(2)(3)
+            6
+            >>> add_one = curried_add(1)
+            >>> add_one(2)(3)
+            6
+        """
+        sig = inspect.signature(f)
+        params = list(sig.parameters.values())
+        num_params = len(params)
+
+        if num_params == 0:
+            return f
+
+        @wraps(f)
+        def curried(*args):
+            if len(args) >= num_params:
+                return f(*args[:num_params])
+
+            def partial(*more_args):
+                return curried(*(args + more_args))
+
+            return partial
+
+        return curried
