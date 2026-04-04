@@ -3,7 +3,7 @@ from katharos.ds.result import Result
 
 class TestResultBasics:
     def test_success_creation(self):
-        result = Result(42)
+        result = Result.Success(42)
         assert result.is_success()
         assert not result.is_failure()
         assert result.value == 42
@@ -11,10 +11,10 @@ class TestResultBasics:
 
     def test_failure_creation(self):
         error = ValueError("test error")
-        result = Result(error)
+        result = Result.Failure(error)
         assert result.is_failure()
         assert not result.is_success()
-        assert result.value == error
+        assert result.error == error
         assert repr(result) == f"Failure({error!r})"
 
     def test_pure(self):
@@ -32,13 +32,13 @@ class TestResultBasics:
 
 class TestResultTypeTransformations:
     def test_int_to_string_transformation(self):
-        result = Result(42).fmap(str)
+        result = Result.Success(42).fmap(str)
 
         assert result.is_success()
         assert result.value == "42"
 
     def test_string_to_int_transformation(self):
-        result = Result("42").fmap(int)
+        result = Result.Success("42").fmap(int)
 
         assert result.is_success()
         assert result.value == 42
@@ -47,7 +47,7 @@ class TestResultTypeTransformations:
         def double_list(xs: list[int]) -> list[int]:
             return [x * 2 for x in xs]
 
-        result = Result([1, 2, 3]).fmap(double_list)
+        result = Result.Success([1, 2, 3]).fmap(double_list)
 
         assert result.is_success()
         assert result.value == [2, 4, 6]
@@ -56,7 +56,7 @@ class TestResultTypeTransformations:
         def identity_result(x: Result[int, Exception]) -> Result[int, Exception]:
             return x
 
-        nested = Result(Result(42))
+        nested = Result.Success(Result.Success(42))
 
         flattened = nested.bind(identity_result)
 

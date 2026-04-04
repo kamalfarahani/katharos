@@ -31,17 +31,21 @@ class Result(
         E: The type of the exception (must be a subclass of BaseException)
 
     Examples:
-        >>> success = Result(42)
+        >>> success = Result.Success(42)
         >>> success.is_success()
         True
         >>> success
         Success(42)
+        >>> success.value
+        42
 
-        >>> failure = Result(ValueError("error"))
+        >>> failure = Result.Failure(ValueError("error"))
         >>> failure.is_failure()
         True
         >>> failure
         Failure(ValueError('error'))
+        >>> failure.error
+        ValueError('error')
 
         >>> success.fmap(lambda x: x * 2)
         Success(84)
@@ -49,35 +53,19 @@ class Result(
         >>> failure.fmap(lambda x: x * 2)
         Failure(ValueError('error'))
 
-        >>> Result(5) | (lambda x: Result(x + 1))
+        >>> Result.Success(5) | (lambda x: Result.Success(x + 1))
         Success(6)
 
     Note:
         This class is marked as @final and cannot be subclassed. Use `is_success()`
         and `is_failure()` methods to check the state instead of type checking.
+        Use `Result.Success()` to create success values and `Result.Failure()` to
+        create failure values. Access success values with `.value` and failure
+        errors with `.error`.
         The class supports the following operators:
         - `|` (pipe): Monadic bind operation
         - `**` (power): Applicative application
     """
-
-    def __init__(self, value: A | E) -> None:
-        """
-        Initialize the Result.
-
-        Args:
-            value: The value to wrap, either A or E
-        """
-        self._value = value
-
-    @property
-    def value(self) -> A | E:
-        """
-        Get the value of the Result.
-
-        Returns:
-            The value of the Result
-        """
-        return self._value
 
     @classmethod
     def pure[T](cls: type[Result], x: T) -> Result[T, E]:
@@ -97,6 +85,76 @@ class Result(
             raise TypeError("Cannot create a Result with an exception as the value")
 
         return Result(x)
+
+    @staticmethod
+    def Success(x: A) -> Result[A, E]:  # type: ignore
+        """
+        Create a Success result.
+
+        Args:
+            x: The value to wrap
+
+        Returns:
+            A Success result containing the value
+        """
+        return Result.pure(x)
+
+    @staticmethod
+    def Failure(e: E) -> Result[A, E]:  # type: ignore
+        """
+        Create a Failure result.
+
+        Args:
+            e: The exception to wrap
+
+        Returns:
+            A Failure result containing the exception
+        """
+        if not isinstance(e, BaseException):
+            raise TypeError("Cannot create a Result with a non-exception as the value")
+
+        return Result(e)
+
+    def __init__(self, value: A | E) -> None:
+        """
+        Initialize the Result.
+
+        Args:
+            value: The value to wrap, either A or E
+        """
+        self._value = value
+
+    @property
+    def value(self) -> A:
+        """
+        Get the value of the Result.
+
+        Returns:
+            The value of the Result
+
+        Raises:
+            TypeError: If the Result is a Failure
+        """
+        if isinstance(self._value, BaseException):
+            raise TypeError("Cannot get the value of a Failure")
+
+        return self._value
+
+    @property
+    def error(self) -> E:
+        """
+        Get the error of the Result.
+
+        Returns:
+            The error of the Result
+
+        Raises:
+            TypeError: If the Result is a Success
+        """
+        if not isinstance(self._value, BaseException):
+            raise TypeError("Cannot get the error of a Success")
+
+        return cast(E, self._value)
 
     def fmap[B](self, f: Callable[[A], B]) -> Result[B, E]:
         """
