@@ -153,3 +153,97 @@ class TestFoldComparison:
         assert foldr_result != foldl_result
         assert foldr_result == 2
         assert foldl_result == -6
+
+
+class TestCurry:
+    def test_curry_basic_two_args(self):
+        def add(x: int, y: int) -> int:
+            return x + y
+
+        curried_add = F.curry(add)
+        assert curried_add(2)(3) == 5
+
+    def test_curry_basic_three_args(self):
+        def add(x: int, y: int, z: int) -> int:
+            return x + y + z
+
+        curried_add = F.curry(add)
+        assert curried_add(1)(2)(3) == 6
+
+    def test_curry_partial_application(self):
+        def add(x: int, y: int, z: int) -> int:
+            return x + y + z
+
+        curried_add = F.curry(add)
+        add_one = curried_add(1)
+        assert add_one(2)(3) == 6
+
+    def test_curry_multiple_partial_applications(self):
+        def add(x: int, y: int, z: int) -> int:
+            return x + y + z
+
+        curried_add = F.curry(add)
+        add_one = curried_add(1)
+        add_one_two = add_one(2)
+        assert add_one_two(3) == 6
+
+    def test_curry_with_multiple_args_at_once(self):
+        def add(x: int, y: int, z: int) -> int:
+            return x + y + z
+
+        curried_add = F.curry(add)
+        assert curried_add(1, 2)(3) == 6
+        assert curried_add(1)(2, 3) == 6
+        assert curried_add(1, 2, 3) == 6
+
+    def test_curry_zero_args_function(self):
+        def get_value() -> int:
+            return 42
+
+        curried = F.curry(get_value)
+        assert curried() == 42
+
+    def test_curry_single_arg_function(self):
+        def double(x: int) -> int:
+            return x * 2
+
+        curried_double = F.curry(double)
+        assert curried_double(5) == 10
+
+    def test_curry_with_strings(self):
+        def concat(a: str, b: str, c: str) -> str:
+            return a + b + c
+
+        curried_concat = F.curry(concat)
+        assert curried_concat("Hello")(" ")("World") == "Hello World"
+
+    def test_curry_with_different_types(self):
+        def format_message(name: str, age: int, active: bool) -> str:
+            return f"{name} is {age} years old and {'active' if active else 'inactive'}"
+
+        curried_format = F.curry(format_message)
+        assert curried_format("Alice")(30)(True) == "Alice is 30 years old and active"
+
+    def test_curry_reusability(self):
+        def multiply(x: int, y: int, z: int) -> int:
+            return x * y * z
+
+        curried_multiply = F.curry(multiply)
+        multiply_by_2 = curried_multiply(2)
+
+        assert multiply_by_2(3)(4) == 24
+        assert multiply_by_2(5)(6) == 60
+
+    def test_curry_excess_args(self):
+        def add(x: int, y: int) -> int:
+            return x + y
+
+        curried_add = F.curry(add)
+        assert curried_add(1, 2, 999) == 3
+
+    def test_curry_four_args(self):
+        def combine(a: int, b: int, c: int, d: int) -> int:
+            return a + b * c - d
+
+        curried_combine = F.curry(combine)
+        assert curried_combine(10)(5)(2)(3) == 17
