@@ -69,6 +69,16 @@ class Result(
         """
         self._value = value
 
+    @property
+    def value(self) -> A | E:
+        """
+        Get the value of the Result.
+
+        Returns:
+            The value of the Result
+        """
+        return self._value
+
     @classmethod
     def pure[T](cls: type[Result], x: T) -> Result[T, E]:
         """
@@ -118,11 +128,13 @@ class Result(
             Result[B]: Result of applying the function to this value
         """
         wrapped_funcs = cast(Result[Callable[[A], B], E], wrapped_funcs)
-        if isinstance(self._value, BaseException) or isinstance(
-            wrapped_funcs._value, BaseException
-        ):
-            casted_self = cast(Result[B, E], self)
-            return casted_self
+        if isinstance(self._value, BaseException):
+            result_err = cast(Result[B, E], self)
+            return result_err
+
+        if isinstance(wrapped_funcs._value, BaseException):
+            result_err = cast(Result[B, E], wrapped_funcs)
+            return result_err
 
         casted_self = cast(A, self._value)
         inner_func = cast(Callable[[A], B], wrapped_funcs._value)
