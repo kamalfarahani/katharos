@@ -10,6 +10,34 @@ A = TypeVar("A", covariant=True)
 
 
 @final
+class _Nothing:
+    """
+    Singleton class representing an empty Maybe.
+    """
+
+    def __eq__(self, value: object, /) -> bool:
+        if not isinstance(value, _Nothing):
+            return False
+        return True
+
+    def __repr__(self) -> str:
+        return "Nothing()"
+
+    def __hash__(self) -> int:
+        return hash("Nothing")
+
+    def __bool__(self) -> bool:
+        return False
+
+
+nothing = _Nothing()
+
+
+def is_nothing(value: Any) -> bool:
+    return isinstance(value, _Nothing)
+
+
+@final
 class Maybe(Monad["Maybe[Any]", A]):
     """
     A Maybe monad representing an optional value.
@@ -22,30 +50,26 @@ class Maybe(Monad["Maybe[Any]", A]):
     - Just(value): Contains a value
     - Nothing(): Contains no value (value is None)
 
-    Args:
-        value: The optional value to wrap. Defaults to None.
-
     Examples:
-        >>> just_value = Maybe(5)
+        >>> just_value = Maybe.Just(5)
         >>> just_value.fmap(lambda x: x * 2)
         Just(10)
 
-        >>> nothing = Maybe()
+        >>> nothing = Maybe.Nothing()
         >>> nothing.fmap(lambda x: x * 2)
         Nothing()
 
-        >>> Maybe(3) | (lambda x: Maybe(x + 1))
+        >>> Maybe.Just(3) | (lambda x: Maybe.Just(x + 1))
         Just(4)
+
+    Note:
+        This class is marked as @final and cannot be subclassed. Use `is_just()`
+        and `is_nothing()` methods to check the state. Use `Maybe.Just()` to create
+        a Maybe with a value and `Maybe.Nothing()` to create an empty Maybe.
+        The class supports the following operators:
+        - `|` (pipe): Monadic bind operation
+        - `**` (power): Applicative application
     """
-
-    def __init__(self, value: A | None = None) -> None:
-        """
-        Initialize a Maybe with an optional value.
-
-        Args:
-            value: The optional value to wrap. Defaults to None.
-        """
-        self.value = value
 
     @classmethod
     def pure[T](cls: type[Maybe], x: T) -> Maybe[T]:
@@ -58,7 +82,60 @@ class Maybe(Monad["Maybe[Any]", A]):
         Returns:
             Maybe[A]: A Maybe containing the given value.
         """
-        return Maybe(value=x)
+        return Maybe.Just(x)
+
+    @staticmethod
+    def Just(value: A) -> Maybe[A]:  # type: ignore
+        """
+        Create a Maybe containing a value.
+
+        Args:
+            value: The value to wrap in a Maybe. Must not be Nothing.
+
+        Returns:
+            Maybe[A]: A Maybe containing the given value.
+
+        Raises:
+            TypeError: If the value is of type _Nothing.
+        """
+        if is_nothing(value):
+            raise TypeError("Value cannot be Nothing")
+
+        return Maybe(value=value)
+
+    @staticmethod
+    def Nothing() -> Maybe[A]:
+        """
+        Create an empty Maybe.
+
+        Returns:
+            Maybe[A]: An empty Maybe.
+        """
+        return Maybe(value=nothing)
+
+    def __init__(self, value: A | _Nothing = nothing) -> None:
+        """
+        Initialize a Maybe with an optional value.
+
+        Args:
+            value: The optional value to wrap. Defaults to nothing.
+        """
+        self._value = value
+
+    def unwrap(self) -> A:
+        """
+        Unwrap the value from the Maybe.
+
+        Returns:
+            A: The value contained in the Maybe.
+
+        Raises:
+            ValueError: If the Maybe is empty.
+        """
+        if is_nothing(self._value):
+            raise ValueError("Cannot unwrap a Nothing")
+
+        return cast(A, self._value)
 
     def fmap[B](self, f: Callable[[A], B]) -> Maybe[B]:
         """
@@ -70,10 +147,10 @@ class Maybe(Monad["Maybe[Any]", A]):
         Returns:
             Maybe[B]: Maybe containing the mapped value
         """
-        if self.value is None:
+        if is_nothing(self._value):
             return Maybe[B]()
 
-        return Maybe[B](f(self.value))
+        return Maybe[B](f(self.unwrap()))
 
     def ap[B](
         self,
@@ -90,10 +167,10 @@ class Maybe(Monad["Maybe[Any]", A]):
         """
         wrapped_funcs = cast(Maybe[Callable[[A], B]], wrapped_funcs)
 
-        if self.value is None or wrapped_funcs.value is None:
-            return Maybe[B]()
+        if is_nothing(self._value) or is_nothing(wrapped_funcs._value):
+            return Maybe[B].Nothing()
 
-        return Maybe[B](wrapped_funcs.value(self.value))
+        return Maybe[B].Just(wrapped_funcs.unwrap()(self.unwrap()))
 
     def bind[B](
         self,
@@ -109,10 +186,10 @@ class Maybe(Monad["Maybe[Any]", A]):
             Maybe[B]: The result of applying the function.
         """
         f = cast(Callable[[A], Maybe[B]], f)
-        if self.value is None:
-            return Maybe[B]()
+        if is_nothing(self._value):
+            return Maybe[B].Nothing()
 
-        return f(self.value)
+        return f(self.unwrap())
 
     def is_just(self) -> bool:
         """
@@ -121,7 +198,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         Returns:
             bool: True if the Maybe contains a value, False otherwise.
         """
-        return self.value is not None
+        return not is_nothing(self._value)
 
     def is_nothing(self) -> bool:
         """
@@ -130,7 +207,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         Returns:
             bool: True if the Maybe does not contain a value, False otherwise.
         """
-        return self.value is None
+        return is_nothing(self._value)
 
     def __pow__[B](
         self,
@@ -175,7 +252,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         if not isinstance(other, Maybe):
             return False
 
-        return self.value == other.value
+        return self._value == other._value
 
     def __repr__(self) -> str:
         """
@@ -184,7 +261,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         Returns:
             str: "Just(value)" if the Maybe contains a value, "Nothing()" otherwise.
         """
-        return f"Just({self.value})" if self.value is not None else "Nothing()"
+        return f"Just({self._value})" if self.is_just() else "Nothing()"
 
     def __hash__(self) -> int:
         """
@@ -193,4 +270,4 @@ class Maybe(Monad["Maybe[Any]", A]):
         Returns:
             int: The hash of the Maybe.
         """
-        return hash(self.value)
+        return hash(self._value)
