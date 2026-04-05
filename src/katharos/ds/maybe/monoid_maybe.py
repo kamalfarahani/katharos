@@ -46,10 +46,12 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
         Returns:
             MonoidMaybe[A]: The result of combining the two MonoidMaybes.
         """
-        match self.maybe.value, other.maybe.value:
-            case None, _:
+        match self.maybe.is_just(), other.maybe.is_just():
+            case False, _:
                 return other
-            case _, None:
+            case _, False:
                 return self
-            case v_1, v_2:
-                return MonoidMaybe(maybe=Maybe(value=v_1 @ v_2))
+            case True, True:
+                x_1 = self.maybe.unwrap()
+                x_2 = other.maybe.unwrap()
+                return MonoidMaybe(maybe=Maybe.Just(value=x_1 @ x_2))
