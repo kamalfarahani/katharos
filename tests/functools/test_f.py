@@ -1,3 +1,5 @@
+import pytest
+
 from katharos.functools.f import F
 
 
@@ -239,7 +241,8 @@ class TestCurry:
             return x + y
 
         curried_add = F.curry(add)
-        assert curried_add(1, 2, 999) == 3
+        with pytest.raises(TypeError):
+            curried_add(1, 2, 999)
 
     def test_curry_four_args(self):
         def combine(a: int, b: int, c: int, d: int) -> int:

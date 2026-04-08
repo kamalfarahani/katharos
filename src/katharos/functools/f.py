@@ -8,8 +8,8 @@ from katharos.ds.list import NonEmptyList
 
 
 class F:
-    """
-    This class serves as a namespace for utility functions.
+    """Namespace for utility functions.
+
     All functions are static and can be called without instantiating the class.
     """
 
@@ -17,14 +17,14 @@ class F:
     def compose[A, B, C](
         f: Callable[[B], C],
     ) -> Callable[[Callable[[A], B]], Callable[[A], C]]:
-        """
-        Compose two functions.
+        """Compose two functions.
 
         Args:
-            f: A function from B to C
+            f: A function from B to C.
 
         Returns:
-            A function that takes a function from A to B and returns a function from A to C
+            A function that takes a function from A to B and returns a function
+            from A to C.
         """
 
         def inner(g: Callable[[A], B]) -> Callable[[A], C]:
@@ -34,14 +34,13 @@ class F:
 
     @staticmethod
     def id[A](x: A) -> A:
-        """
-        Identity function.
+        """Identity function.
 
         Args:
-            x: Input value
+            x: Input value.
 
         Returns:
-            The same value x
+            The same value x.
         """
         return x
 
@@ -51,16 +50,16 @@ class F:
         acc: B,
         xs: Iterable[A],
     ) -> B:
-        """
-        Right fold a function over an iterable.
+        """Right fold a function over an iterable.
 
         Args:
-            f: A function that takes an element and an accumulator and returns a new accumulator
-            acc: The initial accumulator value
-            xs: An iterable of elements
+            f: A function that takes an element and an accumulator and returns a
+                new accumulator.
+            acc: The initial accumulator value.
+            xs: An iterable of elements.
 
         Returns:
-            The accumulator value after applying f to each element of xs
+            The accumulator value after applying f to each element of xs.
         """
         result = acc
         for x in reversed(list(xs)):
@@ -74,16 +73,16 @@ class F:
         acc: B,
         xs: Iterable[A],
     ) -> B:
-        """
-        Left fold a function over an iterable.
+        """Left fold a function over an iterable.
 
         Args:
-            f: A function that takes an accumulator and an element and returns a new accumulator
-            acc: The initial accumulator value
-            xs: An iterable of elements
+            f: A function that takes an accumulator and an element and returns a
+                new accumulator.
+            acc: The initial accumulator value.
+            xs: An iterable of elements.
 
         Returns:
-            The accumulator value after applying f to each element of xs
+            The accumulator value after applying f to each element of xs.
         """
         result = acc
         for x in xs:
@@ -93,14 +92,13 @@ class F:
 
     @staticmethod
     def sigma[A: Semigroup](xs: NonEmptyList[A]) -> A:
-        """
-        Combine all elements of a non-empty list using the semigroup operation.
+        """Combine all elements of a non-empty list using the semigroup operation.
 
         Args:
-            xs: A non-empty list of semigroup elements
+            xs: A non-empty list of semigroup elements.
 
         Returns:
-            A: The result of combining all elements using the semigroup's @ operator
+            The result of combining all elements using the semigroup's @ operator.
         """
         return F.foldl(
             matmul,
@@ -110,17 +108,17 @@ class F:
 
     @staticmethod
     def curry(f: Callable) -> Callable:
-        """
-        Transform a multi-argument function into a curried version.
+        """Transform a multi-argument function into a curried version.
 
         Currying converts a function that takes multiple arguments into a sequence
-        of functions, each taking a single argument.
+        of functions, each taking a single argument. Supports both positional and
+        keyword arguments.
 
         Args:
-            f: A function to curry
+            f: A function to curry.
 
         Returns:
-            A curried version of the function
+            A curried version of the function.
 
         Examples:
             >>> def add(x: int, y: int, z: int) -> int:
@@ -131,6 +129,10 @@ class F:
             >>> add_one = curried_add(1)
             >>> add_one(2)(3)
             6
+            >>> curried_add(x=1)(y=2)(z=3)
+            6
+            >>> curried_add(1, y=2)(z=3)
+            6
         """
         sig = inspect.signature(f)
         params = list(sig.parameters.values())
@@ -140,12 +142,18 @@ class F:
             return f
 
         @wraps(f)
-        def curried(*args):
-            if len(args) >= num_params:
-                return f(*args[:num_params])
+        def curried(*args, **kwargs):
+            bound_args = sig.bind_partial(*args, **kwargs)
+            bound_args.apply_defaults()
 
-            def partial(*more_args):
-                return curried(*(args + more_args))
+            total_bound = len(bound_args.arguments)
+
+            if total_bound >= num_params:
+                return f(*args, **kwargs)
+
+            def partial(*more_args, **more_kwargs):
+                combined_kwargs = {**kwargs, **more_kwargs}
+                return curried(*(args + more_args), **combined_kwargs)
 
             return partial
 
