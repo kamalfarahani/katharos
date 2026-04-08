@@ -4,7 +4,7 @@ from decimal import DivisionByZero
 from katharos.ds.result import Result
 
 
-def divide_safe(x: float, y: float) -> Result[float, Exception]:
+def divide_safe(x: float, y: float) -> Result[Exception, float]:
     if y == 0:
         return Result.Failure(DivisionByZero("Division by zero"))
     return Result.Success(x / y)
@@ -15,7 +15,7 @@ class TestResultChaining:
         def add_ten(x: int) -> int:
             return x + 10
 
-        def mul_two_result(x: int) -> Result[int, Exception]:
+        def mul_two_result(x: int) -> Result[Exception, int]:
             return Result.Success(x * 2)
 
         def sub_five(x: int) -> int:
@@ -32,7 +32,7 @@ class TestResultChaining:
         def add_ten(x: int) -> int:
             return x + 10
 
-        def fail(x: int) -> Result[int, Exception]:
+        def fail(x: int) -> Result[Exception, int]:
             return Result.Failure(error)
 
         def mul_two(x: int) -> int:
@@ -53,13 +53,13 @@ class TestResultChaining:
         assert result.value == 15
 
     def test_complex_computation_chain(self):
-        def divide_by_two(x: float) -> Result[float, Exception]:
+        def divide_by_two(x: float) -> Result[Exception, float]:
             return divide_safe(x, 2)
 
         def add_ten(x: float) -> float:
             return x + 10
 
-        def divide_by_five(x: float) -> Result[float, Exception]:
+        def divide_by_five(x: float) -> Result[Exception, float]:
             return divide_safe(x, 5)
 
         result = (
@@ -70,13 +70,13 @@ class TestResultChaining:
         assert result.value == 12.0
 
     def test_complex_computation_chain_with_failure(self):
-        def divide_by_two(x: float) -> Result[float, Exception]:
+        def divide_by_two(x: float) -> Result[Exception, float]:
             return divide_safe(x, 2)
 
-        def add_ten(x: float) -> Result[float, Exception]:
+        def add_ten(x: float) -> Result[Exception, float]:
             return Result.Success(x + 10)
 
-        def divide_by_zero(x: float) -> Result[float, Exception]:
+        def divide_by_zero(x: float) -> Result[Exception, float]:
             return divide_safe(x, 0)
 
         result = Result.Success(100) | divide_by_two | add_ten | divide_by_zero
@@ -94,7 +94,7 @@ class TestResultStateChecking:
 
     def test_check_failure_state(self):
         error = ValueError("test error")
-        result: Result[int, Exception] = Result.Failure(error)
+        result: Result[Exception, int] = Result.Failure(error)
 
         assert result.is_failure()
         assert not result.is_success()
