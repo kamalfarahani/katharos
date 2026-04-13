@@ -279,3 +279,20 @@ class Result(
             return f"Success({self._value!r})"
         else:
             return f"Failure({self._value!r})"
+
+    def __eq__(self, value: object, /) -> bool:
+        """Compare two Result objects for equality.
+
+        Args:
+            value (object): The object to compare with.
+
+        Returns:
+            bool: True if the objects are equal, False otherwise.
+        """
+        if not isinstance(value, Result):
+            return False
+
+        if self.is_success():
+            return self.value == value.value
+        else:
+            return self.error == value.error
