@@ -97,7 +97,7 @@ class Monad[Mon, A](Applicative[Mon, A], ABC):
         Returns:
             Monad[Mon, B]: The result of the second Monad.
         """
-        return other
+        return self | (lambda _: other)
 
     def __or__[B](self, f: Callable[[A], Monad[Mon, B]]) -> Monad[Mon, B]:
         """
