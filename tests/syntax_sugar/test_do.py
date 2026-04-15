@@ -183,6 +183,57 @@ class TestDoWithImmutableList:
         assert result == ImmutableList([0, 1, 1, 2, 1, 2, 2, 3])
 
 
+class TestDoRet:
+    def test_ret_lifts_pure_value_with_maybe(self):
+        with Do[Maybe, int]() as do:
+            x = do.arrow(Maybe.Just(3))
+            y = do.arrow(Maybe.Just(4))
+            result = do.ret(lambda x, y: x + y, x=x, y=y)
+        assert result == Maybe.Just(7)
+
+    def test_ret_single_just_value(self):
+        with Do[Maybe, int]() as do:
+            x = do.arrow(Maybe.Just(10))
+            result = do.ret(lambda x: x * 2, x=x)
+        assert result == Maybe.Just(20)
+
+    def test_ret_short_circuits_on_nothing(self):
+        with Do[Maybe, int]() as do:
+            x = do.arrow(Maybe.Just(3))
+            y = do.arrow(Maybe.Nothing())
+            result = do.ret(lambda x, y: x + y, x=x, y=y)
+        assert result == Maybe.Nothing()
+
+    def test_ret_lifts_pure_value_with_result(self):
+        with Do[Result, int]() as do:
+            x = do.arrow(Result.Success(10))
+            y = do.arrow(Result.Success(5))
+            result = do.ret(lambda x, y: x - y, x=x, y=y)
+        assert result == Result.Success(5)
+
+    def test_ret_short_circuits_on_failure(self):
+        err = ValueError("bad")
+        with Do[Result, int]() as do:
+            x = do.arrow(Result.Failure(err))
+            y = do.arrow(Result.Success(5))
+            result = cast(Result, do.ret(lambda x, y: x + y, x=x, y=y))
+        assert result.is_failure()
+        assert result.error is err
+
+    def test_ret_lifts_pure_value_with_immutable_list(self):
+        with Do[ImmutableList, int]() as do:
+            x = do.arrow(ImmutableList([1, 2]))
+            y = do.arrow(ImmutableList([10, 20]))
+            result = do.ret(lambda x, y: x + y, x=x, y=y)
+        assert result == ImmutableList([11, 21, 12, 22])
+
+    def test_ret_without_type_parameter_raises(self):
+        with pytest.raises(AssertionError):
+            with Do() as do:
+                x = do.arrow(Maybe.Just(1))
+                do.ret(lambda x: x, x=x)
+
+
 class TestDoErrors:
     def test_variable_not_registered_raises(self):
         with pytest.raises(ValueError):
