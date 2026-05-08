@@ -4,10 +4,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from katharos.algebra import Monad
+from katharos.functools import F
 
 
 @dataclass
-class DoVariable[M, A]:
+class DoVariable[M: Monad]:
     """
     A placeholder representing a bound monadic value in a Do block.
 
@@ -16,78 +17,90 @@ class DoVariable[M, A]:
         monad: The monad whose value will be extracted during evaluation.
     """
 
+    def __hash__(self) -> int:
+        return hash(self.index)
+
+    def __eq__(self, other: object, /) -> bool:
+        if not isinstance(other, DoVariable):
+            return False
+        return self.index == other.index
+
     index: int
-    monad: Monad[M, A]
+    monad: M
 
 
-class Do[M, A]:
-    """A context manager providing Haskell-style do-notation for Monads.
+class Do[M: Monad]:
+    """Context manager providing Haskell-style do-notation for monadic computations.
 
-    Do-notation is syntactic sugar for sequencing monadic computations via
-    `bind`. Instead of chaining `.bind()` calls manually, `Do` lets you
-    register monads with `arrow` and then resolve all bound values at once
-    with `eval` (returning a monad) or `ret` (returning a lifted pure value).
+    ``Do[M]`` allows sequencing monadic values in an imperative style by
+    transparently threading ``bind`` chains through registered variables.
+    Bind a monad to a variable with :meth:`arrow` (analogous to ``<-`` in
+    Haskell), then produce a final monadic result with :meth:`ret` (plain
+    return value) or :meth:`eval` (already-monadic return value).
 
-    The type parameter ``M`` must be supplied at instantiation time via
-    ``Do[M, A]()``. The concrete monad class ``M`` is captured and stored as
-    `_monad_type`, making it available to `ret` for calling ``M.ret``.
-
-    The equivalent Haskell do-block::
-
-        do
-            x_1 <- m_1
-            x_2 <- m_2
-            f x_1 x_2
-
-    Is expressed in Python as::
-
-        with Do[M, A]() as do:
-            x_1 = do.arrow(m_1)
-            x_2 = do.arrow(m_2)
-            result = do.eval(f, x_1=x_1, x_2=x_2)
+    The monad type must be supplied as a type parameter via ``Do[M]``, which
+    returns a specialised subclass with ``_monad_type`` set.
 
     Type Args:
-        M: The monad constructor (e.g. ``Maybe``). Must be a concrete subclass
-            of ``Monad`` and is captured at subscript time via
-            ``__class_getitem__``.
-        A: The inner value type carried by the monad.
+        M: The :class:`~katharos.algebra.Monad` subtype that all values in
+            this block belong to.
 
     Attributes:
-        _monad_type (type[Monad] | None): The concrete monad class ``M``
-            captured when the class is subscripted as ``Do[M, A]``. ``None``
-            when ``Do`` is used without type parameters.
+        _monad_type: The concrete :class:`~katharos.algebra.Monad` subclass
+            bound to this Do block, or ``None`` if the class has not been
+            specialised with a type parameter.
 
     Examples:
-        Short-circuit on Nothing propagates correctly:
+        Basic usage with the ``Maybe`` monad::
 
-            >>> from katharos.ds.maybe.maybe import Maybe
-            >>> m_1 = Maybe.Just(3)
-            >>> m_2 = Maybe.Nothing()
-            >>> with Do[Maybe, int]() as do:
-            ...     x_1 = do.arrow(m_1)
-            ...     x_2 = do.arrow(m_2)
-            ...     result = do.eval(lambda x_1, x_2: Maybe.Just(x_1 + x_2), x_1=x_1, x_2=x_2)
-            >>> result
-            Nothing()
+            m1 = Maybe[int].Just(3)
+            m2 = Maybe[int].Just(4)
 
-        Both values present — computation runs to completion:
+            with Do[Maybe]() as do:
+                x1 = do.arrow(m1)
+                x2 = do.arrow(m2)
+                result: Maybe[int] = do.ret(
+                    lambda x1, x2: x1 + x2,
+                    x1=x1,
+                    x2=x2,
+                )
+            # result == Maybe.Just(7)
 
-            >>> m_1 = Maybe.Just(3)
-            >>> m_2 = Maybe.Just(4)
-            >>> with Do[Maybe, int]() as do:
-            ...     x_1 = do.arrow(m_1)
-            ...     x_2 = do.arrow(m_2)
-            ...     result = do.ret(lambda x_1, x_2: x_1 + x_2, x_1=x_1, x_2=x_2)
-            >>> result
-            Just(7)
+        Short-circuit behavior when a ``Nothing`` is encountered::
 
-    Note:
-        `_vars` is cleared automatically when the ``with`` block exits.
+            m1 = Maybe[int].Just(3)
+            m2 = Maybe[int].Nothing()
+
+            with Do[Maybe]() as do:
+                x1 = do.arrow(m1)
+                x2 = do.arrow(m2)
+                result: Maybe[int] = do.ret(
+                    lambda x1, x2: x1 + x2,
+                    x1=x1,
+                    x2=x2,
+                )
+            # result == Maybe.Nothing()
     """
 
-    _monad_type: type[Monad] | None = None
+    _monad_type: type[M] | None = None
 
     def __class_getitem__(cls, params):
+        """Return a subclass of ``Do`` with ``_monad_type`` bound to *params*.
+
+        Called implicitly by the ``Do[M]`` subscription syntax.  When multiple
+        type arguments are given (as a tuple) only the first element is used as
+        the monad type.
+
+        Args:
+            params: A single monad type, or a tuple whose first element is the
+                monad type when additional type arguments are provided.
+
+        Returns:
+            A new subclass of this class whose ``_monad_type`` class attribute
+            is set to the resolved monad type.  The subclass inherits the same
+            ``__name__`` and ``__qualname__`` as the parent so that it is
+            transparent to users.
+        """
         monad_type = params[0] if isinstance(params, tuple) else params
 
         class _BoundDo(cls):
@@ -98,39 +111,45 @@ class Do[M, A]:
         return _BoundDo
 
     def __init__(self) -> None:
-        self._vars: list[DoVariable[M, A]] = []
+        """Initialise an empty Do block with no registered variables."""
+        self._vars: list[DoVariable[M]] = []
 
-    def __enter__(self) -> Do[M, A]:
-        """Enter the do-notation context.
+    def __enter__(self) -> Do[M]:
+        """Enter the Do block context and return this instance.
 
         Returns:
-            This ``Do`` instance, bound to the ``as`` target.
+            This ``Do`` instance, allowing the ``with Do[M]() as do:`` pattern.
         """
         return self
 
     def __exit__(self, *args: object) -> None:
-        """Exit the do-notation context, clearing all registered variables.
+        """Exit the Do block context and release all registered variables.
+
+        Clears the internal variable registry so that the same ``Do`` instance
+        cannot be accidentally reused after the ``with`` block ends.
 
         Args:
-            *args: Exception info (type, value, traceback); unused.
+            *args: Exception info forwarded by the context-manager protocol
+                (``exc_type``, ``exc_val``, ``exc_tb``); ignored.
         """
         self._vars.clear()
 
-    def arrow(self, monad: Monad[M, A]) -> DoVariable[M, A]:
-        """Register a monad for binding and return a `DoVariable` placeholder.
+    def arrow(self, monad: M) -> DoVariable[M]:
+        """Register a monadic value and return a placeholder variable.
 
-        Corresponds to the ``<-`` arrow in Haskell do-notation. The returned
-        `DoVariable` must be passed to `eval` or `ret` as a keyword argument
-        to receive the value extracted from the monad.
+        Analogous to the ``<-`` arrow in Haskell do-notation.  The returned
+        :class:`DoVariable` can be passed as a keyword argument to
+        :meth:`ret` or :meth:`eval` so that the unwrapped value is forwarded
+        to the final function.
 
         Args:
-            monad: The monad whose inner value will be bound.
+            monad: A monadic value of type ``M`` whose inner value should be
+                extracted during evaluation.
 
         Returns:
-            A `DoVariable` carrying the monad and its registration index,
-            to be passed as a keyword argument to `eval` or `ret`.
+            A :class:`DoVariable` placeholder that records the position of
+            *monad* in the bind chain.
         """
-
         var = DoVariable(
             index=len(self._vars),
             monad=monad,
@@ -141,89 +160,72 @@ class Do[M, A]:
 
     def eval(
         self,
-        f: Callable[..., Monad[M, A]],
-        **vars: DoVariable[M, A],
-    ) -> Monad[M, A]:
-        """Resolve all registered monads and apply ``f`` to the extracted values.
-
-        Builds a nested ``bind`` chain over the provided `DoVariable` instances
-        in their registration order (determined by `DoVariable.index`), then
-        calls ``f`` with the bound values as keyword arguments. ``f`` must
-        itself return a monad; use `ret` instead when ``f`` returns a plain
-        value.
-
-        Equivalent Haskell expression::
-
-            m_1 >>= (λx_1 -> m_2 >>= (λx_2 -> f x_1 x_2))
-
-        Args:
-            f: A callable accepting the extracted values as keyword arguments
-                and returning a ``Monad[M, A]``.
-            **vars: Keyword-argument mapping of name to `DoVariable`.
-                Each name becomes the parameter name passed to ``f``.
-
-        Returns:
-            The result of the fully sequenced monadic computation.
-
-        Raises:
-            ValueError: If a provided `DoVariable` was not registered via
-                `arrow` in this ``Do`` block.
-        """
+        f: Callable[..., M],
+        **vars: DoVariable[M],
+    ) -> M:
         for var in vars.values():
             if var not in self._vars:
                 raise ValueError(f"Variable {var} not found in do block")
 
-        ordered = sorted(vars.items(), key=lambda item: item[1].index)
-        names = [name for name, _ in ordered]
-        monads = [var.monad for _, var in ordered]
+        def chain(index: int, bound: dict) -> M:
+            if index == len(self._vars):
+                return f(**bound)
 
-        def chain(index: int, bound: dict) -> Monad[M, A]:
-            if index == len(monads):
-                return f(**{name: bound[name] for name in names})
-            return monads[index].bind(
-                lambda value, i=index: chain(i + 1, {**bound, names[i]: value})
-            )
+            if self._vars[index] in vars.values():
+                name = next(n for n, v in vars.items() if v == self._vars[index])
+
+                def bind_value(value: object) -> M:
+                    return chain(
+                        index + 1,
+                        {**bound, name: value},
+                    )
+
+                return self._vars[index].monad | bind_value  # type: ignore
+            else:
+
+                def dummy_bind(value: object) -> M:
+                    return chain(index + 1, bound)
+
+                return self._vars[index].monad | dummy_bind  # type: ignore
 
         return chain(0, {})
 
     def ret(
         self,
-        f: Callable[..., A],
-        **vars: DoVariable[M, A],
-    ) -> Monad[M, A]:
-        """Resolve all registered monads, apply ``f``, and lift the result.
+        f: Callable[..., object],
+        **vars: DoVariable[M],
+    ) -> M:
+        """Evaluate a plain function and lift its result into the monad.
 
-        Like `eval`, but ``f`` returns a plain value of type ``A`` instead of
-        a monad. The result is automatically lifted into ``M`` via
-        ``M.ret``, where ``M`` is the monad class captured from the
-        ``Do[M, A]`` subscript.
-
-        Equivalent Haskell expression::
-
-            m_1 >>= (λx_1 -> m_2 >>= (λx_2 -> return (f x_1 x_2)))
+        Behaves identically to :meth:`eval`, except that *f* returns a plain
+        (non-monadic) value which is automatically wrapped via
+        ``monad_type.ret()`` before being threaded through the bind chain.
+        This is the most common entry-point for finalising a do-block.
 
         Args:
-            f: A callable accepting the extracted values as keyword arguments
-                and returning a plain value of type ``A``.
-            **vars: Keyword-argument mapping of name to `DoVariable`.
-                Each name becomes the parameter name passed to ``f``.
+            f: A callable that accepts the unwrapped values of the variables
+                listed in *vars* and returns a plain (non-monadic) value.  The
+                return value is lifted into ``M`` via ``monad_type.ret()``.
+            **vars: Keyword-argument mapping of parameter names to
+                :class:`DoVariable` placeholders previously obtained from
+                :meth:`arrow`.  Each key becomes the parameter name passed to
+                *f* when the bind chain resolves.
 
         Returns:
-            The result of the fully sequenced monadic computation, with
-            the return value of ``f`` lifted into ``M``.
+            The final monadic value ``M`` produced by chaining all registered
+            monads through ``bind``, applying *f* to the extracted values, and
+            wrapping the result with ``monad_type.ret()``.
 
         Raises:
-            AssertionError: If ``Do`` was instantiated without a type
+            AssertionError: If the Do block was not specialised with a type
                 parameter (i.e. ``_monad_type`` is ``None``).
-            ValueError: If a provided `DoVariable` was not registered via
-                `arrow` in this ``Do`` block.
         """
         monad_type = self._monad_type
         assert monad_type is not None, (
             "Do must be instantiated with a type parameter: Do[M, A]()"
         )
 
-        def f_m(*args, **kwargs) -> Monad[M, A]:
-            return monad_type.ret(f(*args, **kwargs))
+        def f_m(*args, **kwargs) -> M:
+            return monad_type.ret(f(*args, **kwargs))  # type: ignore
 
         return self.eval(f_m, **vars)
