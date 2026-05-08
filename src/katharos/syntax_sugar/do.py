@@ -4,7 +4,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from katharos.algebra import Monad
-from katharos.functools import F
 
 
 @dataclass
@@ -23,7 +22,7 @@ class DoVariable[M: Monad]:
     def __eq__(self, other: object, /) -> bool:
         if not isinstance(other, DoVariable):
             return False
-        return self.index == other.index
+        return self.index == other.index and self.monad == other.monad
 
     index: int
     monad: M
@@ -222,7 +221,7 @@ class Do[M: Monad]:
         """
         monad_type = self._monad_type
         assert monad_type is not None, (
-            "Do must be instantiated with a type parameter: Do[M, A]()"
+            "Do must be instantiated with a type parameter: Do[M]()"
         )
 
         def f_m(*args, **kwargs) -> M:
