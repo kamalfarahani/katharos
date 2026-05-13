@@ -1,6 +1,6 @@
 import pytest
 
-from katharos.ds.maybe.maybe import _Nothing, is_nothing, nothing
+from katharos.types.maybe.maybe import _Nothing, is_nothing, nothing
 
 
 class TestNothing:

@@ -4,7 +4,7 @@ from functools import wraps
 from operator import matmul
 
 from katharos.algebra import Semigroup
-from katharos.ds.list import NonEmptyList
+from katharos.types.list import NonEmptyList
 
 
 class F:

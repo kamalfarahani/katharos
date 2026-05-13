@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from katharos.ds.side_effect import IO
+from katharos.types.side_effect import IO
 from katharos.functools import F
 
 
@@ -330,7 +330,7 @@ class TestThenShouldConcatenateSideEffectFunctions:
         def effect2():
             effects.append("second")
 
-        from katharos.ds.side_effect.function_with_side_effect import (
+        from katharos.types.side_effect.function_with_side_effect import (
             FunctionWithSideEffect,
         )
 
@@ -366,7 +366,7 @@ class TestThenShouldConcatenateSideEffectFunctions:
         def effect3():
             effects.append(3)
 
-        from katharos.ds.side_effect.function_with_side_effect import (
+        from katharos.types.side_effect.function_with_side_effect import (
             FunctionWithSideEffect,
         )
 
@@ -394,7 +394,7 @@ class TestThenShouldConcatenateSideEffectFunctions:
         result.execute()
 
     def test_then_preserves_side_effect_descriptions(self):
-        from katharos.ds.side_effect.function_with_side_effect import (
+        from katharos.types.side_effect.function_with_side_effect import (
             FunctionWithSideEffect,
         )
 
@@ -425,7 +425,7 @@ class TestThenShouldConcatenateSideEffectFunctions:
         def effect3():
             execution_order.append("C")
 
-        from katharos.ds.side_effect.function_with_side_effect import (
+        from katharos.types.side_effect.function_with_side_effect import (
             FunctionWithSideEffect,
         )
 

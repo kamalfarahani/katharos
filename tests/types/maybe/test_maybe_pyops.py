@@ -1,4 +1,4 @@
-from katharos.ds import Maybe
+from katharos.types import Maybe
 
 
 class TestMaybeEquality:

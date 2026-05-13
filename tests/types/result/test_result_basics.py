@@ -1,4 +1,4 @@
-from katharos.ds.result import Result
+from katharos.types.result import Result
 
 
 class TestResultBasics:

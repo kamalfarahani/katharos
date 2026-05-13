@@ -2,7 +2,7 @@ from typing import cast
 
 import pytest
 
-from katharos.ds import ImmutableList, Maybe, Result
+from katharos.types import ImmutableList, Maybe, Result
 from katharos.syntax_sugar import Do
 from katharos.syntax_sugar.do import DoVariable
 

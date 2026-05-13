@@ -1,4 +1,4 @@
-from katharos.ds.maybe import Maybe
+from katharos.types.maybe import Maybe
 from katharos.functools import F
 
 

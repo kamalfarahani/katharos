@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from katharos.ds.side_effect.function_with_side_effect import FunctionWithSideEffect
+from katharos.types.side_effect.function_with_side_effect import FunctionWithSideEffect
 
 
 @dataclass

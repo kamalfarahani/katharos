@@ -2,7 +2,7 @@ import decimal
 
 import pytest
 
-from katharos.ds.monoid import Product
+from katharos.types.monoid import Product
 
 
 class TestProductInt:
