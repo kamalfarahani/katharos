@@ -1,0 +1,355 @@
+Error Handling with Result
+==========================
+
+Learn how to handle errors functionally using the ``Result`` type, eliminating exceptions and making error handling explicit.
+
+What You'll Learn
+-----------------
+
+- How to use ``Result`` for error handling
+- The difference between ``Result`` and ``Maybe``
+- How to chain operations that can fail
+- Best practices for functional error handling
+
+The Problem with Exceptions
+----------------------------
+
+Traditional exception-based error handling has issues:
+
+.. code-block:: python
+
+   def divide(a: float, b: float) -> float:
+       if b == 0:
+           raise ZeroDivisionError("Cannot divide by zero")
+       return a / b
+   
+   # Caller must remember to catch exceptions
+   try:
+       result = divide(10, 0)
+   except ZeroDivisionError as e:
+       print(f"Error: {e}")
+
+**Problems:**
+- Exceptions are invisible in type signatures
+- Easy to forget error handling
+- Breaks referential transparency
+- Makes control flow implicit
+
+Introducing Result
+------------------
+
+``Result`` makes errors explicit in the type system:
+
+.. code-block:: python
+
+   from katharos.types import Result
+   
+   def safe_divide(a: float, b: float) -> Result[Exception, float]:
+       if b == 0:
+           return Result.Failure(ZeroDivisionError("Cannot divide by zero"))
+       return Result.Success(a / b)
+   
+   # Type tells you this can fail!
+   result = safe_divide(10, 2)
+   print(result)  # Success(5.0)
+   
+   result = safe_divide(10, 0)
+   print(result)  # Failure(ZeroDivisionError('Cannot divide by zero'))
+
+Creating Results
+----------------
+
+Success Values
+~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from katharos.types import Result
+   
+   success = Result.Success(42)
+   print(success)  # Success(42)
+   print(success.is_success())  # True
+   print(success.value)  # 42
+
+Failure Values
+~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from katharos.types import Result
+   
+   failure = Result.Failure(ValueError("Invalid input"))
+   print(failure)  # Failure(ValueError('Invalid input'))
+   print(failure.is_failure())  # True
+   print(failure.error)  # ValueError('Invalid input')
+
+Mapping Over Results
+--------------------
+
+Use ``fmap`` to transform success values:
+
+.. code-block:: python
+
+   from katharos.types import Result
+   
+   # Success case
+   result = Result.Success(5).fmap(lambda x: x * 2)
+   print(result)  # Success(10)
+   
+   # Failure case - function never called
+   result = Result.Failure(ValueError("error")).fmap(lambda x: x * 2)
+   print(result)  # Failure(ValueError('error'))
+
+Chaining Operations
+-------------------
+
+Use bind (``|``) to chain operations that return ``Result``:
+
+.. code-block:: python
+
+   from katharos.types import Result
+   
+   def safe_divide(a: float, b: float) -> Result[Exception, float]:
+       if b == 0:
+           return Result.Failure(ZeroDivisionError("Division by zero"))
+       return Result.Success(a / b)
+   
+   def safe_sqrt(x: float) -> Result[Exception, float]:
+       if x < 0:
+           return Result.Failure(ValueError("Negative square root"))
+       return Result.Success(x ** 0.5)
+   
+   # Chain operations
+   result = (
+       safe_divide(16, 4)      # Success(4.0)
+       | safe_sqrt             # Success(2.0)
+   )
+   print(result)  # Success(2.0)
+   
+   # Fails at first error
+   result = (
+       safe_divide(16, 0)      # Failure!
+       | safe_sqrt             # Never executed
+   )
+   print(result)  # Failure(ZeroDivisionError('Division by zero'))
+
+Practical Example: Input Validation
+------------------------------------
+
+.. code-block:: python
+
+   from katharos.types import Result
+   
+   def validate_age(age: int) -> Result[Exception, int]:
+       if age < 0:
+           return Result.Failure(ValueError("Age cannot be negative"))
+       if age > 150:
+           return Result.Failure(ValueError("Age too high"))
+       return Result.Success(age)
+   
+   def validate_name(name: str) -> Result[Exception, str]:
+       if not name:
+           return Result.Failure(ValueError("Name cannot be empty"))
+       if len(name) < 2:
+           return Result.Failure(ValueError("Name too short"))
+       return Result.Success(name)
+   
+   def create_user(name: str, age: int) -> Result[Exception, dict]:
+       return (
+           validate_name(name)
+           | (lambda n: validate_age(age)
+              | (lambda a: Result.Success({"name": n, "age": a})))
+       )
+   
+   # Valid input
+   user = create_user("Alice", 30)
+   print(user)  # Success({'name': 'Alice', 'age': 30})
+   
+   # Invalid input
+   user = create_user("A", 30)
+   print(user)  # Failure(ValueError('Name too short'))
+   
+   user = create_user("Alice", -5)
+   print(user)  # Failure(ValueError('Age cannot be negative'))
+
+Result vs Maybe
+---------------
+
+When to Use Result
+~~~~~~~~~~~~~~~~~~
+
+Use ``Result`` when you need to know **why** something failed:
+
+.. code-block:: python
+
+   from katharos.types import Result
+   
+   def parse_int(s: str) -> Result[Exception, int]:
+       try:
+           return Result.Success(int(s))
+       except ValueError as e:
+           return Result.Failure(e)  # Preserve error info
+   
+   result = parse_int("not a number")
+   if result.is_failure():
+       print(f"Error: {result.error}")  # Error: invalid literal...
+
+When to Use Maybe
+~~~~~~~~~~~~~~~~~
+
+Use ``Maybe`` when failure is expected and you don't need error details:
+
+.. code-block:: python
+
+   from katharos.types import Maybe
+   
+   def find_user(user_id: int) -> Maybe[dict]:
+       user = database.get(user_id)
+       return Maybe.Nothing() if user is None else Maybe.Just(user)
+
+**Rule of thumb:**
+- ``Result`` = "This might fail, here's why"
+- ``Maybe`` = "This might be absent"
+
+Handling Multiple Errors
+-------------------------
+
+Collect all errors instead of stopping at the first:
+
+.. code-block:: python
+
+   from katharos.types import Result, ImmutableList
+   
+   def validate_all(inputs: list[str]) -> Result[Exception, ImmutableList[int]]:
+       results = [parse_int(s) for s in inputs]
+       
+       # Check if any failed
+       failures = [r.error for r in results if r.is_failure()]
+       if failures:
+           return Result.Failure(
+               ValueError(f"Multiple errors: {failures}")
+           )
+       
+       # All succeeded
+       values = [r.value for r in results]
+       return Result.Success(ImmutableList(values))
+
+Converting Between Result and Maybe
+------------------------------------
+
+Result to Maybe
+~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from katharos.types import Result, Maybe
+   
+   def result_to_maybe(result: Result) -> Maybe:
+       if result.is_success():
+           return Maybe.Just(result.value)
+       return Maybe.Nothing()
+   
+   success = Result.Success(42)
+   print(result_to_maybe(success))  # Just(42)
+   
+   failure = Result.Failure(ValueError("error"))
+   print(result_to_maybe(failure))  # Nothing()
+
+Maybe to Result
+~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from katharos.types import Result, Maybe
+   
+   def maybe_to_result(maybe: Maybe, error: Exception) -> Result:
+       if maybe.is_just():
+           return Result.Success(maybe.unwrap())
+       return Result.Failure(error)
+   
+   just = Maybe.Just(42)
+   print(maybe_to_result(just, ValueError("missing")))  # Success(42)
+   
+   nothing = Maybe.Nothing()
+   print(maybe_to_result(nothing, ValueError("missing")))
+   # Failure(ValueError('missing'))
+
+Best Practices
+--------------
+
+1. **Make errors specific**
+
+   .. code-block:: python
+   
+      # Good
+      return Result.Failure(ValueError("Age must be between 0 and 150"))
+      
+      # Bad
+      return Result.Failure(Exception("Invalid"))
+
+2. **Use custom exception types**
+
+   .. code-block:: python
+   
+      class ValidationError(Exception):
+          pass
+      
+      def validate(x: int) -> Result[ValidationError, int]:
+          if x < 0:
+              return Result.Failure(ValidationError("Negative value"))
+          return Result.Success(x)
+
+3. **Document error cases**
+
+   .. code-block:: python
+   
+      def parse_config(path: str) -> Result[Exception, dict]:
+          """Parse configuration file.
+          
+          Returns:
+              Success with config dict, or Failure with:
+              - FileNotFoundError if file doesn't exist
+              - JSONDecodeError if file is invalid JSON
+              - PermissionError if file can't be read
+          """
+          ...
+
+4. **Keep error handling at boundaries**
+
+   Use ``Result`` internally, convert to exceptions at API boundaries if needed:
+   
+   .. code-block:: python
+   
+      def public_api(x: int) -> int:
+          """Public API that raises exceptions."""
+          result = internal_logic(x)
+          if result.is_failure():
+              raise result.error
+          return result.value
+      
+      def internal_logic(x: int) -> Result[Exception, int]:
+          """Internal logic using Result."""
+          ...
+
+What You've Learned
+-------------------
+
+- ✅ How to create ``Success`` and ``Failure`` values
+- ✅ How to map and chain ``Result`` operations
+- ✅ When to use ``Result`` vs ``Maybe``
+- ✅ How to handle multiple errors
+- ✅ Best practices for functional error handling
+
+Next Steps
+----------
+
+- Learn about :doc:`../how-to/error-handling` for advanced patterns
+- Explore :doc:`immutable-lists` for working with collections
+- Read :doc:`../explanation/fp-concepts` for deeper understanding
+
+See Also
+--------
+
+- :class:`katharos.types.Result` - API reference
+- :class:`katharos.types.Maybe` - Alternative for optional values
+- :doc:`../how-to/chain-operations` - Chaining patterns
