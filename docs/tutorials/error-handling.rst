@@ -138,39 +138,48 @@ Practical Example: Input Validation
 
 .. code-block:: python
 
-   from katharos.types import Result
-   
-   def validate_age(age: int) -> Result[Exception, int]:
-       if age < 0:
-           return Result.Failure(ValueError("Age cannot be negative"))
-       if age > 150:
-           return Result.Failure(ValueError("Age too high"))
-       return Result.Success(age)
-   
-   def validate_name(name: str) -> Result[Exception, str]:
-       if not name:
-           return Result.Failure(ValueError("Name cannot be empty"))
-       if len(name) < 2:
-           return Result.Failure(ValueError("Name too short"))
-       return Result.Success(name)
-   
-   def create_user(name: str, age: int) -> Result[Exception, dict]:
-       return (
-           validate_name(name)
-           | (lambda n: validate_age(age)
-              | (lambda a: Result.Success({"name": n, "age": a})))
-       )
-   
-   # Valid input
-   user = create_user("Alice", 30)
-   print(user)  # Success({'name': 'Alice', 'age': 30})
-   
-   # Invalid input
-   user = create_user("A", 30)
-   print(user)  # Failure(ValueError('Name too short'))
-   
-   user = create_user("Alice", -5)
-   print(user)  # Failure(ValueError('Age cannot be negative'))
+    from katharos.syntax_sugar import Do
+    from katharos.types import Result
+
+
+    def validate_age(age: int) -> Result[Exception, int]:
+        if age < 0:
+            return Result.Failure(ValueError("Age cannot be negative"))
+        if age > 150:
+            return Result.Failure(ValueError("Age too high"))
+        return Result.Success(age)
+
+
+    def validate_name(name: str) -> Result[Exception, str]:
+        if not name:
+            return Result.Failure(ValueError("Name cannot be empty"))
+        if len(name) < 2:
+            return Result.Failure(ValueError("Name too short"))
+        return Result.Success(name)
+
+
+    def create_user(name: str, age: int) -> Result[Exception, dict]:
+        with Do[Result]() as do:
+            name_var = do.arrow(validate_name(name))
+            age_var = do.arrow(validate_age(age))
+            result = do.ret(
+                lambda n, a: {"name": n, "age": a},
+                n=name_var,
+                a=age_var,
+            )
+        return result
+
+
+    # Valid input
+    user = create_user("Alice", 30)
+    print(user)  # Success({'name': 'Alice', 'age': 30})
+
+    # Invalid input
+    user = create_user("A", 30)
+    print(user)  # Failure(ValueError('Name too short'))
+
+    user = create_user("Alice", -5)
+    print(user)  # Failure(ValueError('Age cannot be negative'))
 
 Result vs Maybe
 ---------------

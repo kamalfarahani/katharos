@@ -241,8 +241,8 @@ Congratulations! You now understand:
 Next Steps
 ----------
 
-- Learn about :doc:`error-handling` with the ``Result`` monad
-- Explore :doc:`../how-to/do-notation` for cleaner monadic code
+- Learn about :doc:`do-syntax` for cleaner, more readable monadic code
+- Explore :doc:`error-handling` with the ``Result`` monad
 - Read :doc:`../explanation/monad-laws` for deeper understanding
 
 Further Reading

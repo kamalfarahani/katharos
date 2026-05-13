@@ -13,6 +13,7 @@ Available Guides
 
    chain-operations
    do-notation
+   refactor-to-do
    custom-semigroups
    error-handling
    function-composition

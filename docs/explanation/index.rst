@@ -15,6 +15,7 @@ Available Topics
    algebraic-abstractions
    monoids-semigroups
    monad-laws
+   do-notation
    immutability
    comparison
 

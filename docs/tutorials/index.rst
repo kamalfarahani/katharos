@@ -13,6 +13,7 @@ Available Tutorials
 
    getting-started
    first-monad
+   do-syntax
    functor-pipeline
    error-handling
    immutable-lists
