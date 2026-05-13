@@ -135,7 +135,7 @@ class Result(
             TypeError: If the Result is a Failure.
         """
         if isinstance(self._value, BaseException):
-            raise TypeError("Cannot get the value of a Failure")
+            raise TypeError("Cannot get the value of a Failure") from self._value
 
         return self._value
 
