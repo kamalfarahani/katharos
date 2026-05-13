@@ -1,5 +1,5 @@
-from katharos.ds.list import NonEmptyList
-from katharos.ds.maybe import Maybe, MonoidMaybe
+from katharos.types.list import NonEmptyList
+from katharos.types.maybe import Maybe, MonoidMaybe
 
 
 def test_left_identity_with_just():

@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from katharos.ds.list.immutable_list import ImmutableList
+from katharos.types.list.immutable_list import ImmutableList
 from katharos.functools import F
 
 

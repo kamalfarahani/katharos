@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from katharos.ds.result import Result
+from katharos.types.result import Result
 from katharos.functools import F
 
 

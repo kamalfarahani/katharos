@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from decimal import DivisionByZero
 
-from katharos.ds.result import Result
+from katharos.types.result import Result
 
 
 def divide_safe(x: float, y: float) -> Result[Exception, float]:

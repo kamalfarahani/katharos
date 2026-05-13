@@ -2,7 +2,7 @@ import decimal
 
 import pytest
 
-from katharos.ds.monoid import Sum
+from katharos.types.monoid import Sum
 
 
 class TestSumInt:
