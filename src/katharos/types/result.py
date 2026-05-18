@@ -86,6 +86,21 @@ class Result(
 
         return Result(x)
 
+    @classmethod
+    def ret[T](cls: type[Result[E, T]], x: T) -> Result[E, T]:
+        """Wrap a value in a Success.
+
+        Args:
+            x: The value to wrap.
+
+        Returns:
+            Result[E, T]: A Success containing the value.
+
+        Raises:
+            TypeError: If the value is an exception.
+        """
+        return cls.pure(x)
+
     @staticmethod
     def Success(x: A) -> Result[E, A]:  # type: ignore
         """Create a Success result.

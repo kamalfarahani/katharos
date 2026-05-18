@@ -84,6 +84,19 @@ class Maybe(Monad["Maybe[Any]", A]):
         """
         return Maybe.Just(x)
 
+    @classmethod
+    def ret[T](cls: type[Maybe[T]], x: T) -> Maybe[T]:
+        """
+        Return a Maybe containing the given value.
+
+        Args:
+            x: The value to wrap in a Maybe.
+
+        Returns:
+            Maybe[A]: A Maybe containing the given value.
+        """
+        return cls.pure(x)
+
     @staticmethod
     def Just(value: A) -> Maybe[A]:  # type: ignore
         """

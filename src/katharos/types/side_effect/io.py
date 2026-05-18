@@ -32,6 +32,19 @@ class IO(Monad["IO[Any]", A]):
         """
         return IO(x)
 
+    @classmethod
+    def ret[T](cls, x: T) -> IO[T]:
+        """
+        Create an IO action that contains the given value.
+
+        Args:
+            x: The value to wrap in an IO action.
+
+        Returns:
+            IO[T]: An IO action containing the given value.
+        """
+        return cls.pure(x)
+
     def __init__(
         self,
         value: A,

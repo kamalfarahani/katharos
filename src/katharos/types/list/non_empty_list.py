@@ -115,6 +115,19 @@ class NonEmptyList(
 
         return NonEmptyList(head=x, tail=[])
 
+    @classmethod
+    def ret[A](cls: type[NonEmptyList[A]], x: A) -> NonEmptyList[A]:
+        """Return a singleton NonEmptyList containing the given element.
+
+        Args:
+            x: The element to wrap in a NonEmptyList.
+
+        Returns:
+            NonEmptyList[A]: A NonEmptyList containing only the given element.
+        """
+
+        return cls.pure(x)
+
     def fmap[B](self, f: Callable[[T], B]) -> NonEmptyList[B]:
         """Map a function over the elements of this NonEmptyList.
 

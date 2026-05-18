@@ -125,6 +125,19 @@ class ImmutableList(
         """
         return ImmutableList([x])
 
+    @classmethod
+    def ret[T_1](cls: type[ImmutableList[T_1]], x: T_1) -> ImmutableList[T_1]:
+        """
+        Return a singleton ImmutableList containing the given element.
+
+        Args:
+            x: The element to wrap in an ImmutableList.
+
+        Returns:
+            ImmutableList[T]: An ImmutableList containing only the given element.
+        """
+        return cls.pure(x)
+
     def op(self, other: ImmutableList[T]) -> ImmutableList[T]:
         """
         Combine this ImmutableList with another using concatenation (monoid operation).
