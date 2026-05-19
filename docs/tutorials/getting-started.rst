@@ -49,11 +49,11 @@ Create a new Python file called ``hello_katharos.py``:
    from katharos.types import Maybe
 
    # Create a Maybe with a value
-   just_value = Maybe.Just(42)
+   just_value = Maybe[int].Just(42)
    print(just_value)  # Just(42)
 
    # Create an empty Maybe
-   nothing_value = Maybe.Nothing()
+   nothing_value = Maybe[int].Nothing()
    print(nothing_value)  # Nothing()
 
 Run the file:
@@ -82,11 +82,11 @@ One of the most powerful features of ``Maybe`` is the ability to map functions o
        return x * 2
 
    # Map over a Just value
-   result = Maybe.Just(5).fmap(double)
+   result = Maybe[int].Just(5).fmap(double)
    print(result)  # Just(10)
 
    # Map over Nothing - the function is never called!
-   result = Maybe.Nothing().fmap(double)
+   result = Maybe[int].Nothing().fmap(double)
    print(result)  # Nothing()
 
 The key insight: when you map over ``Nothing``, the function is never executed. This prevents errors and makes your code safer.
@@ -101,7 +101,7 @@ You can chain multiple operations together:
    from katharos.types import Maybe
 
    result = (
-       Maybe.Just(5)
+       Maybe[int].Just(5)
        .fmap(lambda x: x * 2)      # Just(10)
        .fmap(lambda x: x + 3)      # Just(13)
        .fmap(lambda x: x ** 2)     # Just(169)
@@ -117,13 +117,13 @@ To get the value out of a ``Maybe``, use the ``unwrap()`` method:
 
    from katharos.types import Maybe
 
-   just_value = Maybe.Just(42)
+   just_value = Maybe[int].Just(42)
    value = just_value.unwrap()
    print(value)  # 42
 
    # Be careful! Unwrapping Nothing raises an error
    try:
-       nothing_value = Maybe.Nothing()
+       nothing_value = Maybe[int].Nothing()
        value = nothing_value.unwrap()
    except ValueError as e:
        print(f"Error: {e}")  # Error: Cannot unwrap a Nothing
@@ -142,8 +142,8 @@ Let's write a function that safely divides two numbers:
    def safe_divide(a: float, b: float) -> Maybe[float]:
        """Safely divide a by b, returning Nothing if b is zero."""
        if b == 0:
-           return Maybe.Nothing()
-       return Maybe.Just(a / b)
+           return Maybe[float].Nothing()
+       return Maybe[float].Just(a / b)
 
    # Use the function
    result1 = safe_divide(10, 2)
