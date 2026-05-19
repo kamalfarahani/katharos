@@ -23,12 +23,13 @@ class Result(
 
     A Result can be in one of two states:
 
-    - Success: Contains a value of type A (non-exception)
-    - Failure: Contains an exception of type E
+    - **Success**: Contains a value of type ``A`` (non-exception)
+    - **Failure**: Contains an exception of type ``E``
 
-    Type Parameters:
-        E: The type of the exception (must be a subclass of BaseException).
-        A: The type of the success value.
+    **Type Parameters:**
+
+    - ``E``: The type of the exception (must be a subclass of :class:`BaseException`).
+    - ``A``: The type of the success value.
 
     Examples:
         >>> success = Result.Success(42)
@@ -57,11 +58,12 @@ class Result(
         Success(6)
 
     Note:
-        This class is marked as @final and cannot be subclassed. Use `is_success()`
-        and `is_failure()` methods to check the state instead of type checking.
-        Use `Result.Success()` to create success values and `Result.Failure()` to
-        create failure values. Access success values with `.value` and failure
-        errors with `.error`.
+        This class is marked as ``@final`` and cannot be subclassed. Use
+        :meth:`is_success` and :meth:`is_failure` methods to check the state
+        instead of type checking. Use :meth:`Success` to create success values
+        and :meth:`Failure` to create failure values. Access success values with
+        ``.value`` and failure errors with ``.error``.
+
         The class supports the following operators:
 
         - ``|`` (pipe): Monadic bind operation.
@@ -227,7 +229,7 @@ class Result(
         This method extracts the success value from a Success Result. If the Result
         is a Failure, it raises a TypeError with the original exception as the cause.
 
-        This is equivalent to accessing the `.value` property directly.
+        This is equivalent to accessing the ``.value`` property directly.
 
         Returns:
             A: The success value contained in this Result.
