@@ -214,21 +214,21 @@ Do syntax works with any monad type. Here's an example with ``Result``:
    from katharos.syntax_sugar import Do
    from katharos.types import Result
 
-   def safe_divide(a: float, b: float) -> Result[float, str]:
+   def safe_divide(a: float, b: float) -> Result[Exception, float]:
        if b == 0:
-           return Result.Err("Division by zero")
-       return Result.Ok(a / b)
+           return Result.Failure(ZeroDivisionError("Division by zero"))
+       return Result.Success(a / b)
 
-   def safe_sqrt(x: float) -> Result[float, str]:
+   def safe_sqrt(x: float) -> Result[Exception, float]:
        if x < 0:
-           return Result.Err("Cannot take square root of negative number")
-       return Result.Ok(x ** 0.5)
+           return Result.Failure(ValueError("Cannot take square root of negative number"))
+       return Result.Success(x ** 0.5)
 
-   def safe_log(x: float) -> Result[float, str]:
+   def safe_log(x: float) -> Result[Exception, float]:
        if x <= 0:
-           return Result.Err("Cannot take log of non-positive number")
+           return Result.Failure(ValueError("Cannot take log of non-positive number"))
        import math
-       return Result.Ok(math.log(x))
+       return Result.Success(math.log(x))
 
    # Without do syntax
    result_nested = safe_divide(100, 4) | (
@@ -246,7 +246,7 @@ Do syntax works with any monad type. Here's an example with ``Result``:
        z = do.arrow(safe_log(y))           # ~1.609
        result = do.ret(lambda val: val * 10, val=z)
 
-   print(result)  # Ok(16.09...)
+   print(result)  # Success(16.09...)
 
 Complex Example: Data Pipeline
 -------------------------------
@@ -258,15 +258,15 @@ Let's build a more complex example that processes user data through multiple val
    from katharos.syntax_sugar import Do
    from katharos.types import Result
 
-   def validate_age(age: int) -> Result[int, str]:
+   def validate_age(age: int) -> Result[Exception, int]:
        if age < 0 or age > 150:
-           return Result.Err(f"Invalid age: {age}")
-       return Result.Ok(age)
+           return Result.Failure(ValueError(f"Invalid age: {age}"))
+       return Result.Success(age)
 
-   def validate_email(email: str) -> Result[str, str]:
+   def validate_email(email: str) -> Result[Exception, str]:
        if "@" not in email:
-           return Result.Err(f"Invalid email: {email}")
-       return Result.Ok(email)
+           return Result.Failure(ValueError(f"Invalid email: {email}"))
+       return Result.Success(email)
 
    def calculate_discount(age: int) -> float:
        if age < 18:
@@ -280,7 +280,7 @@ Let's build a more complex example that processes user data through multiple val
        return f"Welcome {email}! Age: {age}, Discount: {discount*100}%"
 
    # Without do syntax - deeply nested
-   def process_user_nested(email: str, age: int) -> Result[str, str]:
+   def process_user_nested(email: str, age: int) -> Result[Exception, str]:
        return validate_email(email) | (
            lambda valid_email: validate_age(age) | (
                lambda valid_age: Result.ret(
@@ -294,7 +294,7 @@ Let's build a more complex example that processes user data through multiple val
        )
 
    # With do syntax - clear and linear
-   def process_user_clean(email: str, age: int) -> Result[str, str]:
+   def process_user_clean(email: str, age: int) -> Result[Exception, str]:
        with Do[Result]() as do:
            valid_email = do.arrow(validate_email(email))
            valid_age = do.arrow(validate_age(age))
@@ -309,13 +309,13 @@ Let's build a more complex example that processes user data through multiple val
 
    # Test it
    print(process_user_clean("alice@example.com", 30))
-   # Ok('Welcome alice@example.com! Age: 30, Discount: 10.0%')
+   # Success('Welcome alice@example.com! Age: 30, Discount: 10.0%')
 
    print(process_user_clean("invalid-email", 30))
-   # Err('Invalid email: invalid-email')
+   # Failure(ValueError('Invalid email: invalid-email'))
 
    print(process_user_clean("bob@example.com", 200))
-   # Err('Invalid age: 200')
+   # Failure(ValueError('Invalid age: 200'))
 
 Notice how the do syntax version:
 
