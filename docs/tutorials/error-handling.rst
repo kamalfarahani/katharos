@@ -112,7 +112,7 @@ Use bind (``|``) to chain operations that return ``Result``:
    
    def safe_divide(a: float, b: float) -> Result[Exception, float]:
        if b == 0:
-           return Result[Exception, float].Failure(ZeroDivisionError("Division by zero"))
+           return Result[Exception, float].Failure(ZeroDivisionError("Cannot divide by zero"))
        return Result[Exception, float].Success(a / b)
    
    def safe_sqrt(x: float) -> Result[Exception, float]:
@@ -132,10 +132,43 @@ Use bind (``|``) to chain operations that return ``Result``:
        safe_divide(16, 0)      # Failure!
        | safe_sqrt             # Never executed
    )
-   print(result)  # Failure(ZeroDivisionError('Division by zero'))
+   print(result)  # Failure(ZeroDivisionError('Cannot divide by zero'))
+
+When to Use ``fmap`` vs Bind
+----------------------------
+
+Both ``fmap`` and bind (``|``) let you transform the value inside a ``Result``,
+but they handle different shapes of function:
+
+- Use ``fmap`` when your function returns a **plain value** (``A -> B``).
+- Use bind (``|``) when your function itself returns a ``Result`` (``A -> Result[E, B]``).
+
+If you used ``fmap`` with a ``Result``-returning function you'd end up with a
+nested ``Result[E, Result[E, B]]``. Bind flattens that for you.
+
+.. code-block:: python
+
+   # fmap: function returns a plain int
+   Result[Exception, int].Success(5).fmap(lambda x: x + 1)
+   # Success(6)
+
+   # bind: function returns a Result
+   def half(x: int) -> Result[Exception, float]:
+       if x == 0:
+           return Result[Exception, float].Failure(ZeroDivisionError("zero"))
+       return Result[Exception, float].Success(x / 2)
+
+   Result[Exception, int].Success(10) | half
+   # Success(5.0)
 
 Practical Example: Input Validation
 ------------------------------------
+
+The ``Do`` helper provides do-notation: a sequential, imperative-looking syntax
+for chaining monadic operations. Each ``do.arrow(...)`` call extracts the value
+from a ``Result`` (short-circuiting on ``Failure``), and ``do.ret(...)`` wraps
+the final result back into the monad. It's equivalent to a chain of binds, just
+easier to read when you have several dependent steps.
 
 .. code-block:: python
 
@@ -213,6 +246,7 @@ Use ``Maybe`` when failure is expected and you don't need error details:
 
    from katharos.types import Maybe
    
+   # Pseudo-code: assume `database` is some dict-like store.
    def find_user(user_id: int) -> Maybe[dict]:
        user = database.get(user_id)
        return Maybe[dict].Nothing() if user is None else Maybe[dict].Just(user)
@@ -221,29 +255,6 @@ Use ``Maybe`` when failure is expected and you don't need error details:
 
 - ``Result`` = "This might fail, here's why"
 - ``Maybe`` = "This might be absent"
-
-Handling Multiple Errors
--------------------------
-
-Collect all errors instead of stopping at the first:
-
-.. code-block:: python
-
-   from katharos.types import Result, ImmutableList
-   
-   def validate_all(inputs: list[str]) -> Result[Exception, ImmutableList[int]]:
-       results = [parse_int(s) for s in inputs]
-       
-       # Check if any failed
-       failures = [r.error for r in results if r.is_failure()]
-       if failures:
-           return Result[Exception, ImmutableList[int]].Failure(
-               ValueError(f"Multiple errors: {failures}")
-           )
-       
-       # All succeeded
-       values = [r.value for r in results]
-       return Result[Exception, ImmutableList[int]].Success(ImmutableList(values))
 
 Converting Between Result and Maybe
 ------------------------------------
@@ -255,7 +266,7 @@ Result to Maybe
 
    from katharos.types import Result, Maybe
    
-   def result_to_maybe(result: Result) -> Maybe:
+   def result_to_maybe[E: Exception, T](result: Result[E, T]) -> Maybe[T]:
        if result.is_success():
            return Maybe.Just(result.value)
        return Maybe.Nothing()
@@ -273,7 +284,9 @@ Maybe to Result
 
    from katharos.types import Result, Maybe
    
-   def maybe_to_result(maybe: Maybe, error: Exception) -> Result:
+   def maybe_to_result[E: Exception, T](
+       maybe: Maybe[T], error: E
+   ) -> Result[E, T]:
        if maybe.is_just():
            return Result.Success(maybe.unwrap())
        return Result.Failure(error)
@@ -288,15 +301,25 @@ Maybe to Result
 Best Practices
 --------------
 
-1. **Make errors specific**
+1. **Make errors specific in the type signature**
+
+   Prefer narrow error types so the signature documents *what* can go wrong.
+   ``Result[Exception, T]`` is opaque — it tells the caller "something can
+   fail" but not what.
 
    .. code-block:: python
    
-      # Good
-      return Result[ValueError, int].Failure(ValueError("Age must be between 0 and 150"))
-      
-      # Bad
-      return Result[Exception, int].Failure(Exception("Invalid"))
+      # Good - specific error type, encoded in the signature
+      def validate_age(age: int) -> Result[ValueError, int]:
+          if not 0 <= age <= 150:
+              return Result[ValueError, int].Failure(
+                  ValueError("Age must be between 0 and 150")
+              )
+          return Result[ValueError, int].Success(age)
+
+      # Bad - opaque error type, callers can't tell what failures to expect
+      def validate_age(age: int) -> Result[Exception, int]:
+          ...
 
 2. **Use custom exception types**
 
@@ -348,7 +371,7 @@ What You've Learned
 - ✅ How to create ``Success`` and ``Failure`` values
 - ✅ How to map and chain ``Result`` operations
 - ✅ When to use ``Result`` vs ``Maybe``
-- ✅ How to handle multiple errors
+- ✅ How to convert between ``Result`` and ``Maybe``
 - ✅ Best practices for functional error handling
 
 Next Steps
