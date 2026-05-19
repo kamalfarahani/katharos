@@ -1,246 +1,170 @@
 Working with Immutable Lists
 ====================================
 
-Learn how to use ImmutableList and NonEmptyList for safe, functional collection operations.
+In this tutorial, you'll learn how to build a product inventory system using immutable lists. By the end, you'll understand how to safely work with collections that can't be accidentally modified, and how to use functional operations to transform and combine them.
 
-What You'll Learn
+What You'll Build
 -----------------
 
-- How to create immutable lists that cannot be accidentally modified
-- How to use NonEmptyList to guarantee at least one element at the type level
-- How to use functional operations like ``map``, ``bind``, and ``concat``
-- How immutability enables using lists as dictionary keys
-- How covariance allows flexible type relationships
+A simple product inventory system that:
 
-Creating Immutable Lists
-------------------------
+- Stores a list of products that cannot be accidentally modified
+- Filters products by category
+- Calculates totals and statistics
+- Uses lists as dictionary keys for caching results
 
-``ImmutableList`` wraps a standard Python list but prevents any modifications after creation:
+Let's Start: Create Your First Immutable List
+----------------------------------------------
 
-.. code-block:: python
-
-   from katharos.types import ImmutableList
-
-   # Create from any iterable
-   numbers = ImmutableList([1, 2, 3, 4, 5])
-   words = ImmutableList(["hello", "world"])
-   empty = ImmutableList([])
-
-   # Standard sequence operations work
-   print(len(numbers))        # 5
-   print(3 in numbers)        # True
-   print(numbers[0])          # 1
-   print(list(numbers))       # [1, 2, 3, 4, 5]
-
-   # Slicing is supported
-   print(numbers[1:3])        # ImmutableList([2, 3])
-
-Important: While the ``ImmutableList`` itself cannot be modified, the underlying data structure is not deeply immutable. If you store mutable objects, those objects can still be modified.
-
-NonEmptyList: Lists That Always Have Elements
----------------------------------------------
-
-``NonEmptyList`` guarantees at least one element at the type level. This is useful when you need to ensure operations like ``head()`` or ``reduce()`` are always safe:
-
-.. code-block:: python
-
-   from katharos.types import NonEmptyList
-
-   # Must provide at least a head element
-   nel = NonEmptyList(1, [2, 3, 4])  # head=1, tail=[2, 3, 4]
-
-   # Access head and tail safely
-   print(nel.head)  # 1
-   print(nel.tail)  # [2, 3, 4]
-
-   # Concatenation keeps the non-empty guarantee
-   combined = nel + NonEmptyList(5, [6])
-   print(combined)  # NonEmptyList([1, 2, 3, 4, 5, 6])
-
-Concatenation
--------------
-
-Both list types support concatenation with ``+`` or the ``@`` operator:
-
-.. code-block:: python
-
-   from katharos.types import ImmutableList, NonEmptyList
-
-   # ImmutableList concatenation
-   list1 = ImmutableList([1, 2])
-   list2 = ImmutableList([3, 4])
-   combined = list1 + list2
-   print(combined)  # ImmutableList([1, 2, 3, 4])
-
-   # Using @ operator (semigroup operation)
-   also_combined = list1 @ list2
-   print(also_combined)  # ImmutableList([1, 2, 3, 4])
-
-   # NonEmptyList concatenation
-   nel1 = NonEmptyList(1, [2])
-   nel2 = NonEmptyList(3, [4])
-   nel_combined = nel1 + nel2
-   print(nel_combined)  # NonEmptyList([1, 2, 3, 4])
-
-   # Note: Empty list + NonEmptyList is allowed
-   empty = ImmutableList([])
-   result = empty + NonEmptyList(1, [2])
-   print(result)  # NonEmptyList([1, 2])
-
-Hashability: Using Lists as Dictionary Keys
-------------------------------------------
-
-Because ``ImmutableList`` and ``NonEmptyList`` are truly immutable, they can be used as dictionary keys or stored in sets:
+First, import and create an immutable list:
 
 .. code-block:: python
 
    from katharos.types import ImmutableList
 
-   # Create a cache with list keys
-   cache: dict[ImmutableList[int], str] = {
-       ImmutableList([1, 2, 3]): "triangle",
-       ImmutableList([4, 5, 6]): "other triangle",
-   }
+   # Create a list of product prices
+   prices = ImmutableList([19.99, 99.99, 699.99])
+   
+   print(len(prices))        # 3
+   print(prices[0])          # 19.99
+   print(list(prices))       # [19.99, 99.99, 699.99]
 
-   # Works with sets too
-   unique_lists = {
-       ImmutableList([1, 2]),
-       ImmutableList([1, 2]),  # Duplicate, won't be added
-       ImmutableList([3, 4]),
-   }
-   print(len(unique_lists))  # 2
+Try it yourself: Create an immutable list with your own numbers and access elements by index.
 
-Functor: Transforming Elements
-------------------------------
+Step 1: Work with Product Data
+-------------------------------
 
-Use ``fmap`` to apply a function to every element, returning a new list:
-
-.. code-block:: python
-
-   from katharos.types import ImmutableList, NonEmptyList
-
-   numbers = ImmutableList([1, 2, 3, 4, 5])
-
-   # Double every number
-   doubled = numbers.fmap(lambda x: x * 2)
-   print(doubled)  # ImmutableList([2, 4, 6, 8, 10])
-
-   # Convert to strings
-   strings = numbers.fmap(str)
-   print(strings)  # ImmutableList(['1', '2', '3', '4', '5'])
-
-   # Works with NonEmptyList too
-   nel = NonEmptyList(1, [2, 3])
-   tripled = nel.fmap(lambda x: x * 3)
-   print(tripled)  # NonEmptyList([3, 6, 9])
-
-Applicative: Applying Wrapped Functions
------------------------------------------
-
-The applicative interface lets you apply functions that are themselves wrapped in the list:
+Let's create a more realistic inventory with product objects:
 
 .. code-block:: python
 
    from katharos.types import ImmutableList
+   from dataclasses import dataclass
 
-   numbers = ImmutableList([1, 2, 3])
+   @dataclass(frozen=True)
+   class Product:
+       name: str
+       price: float
+       category: str
 
-   # List of functions
-   funcs = ImmutableList([
-       lambda x: x + 1,
-       lambda x: x * 2,
+   # Create an immutable product list
+   products = ImmutableList([
+       Product("Book", 19.99, "books"),
+       Product("Laptop", 999.99, "electronics"),
+       Product("Phone", 699.99, "electronics"),
    ])
 
-   # Apply each function to each number (cartesian product)
-   result = numbers.ap(funcs)
-   print(result)  # ImmutableList([2, 3, 4, 2, 4, 6])
+   print(f"Total products: {len(products)}")
+   print(f"First product: {products[0].name}")
 
-   # Using the ** operator for applicative style
-   result_alt = numbers ** funcs
-   print(result_alt)  # Same as above
+Step 2: Transform Data with fmap
+--------------------------------
 
-Monad: Chaining Operations with FlatMap
----------------------------------------
-
-Use ``bind`` (or the ``|`` operator) to chain operations where each step returns a new list:
+Now let's extract prices from products using ``fmap``:
 
 .. code-block:: python
 
-   from katharos.types import ImmutableList
+   # Extract all prices
+   prices = products.fmap(lambda p: p.price)
+   print(prices)  # ImmutableList([19.99, 999.99, 699.99])
 
-   numbers = ImmutableList([1, 2, 3])
+   # Get all product names
+   names = products.fmap(lambda p: p.name)
+   print(names)  # ImmutableList(['Book', 'Laptop', 'Phone'])
 
-   # For each number, return a list of [n, n*2]
-   def duplicate_and_double(n: int) -> ImmutableList[int]:
-       return ImmutableList([n, n * 2])
+The key insight: ``fmap`` creates a new list without modifying the original. This is safe and predictable.
+
+Step 3: Combine Lists with Concatenation
+-----------------------------------------
+
+Let's add more products to our inventory:
+
+.. code-block:: python
+
+   new_products = ImmutableList([
+       Product("Tablet", 399.99, "electronics"),
+       Product("Pen", 2.99, "stationery"),
+   ])
+
+   # Combine the lists
+   all_products = products + new_products
+   print(len(all_products))  # 5
+
+   # Original lists are unchanged
+   print(len(products))      # 3
+   print(len(new_products))  # 2
+
+Step 4: Chain Operations with bind
+----------------------------------
+
+Now let's find all products in a category and create a discount list for each:
+
+.. code-block:: python
+
+   def create_discounts(product: Product) -> ImmutableList[tuple[str, float]]:
+       """For each product, return a list of (name, discounted_price) tuples."""
+       return ImmutableList([
+           (product.name, product.price * 0.9),  # 10% off
+           (product.name, product.price * 0.8),  # 20% off
+       ])
 
    # Chain the operation
-   result = numbers.bind(duplicate_and_double)
-   print(result)  # ImmutableList([1, 2, 2, 4, 3, 6])
+   discounts = products.bind(create_discounts)
+   print(discounts)
+   # ImmutableList([
+   #   ('Book', 17.99), ('Book', 15.99),
+   #   ('Laptop', 899.99), ('Laptop', 799.99),
+   #   ('Phone', 629.99), ('Phone', 559.99)
+   # ])
 
-   # Using | operator
-   result_alt = numbers | duplicate_and_double
-   print(result_alt)  # Same as above
+Step 5: Use Lists as Dictionary Keys
+-------------------------------------
 
-   # NonEmptyList version
+Because immutable lists are hashable, you can use them as dictionary keys for caching:
+
+.. code-block:: python
+
+   # Create a cache mapping product lists to results
+   cache: dict[ImmutableList[str], float] = {}
+
+   # Use a product name list as a key
+   electronics_names = ImmutableList(["Laptop", "Phone"])
+   cache[electronics_names] = 1699.98  # Total price
+
+   # Retrieve from cache
+   total = cache[electronics_names]
+   print(f"Cached total: {total}")
+
+Step 6: Guarantee Non-Empty Lists with NonEmptyList
+----------------------------------------------------
+
+When you need to ensure a list always has at least one element, use ``NonEmptyList``:
+
+.. code-block:: python
+
    from katharos.types import NonEmptyList
 
-   nel = NonEmptyList(1, [2])
-   nel_result = nel | (lambda n: NonEmptyList(n, [n * 2]))
-   print(nel_result)  # NonEmptyList([1, 2, 2, 4])
+   # Create a non-empty list (head + optional tail)
+   electronics = NonEmptyList(
+       Product("Laptop", 999.99, "electronics"),
+       [
+           Product("Phone", 699.99, "electronics"),
+           Product("Tablet", 399.99, "electronics"),
+       ]
+   )
 
-Monoid: Combining Lists
------------------------
+   # Access head and tail safely
+   print(electronics.head)  # Product(name='Laptop', ...)
+   print(electronics.tail)  # [Product(...), Product(...)]
 
-``ImmutableList`` is a monoid with an identity element (empty list) and an associative operation (concatenation):
+   # Calculate total safely without checking if list is empty
+   total = electronics.head.price + sum(p.price for p in electronics.tail)
+   print(f"Total: {total}")  # 2099.97
 
-.. code-block:: python
+Step 7: Build a Complete Inventory System
+------------------------------------------
 
-   from katharos.types import ImmutableList
-
-   # Identity element is an empty list
-   empty = ImmutableList.identity()
-   print(empty)  # ImmutableList([])
-
-   # Monoid operation (same as + or @)
-   list1 = ImmutableList([1, 2])
-   list2 = ImmutableList([3, 4])
-   combined = list1.op(list2)
-   print(combined)  # ImmutableList([1, 2, 3, 4])
-
-   # Monoid laws hold:
-   # 1. Identity: empty + list = list
-   # 2. Associativity: (a + b) + c = a + (b + c)
-
-Type Covariance
----------------
-
-Both list types are covariant, meaning ``ImmutableList[Child]`` is a subtype of ``ImmutableList[Parent]`` when ``Child`` is a subtype of ``Parent``:
-
-.. code-block:: python
-
-   from katharos.types import ImmutableList, NonEmptyList
-
-   class Animal:
-       def speak(self) -> str:
-           return "..."
-
-   class Dog(Animal):
-       def speak(self) -> str:
-           return "Woof!"
-
-   # Covariance allows this assignment
-   dogs: ImmutableList[Dog] = ImmutableList([Dog(), Dog()])
-   animals: ImmutableList[Animal] = dogs  # Valid!
-
-   # Works with NonEmptyList too
-   more_dogs = NonEmptyList(Dog(), [Dog()])
-   more_animals: NonEmptyList[Animal] = more_dogs  # Valid!
-
-Practical Example: Safe List Processing
----------------------------------------
-
-Here's a practical example combining multiple features:
+Let's combine everything into a practical inventory system:
 
 .. code-block:: python
 
@@ -253,76 +177,50 @@ Here's a practical example combining multiple features:
        price: float
        category: str
 
-   # Create an immutable product list
+   # Initialize inventory
    products = ImmutableList([
-       Product("Laptop", 999.99, "electronics"),
        Product("Book", 19.99, "books"),
+       Product("Laptop", 999.99, "electronics"),
        Product("Phone", 699.99, "electronics"),
+       Product("Tablet", 399.99, "electronics"),
    ])
 
-   # Safe operations that can't modify original
-   electronics = products.fmap(
-       lambda p: p if p.category == "electronics" else None
-   )
+   # Filter by category using bind
+   def get_category_products(category: str) -> ImmutableList[Product]:
+       return products.bind(
+           lambda p: ImmutableList([p]) if p.category == category else ImmutableList([])
+       )
 
-   # Calculate total using bind and monoid
-   prices = products.fmap(lambda p: p.price)
+   electronics = get_category_products("electronics")
+   print(f"Electronics: {[p.name for p in electronics]}")
 
-   # Create a NonEmptyList for safe reduction
+   # Calculate statistics
+   prices = electronics.fmap(lambda p: p.price)
    if len(prices) > 0:
-       price_nel = NonEmptyList(prices[0], list(prices[1:]))
-       total = price_nel.head + sum(price_nel.tail)
-       print(f"First price: {price_nel.head}, Total: {total}")
+       nel = NonEmptyList(prices[0], list(prices[1:]))
+       total = nel.head + sum(nel.tail)
+       average = total / len(prices)
+       print(f"Total: ${total:.2f}, Average: ${average:.2f}")
 
-   # Use as dictionary key for caching
-   cache_key = products  # ImmutableList is hashable!
-   cached_result = {cache_key: "processed"}
+   # Cache results by product list
+   cache: dict[ImmutableList[Product], dict] = {
+       electronics: {
+           "total": total,
+           "average": average,
+           "count": len(electronics),
+       }
+   }
 
-Comparison: ImmutableList vs NonEmptyList
-------------------------------------------
-
-+------------------+--------------------------------+--------------------------------+
-| Feature          | ImmutableList                  | NonEmptyList                   |
-+==================+================================+================================+
-| Empty allowed    | ✅ Yes                         | ❌ No (at least 1 element)     |
-+------------------+--------------------------------+--------------------------------+
-| Safe head/tail   | ❌ May raise IndexError        | ✅ Always safe                 |
-+------------------+--------------------------------+--------------------------------+
-| Semigroup        | ✅ Yes                         | ✅ Yes                         |
-+------------------+--------------------------------+--------------------------------+
-| Monoid           | ✅ Yes (identity element)      | ❌ No (only Semigroup)         |
-+------------------+--------------------------------+--------------------------------+
-| Functor          | ✅ Yes                         | ✅ Yes                         |
-+------------------+--------------------------------+--------------------------------+
-| Applicative      | ✅ Yes                         | ✅ Yes                         |
-+------------------+--------------------------------+--------------------------------+
-| Monad            | ✅ Yes                         | ✅ Yes                         |
-+------------------+--------------------------------+--------------------------------+
-
-What You've Learned
--------------------
-
-Congratulations! You now understand:
-
-- ✅ How to create and use ``ImmutableList`` for guaranteed immutability
-- ✅ How ``NonEmptyList`` provides compile-time guarantees of non-emptiness
-- ✅ How to concatenate lists with ``+`` and ``@`` operators
-- ✅ How immutability enables hashability for dictionary keys
-- ✅ How to use ``fmap`` for transforming elements
-- ✅ How to use ``bind`` (``|``) for chaining list operations
-- ✅ How applicative functors apply wrapped functions
-- ✅ How type covariance provides flexible type relationships
+   # Retrieve cached results
+   stats = cache[electronics]
+   print(f"Cached stats: {stats}")
 
 Next Steps
 ----------
 
-- Learn about :doc:`do-syntax` to simplify monadic chains
-- Explore :doc:`error-handling` with ``Maybe`` and ``Result`` types
-- Read :doc:`../explanation/algebraic-abstractions` for theory
+Now that you understand the basics, explore the reference documentation to learn about:
 
-Further Reading
----------------
-
-- :class:`katharos.types.ImmutableList` - API reference
-- :class:`katharos.types.NonEmptyList` - API reference
-- :doc:`../reference/type-hierarchy` - Type hierarchy
+- All available operations on ``ImmutableList`` and ``NonEmptyList``
+- Type covariance and how it affects your code
+- The monoid interface for combining lists
+- The applicative interface for advanced transformations
