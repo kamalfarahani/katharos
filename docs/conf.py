@@ -1,13 +1,14 @@
 """Sphinx configuration for Katharos documentation."""
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 project = "Katharos"
-copyright = "2026, Kamal Farahani"
-author = "Kamal"
+copyright = f"{datetime.now().year}, Kamal Farahani"
+author = "Kamal Farahani"
 release = "0.2.2"
 version = "0.2.2"
 
