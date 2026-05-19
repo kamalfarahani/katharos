@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 project = "Katharos"
-copyright = "2024, Kamal"
+copyright = "2026, Kamal Farahani"
 author = "Kamal"
 release = "0.2.2"
 version = "0.2.2"
