@@ -102,13 +102,26 @@ This is much more readable:
 How Do Syntax Works
 --------------------
 
-The ``Do`` context manager provides two key methods:
+The ``Do`` context manager provides three key methods:
 
 ``do.arrow(monadic_value)``
-  Extracts the value from a monad. Returns a placeholder that represents the unwrapped value.
+  Registers a monadic value with the block and returns a
+  ``DoVariable`` *placeholder* representing the value that will be
+  unwrapped when the block runs. The placeholder is **not** the real
+  value — you cannot index it, call functions on it, or do arithmetic
+  with it directly. Pass it as a keyword argument to ``do.ret`` /
+  ``do.eval`` to use the unwrapped value.
 
 ``do.ret(function, **kwargs)``
-  Applies a function to extracted values and wraps the result back in the monad.
+  Calls ``function`` with the unwrapped values of the supplied
+  placeholders and wraps the (plain) result back in the monad via
+  ``monad_type.ret``. Use this when ``function`` returns a *non-monadic*
+  value.
+
+``do.eval(function, **kwargs)``
+  Like ``do.ret`` but does **not** wrap the result. Use this when
+  ``function`` already returns a value of the same monad type, to avoid
+  ending up with a doubly-wrapped monad such as ``Maybe[Maybe[T]]``.
 
 Behind the scenes, do syntax translates your code into the nested bind operations, but you don't have to write them manually!
 
@@ -186,16 +199,28 @@ Now with do syntax - much cleaner:
    # Clean and readable
    with Do[Maybe]() as do:
        user = do.arrow(get_user(1))
-       city = do.arrow(get_city(user["city_id"]))
-       country = do.arrow(get_country(city["country_id"]))
+       city = do.arrow(do.eval(lambda u: get_city(u["city_id"]), u=user))
+       country = do.arrow(
+           do.eval(lambda c: get_country(c["country_id"]), c=city)
+       )
        result = do.ret(
-           format_profile,
-           user_name=user["name"],
-           city_name=city["name"],
-           currency=country["currency"],
+           lambda u, c, ctry: format_profile(u["name"], c["name"], ctry["currency"]),
+           u=user,
+           c=city,
+           ctry=country,
        )
 
    print(result)  # Just('Alice lives in New York and uses USD')
+
+.. note::
+
+   ``user``, ``city`` and ``country`` returned by ``do.arrow`` are
+   :class:`~katharos.syntax_sugar.do.DoVariable` placeholders, not the
+   unwrapped values. To feed a placeholder into a function that returns
+   another monad use :meth:`~katharos.syntax_sugar.Do.eval` (no extra
+   wrapping); to feed it into a pure function use
+   :meth:`~katharos.syntax_sugar.Do.ret` (which wraps the result with
+   ``monad_type.ret``).
 
 The benefits are clear:
 
@@ -241,12 +266,16 @@ Do syntax works with any monad type. Here's an example with ``Result``:
 
    # With do syntax
    with Do[Result]() as do:
-       x = do.arrow(safe_divide(100, 4))  # 25
-       y = do.arrow(safe_sqrt(x))          # 5
-       z = do.arrow(safe_log(y))           # ~1.609
+       x = do.arrow(safe_divide(100, 4))         # 25
+       y = do.arrow(do.eval(safe_sqrt, x=x))     # 5
+       z = do.arrow(do.eval(safe_log, x=y))      # ~1.609
        result = do.ret(lambda val: val * 10, val=z)
 
    print(result)  # Success(16.09...)
+
+Note how ``y`` and ``z`` use ``do.eval`` (not ``do.ret``) because
+``safe_sqrt`` and ``safe_log`` already return a ``Result``. Wrapping their
+return value with ``do.ret`` would yield ``Result[Result[float]]``.
 
 Complex Example: Data Pipeline
 -------------------------------
@@ -298,7 +327,9 @@ Let's build a more complex example that processes user data through multiple val
        with Do[Result]() as do:
            valid_email = do.arrow(validate_email(email))
            valid_age = do.arrow(validate_age(age))
-           discount = calculate_discount(valid_age)
+           discount = do.arrow(
+               do.ret(calculate_discount, age=valid_age)
+           )
            result = do.ret(
                format_welcome,
                email=valid_email,
@@ -353,8 +384,8 @@ Here's a side-by-side comparison:
    # Do style - better for complex logic
    with Do[Maybe]() as do:
        user = do.arrow(get_user(1))
-       manager_id = do.arrow(get_manager_id(user))
-       manager = do.arrow(get_user(manager_id))
+       manager_id = do.arrow(do.eval(get_manager_id, user=user))
+       manager = do.arrow(do.eval(get_user, user_id=manager_id))
        result = do.ret(lambda m: m, m=manager)
 
 What You've Learned
