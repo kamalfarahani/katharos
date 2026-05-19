@@ -30,6 +30,7 @@ Traditional exception-based error handling has issues:
        print(f"Error: {e}")
 
 **Problems:**
+
 - Exceptions are invisible in type signatures
 - Easy to forget error handling
 - Breaks referential transparency
@@ -46,8 +47,8 @@ Introducing Result
    
    def safe_divide(a: float, b: float) -> Result[Exception, float]:
        if b == 0:
-           return Result.Failure(ZeroDivisionError("Cannot divide by zero"))
-       return Result.Success(a / b)
+           return Result[Exception, float].Failure(ZeroDivisionError("Cannot divide by zero"))
+       return Result[Exception, float].Success(a / b)
    
    # Type tells you this can fail!
    result = safe_divide(10, 2)
@@ -66,7 +67,7 @@ Success Values
 
    from katharos.types import Result
    
-   success = Result.Success(42)
+   success = Result[Exception, int].Success(42)
    print(success)  # Success(42)
    print(success.is_success())  # True
    print(success.value)  # 42
@@ -78,7 +79,7 @@ Failure Values
 
    from katharos.types import Result
    
-   failure = Result.Failure(ValueError("Invalid input"))
+   failure = Result[ValueError, int].Failure(ValueError("Invalid input"))
    print(failure)  # Failure(ValueError('Invalid input'))
    print(failure.is_failure())  # True
    print(failure.error)  # ValueError('Invalid input')
@@ -93,11 +94,11 @@ Use ``fmap`` to transform success values:
    from katharos.types import Result
    
    # Success case
-   result = Result.Success(5).fmap(lambda x: x * 2)
+   result = Result[Exception, int].Success(5).fmap(lambda x: x * 2)
    print(result)  # Success(10)
    
    # Failure case - function never called
-   result = Result.Failure(ValueError("error")).fmap(lambda x: x * 2)
+   result = Result[ValueError, int].Failure(ValueError("error")).fmap(lambda x: x * 2)
    print(result)  # Failure(ValueError('error'))
 
 Chaining Operations
@@ -111,13 +112,13 @@ Use bind (``|``) to chain operations that return ``Result``:
    
    def safe_divide(a: float, b: float) -> Result[Exception, float]:
        if b == 0:
-           return Result.Failure(ZeroDivisionError("Division by zero"))
-       return Result.Success(a / b)
+           return Result[Exception, float].Failure(ZeroDivisionError("Division by zero"))
+       return Result[Exception, float].Success(a / b)
    
    def safe_sqrt(x: float) -> Result[Exception, float]:
        if x < 0:
-           return Result.Failure(ValueError("Negative square root"))
-       return Result.Success(x ** 0.5)
+           return Result[Exception, float].Failure(ValueError("Negative square root"))
+       return Result[Exception, float].Success(x ** 0.5)
    
    # Chain operations
    result = (
@@ -144,18 +145,18 @@ Practical Example: Input Validation
 
     def validate_age(age: int) -> Result[Exception, int]:
         if age < 0:
-            return Result.Failure(ValueError("Age cannot be negative"))
+            return Result[Exception, int].Failure(ValueError("Age cannot be negative"))
         if age > 150:
-            return Result.Failure(ValueError("Age too high"))
-        return Result.Success(age)
+            return Result[Exception, int].Failure(ValueError("Age too high"))
+        return Result[Exception, int].Success(age)
 
 
     def validate_name(name: str) -> Result[Exception, str]:
         if not name:
-            return Result.Failure(ValueError("Name cannot be empty"))
+            return Result[Exception, str].Failure(ValueError("Name cannot be empty"))
         if len(name) < 2:
-            return Result.Failure(ValueError("Name too short"))
-        return Result.Success(name)
+            return Result[Exception, str].Failure(ValueError("Name too short"))
+        return Result[Exception, str].Success(name)
 
 
     def create_user(name: str, age: int) -> Result[Exception, dict]:
@@ -195,9 +196,9 @@ Use ``Result`` when you need to know **why** something failed:
    
    def parse_int(s: str) -> Result[Exception, int]:
        try:
-           return Result.Success(int(s))
+           return Result[Exception, int].Success(int(s))
        except ValueError as e:
-           return Result.Failure(e)  # Preserve error info
+           return Result[Exception, int].Failure(e)  # Preserve error info
    
    result = parse_int("not a number")
    if result.is_failure():
@@ -214,9 +215,10 @@ Use ``Maybe`` when failure is expected and you don't need error details:
    
    def find_user(user_id: int) -> Maybe[dict]:
        user = database.get(user_id)
-       return Maybe.Nothing() if user is None else Maybe.Just(user)
+       return Maybe[dict].Nothing() if user is None else Maybe[dict].Just(user)
 
 **Rule of thumb:**
+
 - ``Result`` = "This might fail, here's why"
 - ``Maybe`` = "This might be absent"
 
@@ -235,13 +237,13 @@ Collect all errors instead of stopping at the first:
        # Check if any failed
        failures = [r.error for r in results if r.is_failure()]
        if failures:
-           return Result.Failure(
+           return Result[Exception, ImmutableList[int]].Failure(
                ValueError(f"Multiple errors: {failures}")
            )
        
        # All succeeded
        values = [r.value for r in results]
-       return Result.Success(ImmutableList(values))
+       return Result[Exception, ImmutableList[int]].Success(ImmutableList(values))
 
 Converting Between Result and Maybe
 ------------------------------------
@@ -258,10 +260,10 @@ Result to Maybe
            return Maybe.Just(result.value)
        return Maybe.Nothing()
    
-   success = Result.Success(42)
+   success = Result[Exception, int].Success(42)
    print(result_to_maybe(success))  # Just(42)
    
-   failure = Result.Failure(ValueError("error"))
+   failure = Result[ValueError, int].Failure(ValueError("error"))
    print(result_to_maybe(failure))  # Nothing()
 
 Maybe to Result
@@ -276,10 +278,10 @@ Maybe to Result
            return Result.Success(maybe.unwrap())
        return Result.Failure(error)
    
-   just = Maybe.Just(42)
+   just = Maybe[int].Just(42)
    print(maybe_to_result(just, ValueError("missing")))  # Success(42)
    
-   nothing = Maybe.Nothing()
+   nothing = Maybe[int].Nothing()
    print(maybe_to_result(nothing, ValueError("missing")))
    # Failure(ValueError('missing'))
 
@@ -291,10 +293,10 @@ Best Practices
    .. code-block:: python
    
       # Good
-      return Result.Failure(ValueError("Age must be between 0 and 150"))
+      return Result[ValueError, int].Failure(ValueError("Age must be between 0 and 150"))
       
       # Bad
-      return Result.Failure(Exception("Invalid"))
+      return Result[Exception, int].Failure(Exception("Invalid"))
 
 2. **Use custom exception types**
 
@@ -305,8 +307,8 @@ Best Practices
       
       def validate(x: int) -> Result[ValidationError, int]:
           if x < 0:
-              return Result.Failure(ValidationError("Negative value"))
-          return Result.Success(x)
+              return Result[ValidationError, int].Failure(ValidationError("Negative value"))
+          return Result[ValidationError, int].Success(x)
 
 3. **Document error cases**
 
