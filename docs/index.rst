@@ -11,26 +11,102 @@ Katharos Documentation
 Installation
 ------------
 
-Install Katharos using pip:
+Install Katharos using pip or uv:
 
 .. code-block:: bash
 
+   # Using pip
    pip install katharos
 
-Quick Example
--------------
+   # Using uv
+   uv add katharos
+
+Quick Examples
+---------------
+
+**Monoids: Combining Values**
+
+.. code-block:: python
+
+   from katharos.types.monoid import Sum, Product
+
+   # Monoids provide identity elements and combine operations
+   # Sum: additive monoid with identity 0
+   total = Sum[int].identity()  # 0
+   total = total @ Sum[int](5)  # 5
+   total = total @ Sum[int](3)  # 8
+   print(total)  # Sum(8)
+
+   # Product: multiplicative monoid with identity 1
+   result = Product[int].identity()  # 1
+   result = result @ Product[int](4)  # 4
+   result = result @ Product[int](3)  # 12
+   print(result)  # Product(12)
+
+**Functors: Safe Data Transformations**
 
 .. code-block:: python
 
    from katharos.types import Maybe
 
-   # Safe optional value handling
+   # Safe optional value handling with fmap
    result = Maybe.Just(5).fmap(lambda x: x * 2)
    print(result)  # Just(10)
 
    # Automatic short-circuiting on Nothing
    nothing = Maybe.Nothing().fmap(lambda x: x * 2)
    print(nothing)  # Nothing()
+
+   # Chain transformations
+   pipeline = (
+       Maybe.Just(10)
+       .fmap(lambda x: x * 2)      # 20
+       .fmap(lambda x: x + 5)      # 25
+   )
+   print(pipeline)  # Just(25)
+
+**Monads: Chaining Operations**
+
+.. code-block:: python
+
+   from katharos.types import Result
+
+   def safe_divide(a: float, b: float) -> Result[Exception, float]:
+       if b == 0:
+           return Result.Failure(ZeroDivisionError("Division by zero"))
+       return Result.Success(a / b)
+
+   # Chain monadic operations with bind (|)
+   result = (
+       safe_divide(100, 4)
+       | (lambda x: safe_divide(x, 2))  # 25 / 2 = 12.5
+   )
+   print(result)  # Success(12.5)
+
+   # Error propagation
+   error = (
+       safe_divide(100, 0)
+       | (lambda x: safe_divide(x, 2))
+   )
+   print(error)  # Failure(ZeroDivisionError('Division by zero'))
+
+**Do Syntax: Readable Monadic Code**
+
+.. code-block:: python
+
+   from katharos.syntax_sugar import Do
+   from katharos.types import Maybe
+
+   def get_value(x: int) -> Maybe[int]:
+       return Maybe.Just(x) if x > 0 else Maybe.Nothing()
+
+   # Clean, imperative-style monadic code
+   with Do[Maybe]() as do:
+       x = do.arrow(get_value(5))
+       y = do.arrow(get_value(3))
+       result = do.ret(lambda a, b: a + b, a=x, b=y)
+
+   print(result)  # Just(8)
 
 Documentation Structure
 -----------------------
