@@ -319,7 +319,7 @@ wheels = [
 
 [[package]]
 name = "katharos"
-version = "0.2.2"
+version = "1.0.0"
 source = { editable = "." }
 
 [package.dev-dependencies]

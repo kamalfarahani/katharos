@@ -1,6 +1,6 @@
 [project]
 name = "katharos"
-version = "0.2.2"
+version = "1.0.0"
 description = "A functional programming library for Python that provides algebraic abstractions like Semigroups, Monoids, Functors, Applicatives, and Monads, along with immutable data structures to enable composable, type-safe, and side-effect-free code."
 readme = "README.md"
 license = "MIT"
