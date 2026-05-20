@@ -13,7 +13,7 @@ Available Tutorials
 
    getting-started
    handling-null
-   first-monad
+   monadic-computation
    do-syntax
    functor-pipeline
    error-handling
