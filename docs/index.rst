@@ -114,8 +114,8 @@ Documentation Structure
 This documentation follows the `Diátaxis framework <https://diataxis.fr/>`_, organizing content into four distinct categories:
 
 📚 **Tutorials** - :doc:`tutorials/index`
-   Learning-oriented lessons that take you through a series of steps to complete a project.
-   Start here if you're new to Katharos or functional programming.
+   Learning-oriented lessons that take you through a series of steps to get you familiar with the concepts.
+   Start here if you're new to `katharos`.
 
 🔧 **How-To Guides** - :doc:`how-to/index`
    Problem-oriented guides that help you solve specific tasks.
