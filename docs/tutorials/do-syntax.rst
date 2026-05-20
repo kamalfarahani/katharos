@@ -20,9 +20,9 @@ First, we create a new file called ``combine.py`` and add a plain function that 
    def process(x: float, y: float, z: float) -> float:
        return x * 2 + y + z ** 2
 
-   m1 = Maybe.Just(2.0)
-   m2 = Maybe.Just(3.0)
-   m3 = Maybe.Just(4.0)
+   m1 = Maybe[float].Just(2.0)
+   m2 = Maybe[float].Just(3.0)
+   m3 = Maybe[float].Just(4.0)
 
    print(m1, m2, m3)
 
