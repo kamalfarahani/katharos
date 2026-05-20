@@ -16,6 +16,12 @@ In this tutorial, we will install Katharos and verify it works. First, install K
 
    pip install katharos
 
+Or using uv:
+
+.. code-block:: bash
+
+   uv add katharos
+
 Step 2: Verify Your Installation
 ---------------------------------
 
