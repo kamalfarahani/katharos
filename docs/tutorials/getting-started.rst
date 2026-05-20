@@ -39,11 +39,3 @@ You should see output like this:
 
    Katharos installed successfully!
 
-What's Next
------------
-
-Now that Katharos is installed, explore the other tutorials:
-
-- :doc:`handling-null` - Learn how to handle null values safely
-- :doc:`monadic-computation` - Learn about monadic operations
-- :doc:`functor-pipeline` - Master function composition
