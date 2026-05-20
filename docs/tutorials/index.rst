@@ -13,9 +13,9 @@ Available Tutorials
 
    getting-started
    handling-null
+   functor
    monadic-computation
    do-syntax
-   functor-pipeline
    error-handling
    immutable-lists
 
