@@ -198,23 +198,23 @@ Now with do syntax - much cleaner:
 
    # Clean and readable
    with Do[Maybe]() as do:
-       user = do.arrow(get_user(1))
-       city = do.arrow(do.eval(lambda u: get_city(u["city_id"]), u=user))
-       country = do.arrow(
-           do.eval(lambda c: get_country(c["country_id"]), c=city)
+       user_var = do.arrow(get_user(1))
+       city_var = do.arrow(do.eval(lambda u: get_city(u["city_id"]), u=user_var))
+       country_var = do.arrow(
+           do.eval(lambda c: get_country(c["country_id"]), c=city_var)
        )
        result = do.ret(
            lambda u, c, ctry: format_profile(u["name"], c["name"], ctry["currency"]),
-           u=user,
-           c=city,
-           ctry=country,
+           u=user_var,
+           c=city_var,
+           ctry=country_var,
        )
 
    print(result)  # Just('Alice lives in New York and uses USD')
 
 .. note::
 
-   ``user``, ``city`` and ``country`` returned by ``do.arrow`` are
+   ``user_var``, ``city_var`` and ``country_var`` returned by ``do.arrow`` are
    :class:`~katharos.syntax_sugar.do.DoVariable` placeholders, not the
    unwrapped values. To feed a placeholder into a function that returns
    another monad use :meth:`~katharos.syntax_sugar.Do.eval` (no extra
@@ -266,14 +266,14 @@ Do syntax works with any monad type. Here's an example with ``Result``:
 
    # With do syntax
    with Do[Result]() as do:
-       x = do.arrow(safe_divide(100, 4))         # 25
-       y = do.arrow(do.eval(safe_sqrt, x=x))     # 5
-       z = do.arrow(do.eval(safe_log, x=y))      # ~1.609
-       result = do.ret(lambda val: val * 10, val=z)
+       x_var = do.arrow(safe_divide(100, 4))             # 25
+       y_var = do.arrow(do.eval(safe_sqrt, x=x_var))     # 5
+       z_var = do.arrow(do.eval(safe_log, x=y_var))      # ~1.609
+       result = do.ret(lambda val: val * 10, val=z_var)
 
    print(result)  # Success(16.09...)
 
-Note how ``y`` and ``z`` use ``do.eval`` (not ``do.ret``) because
+Note how ``y_var`` and ``z_var`` use ``do.eval`` (not ``do.ret``) because
 ``safe_sqrt`` and ``safe_log`` already return a ``Result``. Wrapping their
 return value with ``do.ret`` would yield ``Result[Result[float]]``.
 
@@ -325,16 +325,16 @@ Let's build a more complex example that processes user data through multiple val
    # With do syntax - clear and linear
    def process_user_clean(email: str, age: int) -> Result[Exception, str]:
        with Do[Result]() as do:
-           valid_email = do.arrow(validate_email(email))
-           valid_age = do.arrow(validate_age(age))
-           discount = do.arrow(
-               do.ret(calculate_discount, age=valid_age)
+           valid_email_var = do.arrow(validate_email(email))
+           valid_age_var = do.arrow(validate_age(age))
+           discount_var = do.arrow(
+               do.ret(calculate_discount, age=valid_age_var)
            )
            result = do.ret(
                format_welcome,
-               email=valid_email,
-               age=valid_age,
-               discount=discount,
+               email=valid_email_var,
+               age=valid_age_var,
+               discount=discount_var,
            )
        return result
 
@@ -351,7 +351,7 @@ Let's build a more complex example that processes user data through multiple val
 Notice how the do syntax version:
 
 - Clearly separates validation from calculation
-- Makes it obvious which values are monadic (extracted with ``arrow``) vs pure (like ``discount``)
+- Makes it obvious which values are monadic (extracted with ``arrow``) vs pure (like ``discount_var``)
 - Is easy to extend with new validation or transformation steps
 - Reads like imperative code but maintains all the safety of monadic composition
 
@@ -383,10 +383,10 @@ Here's a side-by-side comparison:
 
    # Do style - better for complex logic
    with Do[Maybe]() as do:
-       user = do.arrow(get_user(1))
-       manager_id = do.arrow(do.eval(get_manager_id, user=user))
-       manager = do.arrow(do.eval(get_user, user_id=manager_id))
-       result = do.ret(lambda m: m, m=manager)
+       user_var = do.arrow(get_user(1))
+       manager_id_var = do.arrow(do.eval(get_manager_id, user=user_var))
+       manager_var = do.arrow(do.eval(get_user, user_id=manager_id_var))
+       result = do.ret(lambda m: m, m=manager_var)
 
 What You've Learned
 -------------------
