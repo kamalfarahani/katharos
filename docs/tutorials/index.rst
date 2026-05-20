@@ -12,6 +12,7 @@ Available Tutorials
    :maxdepth: 1
 
    getting-started
+   handling-null
    first-monad
    do-syntax
    functor-pipeline
