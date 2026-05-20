@@ -130,55 +130,32 @@ This documentation follows the `Diátaxis framework <https://diataxis.fr/>`_, or
    Read these to deepen your understanding of concepts.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :hidden:
    :caption: Tutorials
 
    tutorials/index
-   tutorials/getting-started
-   tutorials/first-monad
-   tutorials/functor-pipeline
-   tutorials/error-handling
-   tutorials/immutable-lists
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :hidden:
    :caption: How-To Guides
 
    how-to/index
-   how-to/chain-operations
-   how-to/do-notation
-   how-to/custom-semigroups
-   how-to/error-handling
-   how-to/function-composition
-   how-to/side-effects
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :hidden:
    :caption: Reference
 
    reference/index
-   reference/api/algebra
-   reference/api/types
-   reference/api/functools
-   reference/api/syntax_sugar
-   reference/type-hierarchy
-   reference/operators
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :hidden:
    :caption: Explanation
 
    explanation/index
-   explanation/fp-concepts
-   explanation/algebraic-abstractions
-   explanation/monoids-semigroups
-   explanation/monad-laws
-   explanation/immutability
-   explanation/comparison
 
 Indices and tables
 ==================

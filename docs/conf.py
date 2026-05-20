@@ -1,15 +1,21 @@
 """Sphinx configuration for Katharos documentation."""
 
 import sys
+import tomllib
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 project = "Katharos"
-copyright = "2024, Kamal"
-author = "Kamal"
-release = "0.2.2"
-version = "0.2.2"
+copyright = f"{datetime.now().year}, Kamal Farahani"
+
+# Read version and author from pyproject.toml
+pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
+with open(pyproject_path, "rb") as f:
+    pyproject = tomllib.load(f)
+    version = release = pyproject["project"]["version"]
+    author = pyproject["project"]["authors"][0]["name"]
 
 extensions = [
     "sphinx.ext.autodoc",
