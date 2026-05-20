@@ -1,414 +1,208 @@
-Do Syntax: Cleaner Monadic Code
-=================================
+Combining Multiple Monadic Values with Do Syntax
+==================================================
 
-In this tutorial, you'll learn how to use do syntax to write cleaner, more readable monadic code without deeply nested lambdas.
-
-What You'll Learn
------------------
-
-- Why nested bind operations become hard to read
-- How do syntax simplifies monadic code
-- How to use ``Do`` context manager
-- How to extract values with ``arrow``
-- How to return values with ``ret``
+In this tutorial, we will take a plain function with **three arguments** and feed it values that live inside ``Maybe``. We will first do it the hard way (nested bind lambdas) and then rewrite it with do syntax. By the end, we will have a single Python script that combines several monadic values into one result, cleanly and readably.
 
 Prerequisites
 -------------
 
-Complete the :doc:`first-monad` tutorial first to understand bind operations and monadic chains.
+- Complete the :doc:`monadic-computation` tutorial so you are familiar with ``|`` (bind) and ``Maybe.ret``.
 
-The Problem: Nested Lambdas
-----------------------------
+Step 1: Create the Script and a Multi-Argument Function
+--------------------------------------------------------
 
-When chaining multiple monadic operations that depend on previous results, the code quickly becomes nested and hard to read:
+First, we create a new file called ``combine.py`` and add a plain function that takes three numbers, plus three monadic inputs:
 
 .. code-block:: python
 
    from katharos.types import Maybe
-
-   def get_input() -> Maybe[float]:
-       """Get a float from user input."""
-       try:
-           x = float(input("Enter number: "))
-           return Maybe.Just(x)
-       except Exception:
-           return Maybe.Nothing()
 
    def process(x: float, y: float, z: float) -> float:
-       """Process three numbers."""
-       return x * 2 + y + z**2
+       return x * 2 + y + z ** 2
 
-   # Using bind - gets messy quickly!
-   m_x1 = get_input()
-   m_x2 = get_input()
-   m_x3 = get_input()
+   m1 = Maybe.Just(2.0)
+   m2 = Maybe.Just(3.0)
+   m3 = Maybe.Just(4.0)
 
-   result = m_x1 | (
-       lambda x1: (
-           m_x2 | (lambda x2: m_x3 | (lambda x3: Maybe.ret(process(x1, x2, x3))))
-       )
-   )
-   print(result)
+   print(m1, m2, m3)
 
-Notice how:
+Now, run the file:
 
-- The code is deeply nested with multiple lambdas
-- It's hard to see the flow of data
-- Each lambda captures variables from outer scopes
-- Adding more steps makes it exponentially harder to read
+.. code-block:: bash
 
-The Solution: Do Syntax
-------------------------
+   python combine.py
 
-Do syntax provides a cleaner way to write the same logic:
+The output should look like this:
 
-.. code-block:: python
+.. code-block:: text
 
-   from katharos.syntax_sugar import Do
-   from katharos.types import Maybe
+   Just(2.0) Just(3.0) Just(4.0)
 
-   # Same functions as before
-   def get_input() -> Maybe[float]:
-       try:
-           x = float(input("Enter number: "))
-           return Maybe.Just(x)
-       except Exception:
-           return Maybe.Nothing()
+Notice the values we want to feed into ``process`` are wrapped in ``Maybe`` and cannot be passed in directly.
 
-   def process(x: float, y: float, z: float) -> float:
-       return x * 2 + y + z**2
+Step 2: Combine Them with Nested Bind
+--------------------------------------
 
-   # Using do syntax - much cleaner!
-   with Do[Maybe]() as do:
-       x1_var = do.arrow(get_input())
-       x2_var = do.arrow(get_input())
-       x3_var = do.arrow(get_input())
-       result = do.ret(
-           process,
-           x=x1_var,
-           y=x2_var,
-           z=x3_var,
-       )
-
-   print(result)
-
-This is much more readable:
-
-- ✅ No nested lambdas
-- ✅ Linear, imperative-style flow
-- ✅ Clear variable names
-- ✅ Easy to add or remove steps
-
-How Do Syntax Works
---------------------
-
-The ``Do`` context manager provides three key methods:
-
-``do.arrow(monadic_value)``
-  Registers a monadic value with the block and returns a
-  ``DoVariable`` *placeholder* representing the value that will be
-  unwrapped when the block runs. The placeholder is **not** the real
-  value — you cannot index it, call functions on it, or do arithmetic
-  with it directly. Pass it as a keyword argument to ``do.ret`` /
-  ``do.eval`` to use the unwrapped value.
-
-``do.ret(function, **kwargs)``
-  Calls ``function`` with the unwrapped values of the supplied
-  placeholders and wraps the (plain) result back in the monad via
-  ``monad_type.ret``. Use this when ``function`` returns a *non-monadic*
-  value.
-
-``do.eval(function, **kwargs)``
-  Like ``do.ret`` but does **not** wrap the result. Use this when
-  ``function`` already returns a value of the same monad type, to avoid
-  ending up with a doubly-wrapped monad such as ``Maybe[Maybe[T]]``.
-
-Behind the scenes, do syntax translates your code into the nested bind operations, but you don't have to write them manually!
-
-Step-by-Step Example
----------------------
-
-Let's build a user profile system to see do syntax in action:
+Next, we use ``|`` (bind) to unwrap each value and pass it to ``process``. Replace the ``print`` line with:
 
 .. code-block:: python
 
-   from katharos.syntax_sugar import Do
-   from katharos.types import Maybe
-
-   # Simulated database
-   users = {
-       1: {"name": "Alice", "age": 30, "city_id": 101},
-       2: {"name": "Bob", "age": 25, "city_id": 102},
-   }
-
-   cities = {
-       101: {"name": "New York", "country_id": 1},
-       102: {"name": "London", "country_id": 2},
-   }
-
-   countries = {
-       1: {"name": "USA", "currency": "USD"},
-       2: {"name": "UK", "currency": "GBP"},
-   }
-
-   def get_user(user_id: int) -> Maybe[dict]:
-       user = users.get(user_id)
-       return Maybe.Just(user) if user else Maybe.Nothing()
-
-   def get_city(city_id: int) -> Maybe[dict]:
-       city = cities.get(city_id)
-       return Maybe.Just(city) if city else Maybe.Nothing()
-
-   def get_country(country_id: int) -> Maybe[dict]:
-       country = countries.get(country_id)
-       return Maybe.Just(country) if country else Maybe.Nothing()
-
-   def format_profile(user_name: str, city_name: str, currency: str) -> str:
-       return f"{user_name} lives in {city_name} and uses {currency}"
-
-Without Do Syntax
-~~~~~~~~~~~~~~~~~
-
-First, let's see how this looks with nested bind operations:
-
-.. code-block:: python
-
-   # Nested and hard to follow
-   result = get_user(1) | (
-       lambda user: get_city(user["city_id"]) | (
-           lambda city: get_country(city["country_id"]) | (
-               lambda country: Maybe.ret(
-                   format_profile(
-                       user["name"],
-                       city["name"],
-                       country["currency"]
-                   )
-               )
+   result = m1 | (
+       lambda x: m2 | (
+           lambda y: m3 | (
+               lambda z: Maybe.ret(process(x, y, z))
            )
        )
    )
-   print(result)  # Just('Alice lives in New York and uses USD')
+   print(result)
 
-With Do Syntax
-~~~~~~~~~~~~~~
+Run the file again. The output should look like this:
 
-Now with do syntax - much cleaner:
+.. code-block:: text
 
-.. code-block:: python
+   Just(23.0)
 
-   # Clean and readable
-   with Do[Maybe]() as do:
-       user_var = do.arrow(get_user(1))
-       city_var = do.arrow(do.eval(lambda u: get_city(u["city_id"]), u=user_var))
-       country_var = do.arrow(
-           do.eval(lambda c: get_country(c["country_id"]), c=city_var)
-       )
-       result = do.ret(
-           lambda u, c, ctry: format_profile(u["name"], c["name"], ctry["currency"]),
-           u=user_var,
-           c=city_var,
-           ctry=country_var,
-       )
+It works (``2*2 + 3 + 4**2 = 23``), but notice the problem: each new monadic input adds another nested lambda. With three inputs we already have three levels of indentation, and the data flow is buried inside the lambda parameters.
 
-   print(result)  # Just('Alice lives in New York and uses USD')
+Step 3: Rewrite the Same Logic with Do Syntax
+----------------------------------------------
 
-.. note::
-
-   ``user_var``, ``city_var`` and ``country_var`` returned by ``do.arrow`` are
-   :class:`~katharos.syntax_sugar.do.DoVariable` placeholders, not the
-   unwrapped values. To feed a placeholder into a function that returns
-   another monad use :meth:`~katharos.syntax_sugar.Do.eval` (no extra
-   wrapping); to feed it into a pure function use
-   :meth:`~katharos.syntax_sugar.Do.ret` (which wraps the result with
-   ``monad_type.ret``).
-
-The benefits are clear:
-
-- Each step is on its own line
-- Variable names make the data flow obvious
-- Easy to debug - you can see exactly which step might fail
-- Adding new steps is trivial
-
-Working with Multiple Monads
------------------------------
-
-Do syntax works with any monad type. Here's an example with ``Result``:
+Now, we replace the nested bind block with a ``Do`` block. Add a new import at the top of the file:
 
 .. code-block:: python
 
    from katharos.syntax_sugar import Do
-   from katharos.types import Result
 
-   def safe_divide(a: float, b: float) -> Result[Exception, float]:
-       if b == 0:
-           return Result.Failure(ZeroDivisionError("Division by zero"))
-       return Result.Success(a / b)
+Then replace the entire ``result = ...`` block from Step 2 with:
 
-   def safe_sqrt(x: float) -> Result[Exception, float]:
+.. code-block:: python
+
+   with Do[Maybe]() as do:
+       x = do.arrow(m1)
+       y = do.arrow(m2)
+       z = do.arrow(m3)
+       result = do.ret(process, x=x, y=y, z=z)
+
+   print(result)
+
+Run the file. The output should look like this:
+
+.. code-block:: text
+
+   Just(23.0)
+
+Notice three things:
+
+- The result is identical to Step 2.
+- Each monadic input is unwrapped on its own line with ``do.arrow``.
+- ``do.ret`` calls our plain ``process`` function with the unwrapped values and wraps the final answer back into ``Maybe`` for us.
+
+Step 4: Discover the DoVariable Pitfall
+----------------------------------------
+
+It is tempting to use ``x``, ``y``, ``z`` as if they were ordinary numbers, but ``do.arrow`` does **not** return the unwrapped value — it returns a ``DoVariable`` placeholder that only stands in for the value while the block is being assembled.
+
+Let's see what happens when we treat a placeholder like a real number. Replace the ``Do`` block from Step 3 with:
+
+.. code-block:: python
+
+   with Do[Maybe]() as do:
+       x = do.arrow(m1)
+       y = do.arrow(m2)
+       z = do.arrow(m3)
+       print("x is:", x)
+       result = do.ret(lambda: process(x + 1, y, z))
+
+   print(result)
+
+Run the file. The output should look like this:
+
+.. code-block:: text
+
+   x is: DoVariable(index=0, monad=Just(2.0))
+   Traceback (most recent call last):
+     ...
+   TypeError: unsupported operand type(s) for +: 'DoVariable' and 'int'
+
+Notice two things:
+
+- ``x`` is a ``DoVariable``, not the number ``2.0``. You cannot do arithmetic on it, index it, or call methods on the value it represents.
+- The fix is always the same: hand placeholders to ``do.ret`` / ``do.eval`` as **keyword arguments**, and let the framework pass the unwrapped values into your function.
+
+Now, restore the working version from Step 3 before continuing:
+
+.. code-block:: python
+
+   with Do[Maybe]() as do:
+       x = do.arrow(m1)
+       y = do.arrow(m2)
+       z = do.arrow(m3)
+       result = do.ret(process, x=x, y=y, z=z)
+
+   print(result)
+
+Step 5: Watch the Block Short-Circuit
+--------------------------------------
+
+Now, we change one of the inputs to ``Nothing()`` to see what happens when any value is missing. Change ``m2`` to:
+
+.. code-block:: python
+
+   m2 = Maybe.Nothing()
+
+Run the file. The output should look like this:
+
+.. code-block:: text
+
+   Nothing()
+
+Notice that ``process`` was never called. As soon as any ``do.arrow`` step yields ``Nothing()``, the whole block short-circuits, exactly like a chain of ``|``.
+
+Step 6: Insert a Step That Itself Returns a Maybe
+--------------------------------------------------
+
+Finally, we add a transformation step whose own result is a ``Maybe``. For that we use ``do.eval`` (instead of ``do.ret``) so the result is **not** wrapped a second time. First, restore ``m2`` and add a new function and input:
+
+.. code-block:: python
+
+   m2 = Maybe.Just(3.0)
+
+   def safe_sqrt(x: float) -> Maybe[float]:
        if x < 0:
-           return Result.Failure(ValueError("Cannot take square root of negative number"))
-       return Result.Success(x ** 0.5)
+           return Maybe.Nothing()
+       return Maybe.Just(x ** 0.5)
 
-   def safe_log(x: float) -> Result[Exception, float]:
-       if x <= 0:
-           return Result.Failure(ValueError("Cannot take log of non-positive number"))
-       import math
-       return Result.Success(math.log(x))
+   raw = Maybe.Just(16.0)
 
-   # Without do syntax
-   result_nested = safe_divide(100, 4) | (
-       lambda x: safe_sqrt(x) | (
-           lambda y: safe_log(y) | (
-               lambda z: Result.ret(z * 10)
-           )
-       )
-   )
-
-   # With do syntax
-   with Do[Result]() as do:
-       x_var = do.arrow(safe_divide(100, 4))             # 25
-       y_var = do.arrow(do.eval(safe_sqrt, x=x_var))     # 5
-       z_var = do.arrow(do.eval(safe_log, x=y_var))      # ~1.609
-       result = do.ret(lambda val: val * 10, val=z_var)
-
-   print(result)  # Success(16.09...)
-
-Note how ``y_var`` and ``z_var`` use ``do.eval`` (not ``do.ret``) because
-``safe_sqrt`` and ``safe_log`` already return a ``Result``. Wrapping their
-return value with ``do.ret`` would yield ``Result[Result[float]]``.
-
-Complex Example: Data Pipeline
--------------------------------
-
-Let's build a more complex example that processes user data through multiple validation and transformation steps:
+Then replace the ``Do`` block with:
 
 .. code-block:: python
 
-   from katharos.syntax_sugar import Do
-   from katharos.types import Result
-
-   def validate_age(age: int) -> Result[Exception, int]:
-       if age < 0 or age > 150:
-           return Result.Failure(ValueError(f"Invalid age: {age}"))
-       return Result.Success(age)
-
-   def validate_email(email: str) -> Result[Exception, str]:
-       if "@" not in email:
-           return Result.Failure(ValueError(f"Invalid email: {email}"))
-       return Result.Success(email)
-
-   def calculate_discount(age: int) -> float:
-       if age < 18:
-           return 0.0
-       elif age < 65:
-           return 0.1
-       else:
-           return 0.2
-
-   def format_welcome(email: str, age: int, discount: float) -> str:
-       return f"Welcome {email}! Age: {age}, Discount: {discount*100}%"
-
-   # Without do syntax - deeply nested
-   def process_user_nested(email: str, age: int) -> Result[Exception, str]:
-       return validate_email(email) | (
-           lambda valid_email: validate_age(age) | (
-               lambda valid_age: Result.ret(
-                   format_welcome(
-                       valid_email,
-                       valid_age,
-                       calculate_discount(valid_age)
-                   )
-               )
-           )
-       )
-
-   # With do syntax - clear and linear
-   def process_user_clean(email: str, age: int) -> Result[Exception, str]:
-       with Do[Result]() as do:
-           valid_email_var = do.arrow(validate_email(email))
-           valid_age_var = do.arrow(validate_age(age))
-           discount_var = do.arrow(
-               do.ret(calculate_discount, age=valid_age_var)
-           )
-           result = do.ret(
-               format_welcome,
-               email=valid_email_var,
-               age=valid_age_var,
-               discount=discount_var,
-           )
-       return result
-
-   # Test it
-   print(process_user_clean("alice@example.com", 30))
-   # Success('Welcome alice@example.com! Age: 30, Discount: 10.0%')
-
-   print(process_user_clean("invalid-email", 30))
-   # Failure(ValueError('Invalid email: invalid-email'))
-
-   print(process_user_clean("bob@example.com", 200))
-   # Failure(ValueError('Invalid age: 200'))
-
-Notice how the do syntax version:
-
-- Clearly separates validation from calculation
-- Makes it obvious which values are monadic (extracted with ``arrow``) vs pure (like ``discount_var``)
-- Is easy to extend with new validation or transformation steps
-- Reads like imperative code but maintains all the safety of monadic composition
-
-When to Use Do Syntax
-----------------------
-
-Use do syntax when:
-
-- ✅ You have multiple monadic operations that depend on each other
-- ✅ You need to use values from earlier steps in later steps
-- ✅ Readability is important (almost always!)
-- ✅ You're working with 3+ chained operations
-
-Stick with bind (``|``) when:
-
-- You have a simple 1-2 step chain
-- The operations don't depend on each other's values
-- You're writing point-free style code
-
-Comparison Summary
-------------------
-
-Here's a side-by-side comparison:
-
-.. code-block:: python
-
-   # Bind style - good for simple chains
-   result = get_user(1) | get_manager_id | get_user
-
-   # Do style - better for complex logic
    with Do[Maybe]() as do:
-       user_var = do.arrow(get_user(1))
-       manager_id_var = do.arrow(do.eval(get_manager_id, user=user_var))
-       manager_var = do.arrow(do.eval(get_user, user_id=manager_id_var))
-       result = do.ret(lambda m: m, m=manager_var)
+       r = do.arrow(raw)
+       x = do.arrow(do.eval(safe_sqrt, x=r))
+       y = do.arrow(m2)
+       z = do.arrow(m3)
+       result = do.ret(process, x=x, y=y, z=z)
 
-What You've Learned
--------------------
+   print(result)
 
-Congratulations! You now understand:
+Run the file. The output should look like this:
 
-- ✅ Why nested bind operations become unreadable
-- ✅ How do syntax provides a cleaner alternative
-- ✅ How to use ``Do`` context manager with ``arrow`` and ``ret``
-- ✅ When to use do syntax vs bind operations
-- ✅ How to work with different monad types using do syntax
+.. code-block:: text
 
-Next Steps
-----------
+   Just(27.0)
 
-- Learn about :doc:`error-handling` to use do syntax with ``Result``
-- Explore :doc:`../how-to/chain-operations` for advanced patterns
-- Read :doc:`../explanation/monad-laws` to understand the theory
+Notice the value flow: ``raw = 16``, ``safe_sqrt(16) = 4``, then ``process(4, 3, 4) = 4*2 + 3 + 4**2 = 27``. We used ``do.eval`` for ``safe_sqrt`` because it already returns a ``Maybe``; using ``do.ret`` there would have produced ``Just(Just(4.0))``.
 
-Further Reading
----------------
+What We Built
+-------------
 
-- :class:`katharos.syntax_sugar.Do` - API reference
-- :doc:`../explanation/do-notation` - Theory behind do notation
-- :doc:`../how-to/refactor-to-do` - Refactoring guide
+We built a script that:
+
+- Combines several monadic values into a single result through a multi-argument plain function.
+- Uses ``do.arrow`` to unwrap each input on its own line.
+- Uses ``do.ret`` to lift a plain function's result back into the monad.
+- Uses ``do.eval`` to call a function that already returns a monad without double-wrapping.
+- Short-circuits to ``Nothing()`` as soon as any input is missing.
+- Treats ``do.arrow`` results as ``DoVariable`` placeholders, never as real values.
