@@ -20,17 +20,17 @@ Use ``|`` to pass the unwrapped value of a ``Just`` into the next function. If a
 
    def parse_int(s: str) -> Maybe[int]:
        try:
-           return Maybe.Just(int(s))
+           return Maybe[int].Just(int(s))
        except ValueError:
-           return Maybe.Nothing()
+           return Maybe[int].Nothing()
 
    def reciprocal(n: int) -> Maybe[float]:
        if n == 0:
-           return Maybe.Nothing()
-       return Maybe.Just(1.0 / n)
+           return Maybe[float].Nothing()
+       return Maybe[float].Just(1.0 / n)
 
    def percent(x: float) -> Maybe[str]:
-       return Maybe.Just(f"{x * 100:.1f}%")
+       return Maybe[str].Just(f"{x * 100:.1f}%")
 
    result = (
        parse_int("4")
@@ -59,17 +59,17 @@ Chaining with Result
 
    def parse_float(s: str) -> Result[Exception, float]:
        try:
-           return Result.Success(float(s))
+           return Result[Exception, float].Success(float(s))
        except ValueError as e:
-           return Result.Failure(e)
+           return Result[Exception, float].Failure(e)
 
    def safe_sqrt(x: float) -> Result[Exception, float]:
        if x < 0:
-           return Result.Failure(ValueError(f"Cannot take sqrt of {x}"))
-       return Result.Success(x ** 0.5)
+           return Result[Exception, float].Failure(ValueError(f"Cannot take sqrt of {x}"))
+       return Result[Exception, float].Success(x ** 0.5)
 
    def to_two_dp(x: float) -> Result[Exception, str]:
-       return Result.Success(f"{x:.2f}")
+       return Result[Exception, str].Success(f"{x:.2f}")
 
    result = (
        parse_float("16.0")
