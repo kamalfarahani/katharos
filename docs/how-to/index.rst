@@ -1,12 +1,7 @@
 How-To Guides
 =============
 
-These guides provide solutions to common problems and tasks you'll encounter when using Katharos.
-
-**How-to guides are problem-oriented.** They guide you through the steps involved in addressing key problems and use-cases. They assume you already have some knowledge of how Katharos works.
-
-Available Guides
-----------------
+These guides solve specific tasks you'll encounter when using Katharos. Each guide assumes you have basic familiarity with the library — if you're new, start with the :doc:`../tutorials/index` first.
 
 .. toctree::
    :maxdepth: 1
@@ -15,18 +10,7 @@ Available Guides
    do-notation
    refactor-to-do
    custom-semigroups
+   custom-monad
    error-handling
    function-composition
    side-effects
-
-When to Use These Guides
--------------------------
-
-Use these guides when you:
-
-- Know what you want to accomplish
-- Need a quick solution to a specific problem
-- Want to see practical examples of common patterns
-- Are looking for best practices
-
-If you're new to Katharos, start with the :doc:`../tutorials/index` instead.
