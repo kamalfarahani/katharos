@@ -20,8 +20,8 @@ A do-block has three parts: entering the context, binding values with ``do.arrow
    from katharos.types import Maybe
 
    with Do[Maybe]() as do:
-       x = do.arrow(Maybe.Just(10))
-       y = do.arrow(Maybe.Just(5))
+       x = do.arrow(Maybe[int].Just(10))
+       y = do.arrow(Maybe[int].Just(5))
        result = do.ret(lambda x, y: x + y, x=x, y=y)
 
    # result == Just(15)
@@ -38,8 +38,8 @@ When any ``do.arrow`` step holds a ``Nothing()`` or ``Failure``, the entire bloc
 .. code-block:: python
 
    with Do[Maybe]() as do:
-       x = do.arrow(Maybe.Just(10))
-       y = do.arrow(Maybe.Nothing())   # short-circuits here
+       x = do.arrow(Maybe[int].Just(10))
+       y = do.arrow(Maybe[int].Nothing())   # short-circuits here
        result = do.ret(lambda x, y: x + y, x=x, y=y)
 
    # result == Nothing()
@@ -53,12 +53,12 @@ Use ``do.eval`` when the final function itself returns a ``Maybe`` or ``Result``
 
    def lookup(key: str) -> Maybe[str]:
        db = {"alice": "admin", "bob": "user"}
-       return Maybe.Just(db[key]) if key in db else Maybe.Nothing()
+       return Maybe[str].Just(db[key]) if key in db else Maybe[str].Nothing()
 
    def greet(role: str) -> Maybe[str]:
        if role == "admin":
-           return Maybe.Just("Hello, Admin!")
-       return Maybe.Nothing()
+           return Maybe[str].Just("Hello, Admin!")
+       return Maybe[str].Nothing()
 
    with Do[Maybe]() as do:
        role   = do.arrow(lookup("alice"))
@@ -77,14 +77,14 @@ The same pattern works with ``Result``:
 
    def parse_int(s: str) -> Result[Exception, int]:
        try:
-           return Result.Success(int(s))
+           return Result[Exception, int].Success(int(s))
        except ValueError as e:
-           return Result.Failure(e)
+           return Result[Exception, int].Failure(e)
 
    def safe_divide(a: int, b: int) -> Result[Exception, float]:
        if b == 0:
-           return Result.Failure(ZeroDivisionError("division by zero"))
-       return Result.Success(a / b)
+           return Result[Exception, float].Failure(ZeroDivisionError("division by zero"))
+       return Result[Exception, float].Success(a / b)
 
    with Do[Result]() as do:
        a      = do.arrow(parse_int("20"))
@@ -101,11 +101,11 @@ Register a monadic value with ``do.arrow`` even when you do not need its unwrapp
 .. code-block:: python
 
    def validate_positive(n: int) -> Maybe[int]:
-       return Maybe.Just(n) if n > 0 else Maybe.Nothing()
+       return Maybe[int].Just(n) if n > 0 else Maybe[int].Nothing()
 
    with Do[Maybe]() as do:
        _guard = do.arrow(validate_positive(5))   # must succeed; value unused
-       x      = do.arrow(Maybe.Just(100))
+       x      = do.arrow(Maybe[int].Just(100))
        result = do.ret(lambda x: x * 2, x=x)
 
    # result == Just(200)
