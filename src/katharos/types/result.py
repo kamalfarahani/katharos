@@ -255,7 +255,7 @@ class Result(
         """Map a function over the success value.
 
         Args:
-            f (Callable[[A], B]): Function to apply to the value.
+            f: Function to apply to the value.
 
         Returns:
             Result[E, B]: A new Result containing the mapped value, or the
@@ -284,8 +284,7 @@ class Result(
         """Apply a function wrapped in a Result to this Result.
 
         Args:
-            wrapped_funcs (Applicative[Result[E, Any], Callable[[A], B]]): A
-                Result containing the function to apply.
+            wrapped_funcs: A Result containing the function to apply.
 
         Returns:
             Result[E, B]: The result of applying the wrapped function to this
@@ -324,8 +323,8 @@ class Result(
         """Bind a function that returns a Result to this Result.
 
         Args:
-            f (Callable[[A], Monad[Result[E, Any], B]]): A function that takes
-                a value of type A and returns a Result of type B.
+            f: A function that takes a value of type A and returns a Result of
+                type B.
 
         Returns:
             Result[E, B]: The result of applying the function to the success
@@ -387,8 +386,7 @@ class Result(
         """Infix operator for applicative application (``**``).
 
         Args:
-            wrapped_funcs (Applicative[Result[E, Any], Callable[[A], B]]): A
-                Result containing the function to apply.
+            wrapped_funcs: A Result containing the function to apply.
 
         Returns:
             Result[E, B]: The result of applying the wrapped function to this
@@ -407,11 +405,11 @@ class Result(
         self,
         f: Callable[[A], Monad[Result[E, Any], B]],
     ) -> Result[E, B]:
-        """Infix operator for bind (``|``).
+        """Infix operator for monadic bind (``|``).
 
         Args:
-            f (Callable[[A], Monad[Result[E, Any], B]]): A function that takes
-                a value of type A and returns a Result of type B.
+            f: A function that takes a value of type A and returns a Result of
+                type B.
 
         Returns:
             Result[E, B]: The result of applying the function to the success
@@ -456,7 +454,7 @@ class Result(
         both Failure with equal errors. A Result is never equal to a non-Result.
 
         Args:
-            value (object): The object to compare with.
+            value: The object to compare with.
 
         Returns:
             bool: True if the objects are equal, False otherwise.

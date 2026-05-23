@@ -162,6 +162,27 @@ class Do[M: Monad]:
         f: Callable[..., M],
         **vars: DoVariable[M],
     ) -> M:
+        """Evaluate a monadic function and thread the result through the bind chain.
+
+        Like :meth:`ret`, but ``f`` must return a value already wrapped in ``M``
+        rather than a plain value. Use this when the final step of a do-block
+        itself produces a monadic value.
+
+        Args:
+            f: A callable that accepts the unwrapped values of the variables
+                listed in ``vars`` and returns a value of type ``M``.
+            **vars: Keyword-argument mapping of parameter names to
+                :class:`DoVariable` placeholders previously obtained from
+                :meth:`arrow`.
+
+        Returns:
+            The final monadic value produced by chaining all registered monads
+            through ``bind`` and applying ``f`` to the extracted values.
+
+        Raises:
+            ValueError: If any variable in ``vars`` was not registered via
+                :meth:`arrow`.
+        """
         for var in vars.values():
             if var not in self._vars:
                 raise ValueError(f"Variable {var} not found in do block")

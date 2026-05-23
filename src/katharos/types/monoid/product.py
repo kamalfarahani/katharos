@@ -16,26 +16,37 @@ class Product[
         decimal.Decimal,
     )
 ](Monoid["Product[S]"]):
-    """
-    A monoid for multiplication operations.
+    """A monoid for multiplication, wrapping a numeric or multiplicative-monoid value.
+
+    Use ``Product[int]``, ``Product[float]``, etc. to obtain a specialised
+    subclass whose :meth:`identity` returns the correct one element.
     """
 
     @classmethod
     def __class_getitem__(cls, item: type[S]) -> type["Product"]:
-        """
-        Intercepts Product[SomeType] and returns a dynamic subclass
-        that 'remembers' the type parameter.
+        """Return a dynamic subclass of ``Product`` bound to the given element type.
+
+        Called implicitly by the ``Product[SomeType]`` subscription syntax so
+        that :meth:`identity` can instantiate the correct one element.
+
+        Args:
+            item: The concrete numeric or multiplicative-monoid type to bind.
+
+        Returns:
+            A new subclass of ``Product`` with ``_S_type`` set to ``item``.
         """
         name = f"{cls.__name__}[{item.__name__}]"
         return type(name, (cls,), {"_S_type": item})
 
     @classmethod
     def identity(cls: type[Product[S]]) -> Product[S]:
-        """
-        Return the identity element for multiplication.
+        """Return the multiplicative identity (one) for this type.
 
         Returns:
-            The identity element of type S wrapped in Product.
+            A Product wrapping the one element of type S.
+
+        Raises:
+            TypeError: If called on the unparameterised ``Product`` class.
         """
         if cls._S_type is None:  # type: ignore
             raise TypeError("You must specify the type, e.g., Product[int].identity()")
@@ -48,31 +59,28 @@ class Product[
         return cls(one_val)  # type: ignore
 
     def __init__(self, value: S) -> None:
-        """
-        Initialize a Product with a value of type S.
+        """Initialize a Product with a value of type S.
 
         Args:
-            value: The value of type S to wrap.
+            value: The value to wrap.
         """
         self._value = value
 
     def op(self, other: Product[S]) -> Product[S]:
-        """
-        Combine two Product values by multiplying their values.
+        """Multiply two Product values.
 
         Args:
             other: Another Product instance to combine with.
 
         Returns:
-            Product[S]: A new Product containing the product of both values of type S.
+            A new Product containing the product of both wrapped values.
         """
         return Product(self._value * other._value)
 
     def __repr__(self) -> str:
-        """
-        Return a string representation of the Product.
+        """Return the string representation of this Product.
 
         Returns:
-            str: A string in the format 'Product(value)' where value is of type S.
+            ``Product(<value>)`` with the wrapped value.
         """
         return f"Product({self._value!r})"

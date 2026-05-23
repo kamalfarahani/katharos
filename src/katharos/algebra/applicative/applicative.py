@@ -8,47 +8,38 @@ from katharos.algebra.functor.functor import Functor
 
 
 class Applicative[App, A](Functor[App, A], ABC):
-    """
-    An Applicative functor is a functor with additional structure that allows
-    for function application within a computational context.
+    """Abstract base class for applicative functors.
 
-    Applicative functors sit between Functors and Monads in the hierarchy of
-    abstractions. They allow you to apply functions wrapped in a context to
-    values wrapped in a context.
+    An applicative functor extends :class:`~katharos.algebra.Functor` with the
+    ability to apply functions wrapped in a context to values wrapped in a
+    context. It sits between :class:`~katharos.algebra.Functor` and
+    :class:`~katharos.algebra.Monad` in the abstraction hierarchy.
 
-    Methods:
-        pure: Lift a value into the Applicative context.
-        ap: Apply a wrapped function to a wrapped value.
+    Use :meth:`pure` to lift a plain value into the applicative context, and
+    the ``**`` operator (or :meth:`ap`) to apply a wrapped function to a
+    wrapped value.
 
-    Operators:
-        **: Infix operator for ap (applicative application).
+    Note:
+        Instances must satisfy the applicative laws (where ``App`` is the
+        concrete applicative type and ``id`` / ``compose`` are the identity and
+        composition functions):
 
-    Laws:
-        if App is an Applicative:
-            - Identity: v ** App.pure(id) = v
-            - Composition: w ** (v ** (u ** App.pure(compose))) = (w ** v) ** u
-            - Homomorphism: App.pure(x) ** App.pure(f) = App.pure(f(x))
-            - Interchange: App.pure(y) ** u = u ** App.pure(lambda f: f(y))
-
-    Where:
-        - id is the identity function: lambda x: x
-        - compose is function composition: lambda f: lambda g: lambda x: f(g(x))
-        - u, v, w are Applicative values containing functions
-        - f is a function
-        - x, y are plain values
+        - **Identity**: ``v ** App.pure(id) == v``
+        - **Composition**: ``w ** (v ** (u ** App.pure(compose))) == (w ** v) ** u``
+        - **Homomorphism**: ``App.pure(x) ** App.pure(f) == App.pure(f(x))``
+        - **Interchange**: ``App.pure(y) ** u == u ** App.pure(lambda f: f(y))``
     """
 
     @classmethod
     @abstractmethod
     def pure[T](cls: type[Self], x: T) -> Applicative[App, T]:
-        """
-        Return an Applicative containing the given value.
+        """Lift a value into the applicative context.
 
         Args:
-            x: The value to wrap in an Applicative.
+            x: The value to wrap in an applicative.
 
         Returns:
-            Applicative[A]: An Applicative containing the given value.
+            An applicative containing the given value.
         """
         raise NotImplementedError()
 
@@ -57,14 +48,13 @@ class Applicative[App, A](Functor[App, A], ABC):
         self,
         wrapped_funcs: Applicative[App, Callable[[A], B]],
     ) -> Applicative[App, B]:
-        """
-        Apply wrapped functions to this Applicative's value.
+        """Apply wrapped functions to this applicative's value.
 
         Args:
-            wrapped_funcs: An Applicative containing functions from A to B.
+            wrapped_funcs: An applicative containing functions from A to B.
 
         Returns:
-            Applicative[B]: An Applicative containing the result of applying the function.
+            An applicative containing the result of applying the function.
         """
         raise NotImplementedError()
 
@@ -72,14 +62,12 @@ class Applicative[App, A](Functor[App, A], ABC):
         self,
         wrapped_funcs: Applicative[App, Callable[[A], B]],
     ) -> Applicative[App, B]:
-        """
-        Apply wrapped functions to this Applicative's value.
+        """Infix operator for applicative application (``**``).
 
         Args:
-            wrapped_funcs: An Applicative containing functions from A to B.
+            wrapped_funcs: An applicative containing functions from A to B.
 
         Returns:
-            Applicative[App, B]: An Applicative containing the result of applying the function.
-
+            An applicative containing the result of applying the function.
         """
         return self.ap(wrapped_funcs)
