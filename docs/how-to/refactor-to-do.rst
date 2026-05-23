@@ -31,11 +31,11 @@ This is the signal: a lambda inside a lambda captures an outer variable.
 
    def find_user(uid: int) -> Maybe[dict]:
        users = {1: {"name": "Alice", "team_id": 10}}
-       return Maybe.Just(users[uid]) if uid in users else Maybe.Nothing()
+       return Maybe[dict].Just(users[uid]) if uid in users else Maybe[dict].Nothing()
 
    def find_team(tid: int) -> Maybe[dict]:
        teams = {10: {"name": "Engineering", "budget": 50_000}}
-       return Maybe.Just(teams[tid]) if tid in teams else Maybe.Nothing()
+       return Maybe[dict].Just(teams[tid]) if tid in teams else Maybe[dict].Nothing()
 
    def budget_report(user: dict, team: dict) -> str:
        return f"{user['name']} is in {team['name']} with budget {team['budget']}"
@@ -46,7 +46,7 @@ This is the signal: a lambda inside a lambda captures an outer variable.
        | (lambda user:
            find_team(user["team_id"])
            | (lambda team:
-               Maybe.Just(budget_report(user, team))
+               Maybe[str].Just(budget_report(user, team))
            )
        )
    )
@@ -62,27 +62,44 @@ Each ``lambda x: ...`` in the bind chain maps directly to a ``do.arrow`` call:
 
    from katharos.syntax_sugar import Do
 
+   # Pre-compute dependent monads before entering the do block
+   user_maybe = find_user(1)
+   team_maybe = user_maybe.fmap(lambda u: u["team_id"]) | find_team
+
    with Do[Maybe]() as do:
-       user   = do.arrow(find_user(1))
-       team   = do.arrow(find_team(user["team_id"]))  # note: user is still a placeholder here
+       user   = do.arrow(user_maybe)
+       team   = do.arrow(team_maybe)
        result = do.ret(budget_report, user=user, team=team)
 
 .. warning::
 
-   ``user`` returned by ``do.arrow`` is a ``DoVariable`` placeholder, not the actual unwrapped dict. Do not call methods on it or pass it to non-do-block code between ``do.arrow`` and ``do.ret``/``do.eval``. Only pass it as a keyword argument to ``do.ret`` or ``do.eval``.
+   ``user`` returned by ``do.arrow`` is a ``DoVariable`` placeholder, not the actual unwrapped dict.
+   Only pass ``DoVariable`` values as keyword arguments to ``do.ret`` or ``do.eval`` — never use them
+   in expressions outside those calls.
 
-   The expression ``find_team(user["team_id"])`` in the example above works because ``do.arrow`` is called with the *full expression* as the argument — the expression is evaluated immediately. You cannot write ``user_id = user["team_id"]`` outside of a ``do.ret``/``do.eval`` call.
-
-   Instead, compute derived inputs inside the ``do.arrow`` call:
+   **Do not** write:
 
    .. code-block:: python
 
       with Do[Maybe]() as do:
-          user    = do.arrow(find_user(1))
-          team_id = do.arrow(find_user(1).fmap(lambda u: u["team_id"]))  # extract first
-          team    = do.arrow(...)
+          user   = do.arrow(find_user(1))
+          team   = do.arrow(find_team(user["team_id"]))  # BUG: user is a DoVariable here
 
-   Or restructure the functions so each step takes a single value.
+   ``do.arrow``'s argument is evaluated *immediately* in Python, before ``do.arrow`` is even called.
+   At that point ``user`` is still a ``DoVariable``, so ``user["team_id"]`` raises
+   ``TypeError: 'DoVariable' object is not subscriptable``.
+
+   Instead, pre-compute any dependent monads *before* the ``with`` block using ``fmap`` and ``bind``:
+
+   .. code-block:: python
+
+      user_maybe = find_user(1)
+      team_maybe = user_maybe.fmap(lambda u: u["team_id"]) | find_team
+
+      with Do[Maybe]() as do:
+          user   = do.arrow(user_maybe)
+          team   = do.arrow(team_maybe)
+          result = do.ret(budget_report, user=user, team=team)
 
 Step 3: Use do.eval when the final function returns a monad
 -----------------------------------------------------------
@@ -93,8 +110,8 @@ If ``budget_report`` itself returned a ``Maybe[str]`` instead of a plain ``str``
 
    def budget_report_safe(user: dict, team: dict) -> Maybe[str]:
        if team["budget"] < 0:
-           return Maybe.Nothing()
-       return Maybe.Just(f"{user['name']} — budget: {team['budget']}")
+           return Maybe[str].Nothing()
+       return Maybe[str].Just(f"{user['name']} — budget: {team['budget']}")
 
    with Do[Maybe]() as do:
        user   = do.arrow(find_user(1))
