@@ -1,6 +1,12 @@
 Handling Null Values with Maybe
 ================================
 
+In this tutorial, we will build a program that safely looks up users and their friends without writing a single ``None`` check. Along the way, we will encounter ``Maybe[T].Just``, ``Maybe[T].Nothing``, ``fmap``, and the ``|`` (bind) operator.
+
+.. note::
+
+   Always supply a type argument when constructing a ``Maybe`` value — use ``Maybe[str].Just("hello")`` and ``Maybe[str].Nothing()``, not ``Maybe.Just("hello")`` or ``Maybe.Nothing()``. The type argument lets your type checker (e.g. Pyright or mypy) infer the element type of the container and catch errors at development time.
+
 Prerequisites
 -------------
 
@@ -10,7 +16,7 @@ Prerequisites
 Step 1: Look Up a User
 ----------------------
 
-In this tutorial, we will build a program that safely handles missing data using the Maybe type. First, create a file called ``user_lookup.py`` with the following contents:
+Create a file called ``user_lookup.py`` with the following contents:
 
 .. code-block:: python
 

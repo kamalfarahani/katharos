@@ -1,12 +1,18 @@
 Build a Data Processing Pipeline with Functors
 ==============================================
 
-In this tutorial, we will build a data processing pipeline that transforms values inside containers. By the end, you will have a working system that processes user data using ``Maybe`` and ``ImmutableList``.
+In this tutorial, we will build a data processing pipeline that transforms values inside containers. Along the way, we will encounter ``fmap`` on ``Maybe`` and ``ImmutableList``, and learn how transformations compose cleanly when data may be missing.
+
+Prerequisites
+-------------
+
+- Complete the :doc:`getting-started` tutorial.
+- Katharos installed (see :doc:`getting-started`)
 
 Step 1: Transform a Single Optional Value
 ------------------------------------------
 
-First, we will transform a value inside a ``Maybe``. Create a new Python file called ``pipeline.py`` and add this code:
+Create a new Python file called ``pipeline.py`` with the following contents:
 
 .. code-block:: python
 
@@ -16,24 +22,33 @@ First, we will transform a value inside a ``Maybe``. Create a new Python file ca
    doubled = age.fmap(lambda x: x * 2)
    print(doubled)
 
-Run this code. You should see ``Just(50)``. The value was doubled.
-
-Now try with an empty ``Maybe``:
-
-.. code-block:: python
-
    age = Maybe[int].Nothing()
    doubled = age.fmap(lambda x: x * 2)
    print(doubled)
 
-You should see ``Nothing()``. The function was not called because there was no value to transform.
+Run the file:
+
+.. code-block:: bash
+
+   python pipeline.py
+
+You should see:
+
+.. code-block:: text
+
+   Just(50)
+   Nothing()
+
+Notice that the value was doubled in the first case. In the second case the function was not called at all — there was no value to transform.
 
 Step 2: Process User Ages
 --------------------------
 
-Now we will build a function that processes user ages. Add this code:
+Now we will build a function that looks up user ages. Replace the contents of ``pipeline.py`` with:
 
 .. code-block:: python
+
+   from katharos.types import Maybe
 
    def get_user_age(user_id: int) -> Maybe[int]:
        users = {1: 25, 2: 30, 3: 35}
@@ -42,34 +57,32 @@ Now we will build a function that processes user ages. Add this code:
            return Maybe[int].Nothing()
        return Maybe[int].Just(age)
 
-   age = get_user_age(1)
-   print(age)
-
-You should see ``Just(25)``.
-
-Now transform the age to calculate birth year:
-
-.. code-block:: python
-
    current_year = 2026
    birth_year = get_user_age(1).fmap(lambda age: current_year - age)
    print(birth_year)
 
-You should see ``Just(2001)``. The birth year was calculated.
-
-Try with a user that doesn't exist:
-
-.. code-block:: python
-
    birth_year = get_user_age(999).fmap(lambda age: current_year - age)
    print(birth_year)
 
-You should see ``Nothing()``.
+Run the file:
+
+.. code-block:: bash
+
+   python pipeline.py
+
+You should see:
+
+.. code-block:: text
+
+   Just(2001)
+   Nothing()
+
+Notice how the birth year calculation is skipped entirely when the user does not exist.
 
 Step 3: Chain Multiple Transformations
 ---------------------------------------
 
-We will now chain multiple transformations together. Add this code:
+We will now chain multiple transformations together. Add this code at the bottom of ``pipeline.py``:
 
 .. code-block:: python
 
@@ -81,12 +94,6 @@ We will now chain multiple transformations together. Add this code:
    )
    print(result)
 
-You should see ``Just('Age in dog years: 70')``. Each transformation was applied in sequence.
-
-Try with a missing user:
-
-.. code-block:: python
-
    result = (
        get_user_age(999)
        .fmap(lambda age: age + 5)
@@ -95,12 +102,25 @@ Try with a missing user:
    )
    print(result)
 
-You should see ``Nothing()``. All transformations were skipped.
+Run the file:
+
+.. code-block:: bash
+
+   python pipeline.py
+
+You should see the new lines at the bottom of the output:
+
+.. code-block:: text
+
+   Just('Age in dog years: 70')
+   Nothing()
+
+Notice that all three transformations were skipped for the missing user. Each transformation preserves the ``Nothing()`` without any extra checking.
 
 Step 4: Transform Multiple Values in a List
 --------------------------------------------
 
-Now we will transform all values in an ``ImmutableList``. Add this code:
+Now we will transform all values in an ``ImmutableList``. Add this code at the bottom of ``pipeline.py``:
 
 .. code-block:: python
 
@@ -110,47 +130,40 @@ Now we will transform all values in an ``ImmutableList``. Add this code:
    doubled = ages.fmap(lambda x: x * 2)
    print(doubled)
 
-You should see ``ImmutableList([40, 50, 60, 70, 80])``. The function was applied to every element.
+Run the file. You should see a new line at the bottom:
 
-Try with an empty list:
+.. code-block:: text
 
-.. code-block:: python
+   ImmutableList([40, 50, 60, 70, 80])
 
-   ages = ImmutableList([])
-   doubled = ages.fmap(lambda x: x * 2)
-   print(doubled)
-
-You should see ``ImmutableList([])``. There were no elements to transform.
+Notice that ``fmap`` applied the function to every element, producing a new list.
 
 Step 5: Process a List of User IDs
 -----------------------------------
 
-We will now process multiple user IDs at once. Add this code:
+We will now process multiple user IDs at once. Add this code at the bottom of ``pipeline.py``:
 
 .. code-block:: python
 
    user_ids = ImmutableList([1, 2, 3])
-   ages = user_ids.fmap(lambda user_id: get_user_age(user_id))
-   print(ages)
-
-You should see ``ImmutableList([Just(25), Just(30), Just(35)])``. Each user ID was transformed into a ``Maybe`` containing their age.
-
-Now extract just the birth years:
-
-.. code-block:: python
-
    current_year = 2026
    birth_years = user_ids.fmap(
        lambda user_id: get_user_age(user_id).fmap(lambda age: current_year - age)
    )
    print(birth_years)
 
-You should see ``ImmutableList([Just(2001), Just(1996), Just(1991)])``.
+Run the file. You should see:
+
+.. code-block:: text
+
+   ImmutableList([Just(2001), Just(1996), Just(1991)])
+
+Notice how ``fmap`` composes: the outer ``fmap`` iterates over the list, and the inner ``fmap`` transforms each ``Maybe`` age into a birth year.
 
 Step 6: Build a Complete Processing Pipeline
 ---------------------------------------------
 
-Now we will combine everything into a complete pipeline. Add this code:
+Now we will combine everything into a reusable pipeline function. Add this code at the bottom of ``pipeline.py``:
 
 .. code-block:: python
 
@@ -162,37 +175,19 @@ Now we will combine everything into a complete pipeline. Add this code:
            .fmap(lambda birth_year: f"Born in {birth_year}")
        )
 
-   user_ids = ImmutableList([1, 2, 3, 999])
-   results = user_ids.fmap(process_user)
-   print(results)
-
-You should see ``ImmutableList([Just('Born in 2001'), Just('Born in 1996'), Just('Born in 1991'), Nothing()])``. Each user was processed, and the missing user resulted in ``Nothing()``.
-
-Step 7: Format the Output
---------------------------
-
-We will now format the results for display. Add this code:
-
-.. code-block:: python
-
    def format_result(maybe_message: Maybe[str]) -> str:
        if maybe_message.is_just():
            return maybe_message.value
        return "User not found"
 
+   user_ids = ImmutableList([1, 2, 3, 999])
+   results = user_ids.fmap(process_user)
    formatted = results.fmap(format_result)
-   print(formatted)
-
-You should see ``ImmutableList(['Born in 2001', 'Born in 1996', 'Born in 1991', 'User not found'])``.
-
-Print each result on a separate line:
-
-.. code-block:: python
 
    for message in formatted:
        print(message)
 
-You should see:
+Run the file. The final lines of the output should be:
 
 .. code-block:: text
 
@@ -201,50 +196,9 @@ You should see:
    Born in 1991
    User not found
 
-Step 8: Add Data Validation
-----------------------------
-
-We will now add validation to reject invalid ages. Add this code:
-
-.. code-block:: python
-
-   def get_user_age_safe(user_id: int) -> Maybe[int]:
-       users = {1: 25, 2: 30, 3: 200}
-       age = users.get(user_id)
-       if age is None or age < 0 or age > 150:
-           return Maybe[int].Nothing()
-       return Maybe[int].Just(age)
-
-   ages = ImmutableList([1, 2, 3]).fmap(get_user_age_safe)
-   print(ages)
-
-You should see ``ImmutableList([Just(25), Just(30), Nothing()])``. The invalid age (200) was rejected.
-
-Now use this in the full pipeline:
-
-.. code-block:: python
-
-   def process_user_safe(user_id: int) -> Maybe[str]:
-       current_year = 2026
-       return (
-           get_user_age_safe(user_id)
-           .fmap(lambda age: current_year - age)
-           .fmap(lambda birth_year: f"Born in {birth_year}")
-       )
-
-   user_ids = ImmutableList([1, 2, 3])
-   results = user_ids.fmap(process_user_safe)
-   print(results)
-
-You should see ``ImmutableList([Just('Born in 2001'), Just('Born in 1996'), Nothing()])``.
+Notice that the missing user (ID 999) produced the fallback string ``"User not found"`` — the ``Maybe`` propagated through the whole pipeline and was only converted to a plain value at the very end.
 
 What We Built
 -------------
 
-We built a complete data processing pipeline that:
-
-- Transforms values inside ``Maybe`` containers
-- Chains multiple transformations together
-- Processes lists of values with ``ImmutableList``
-- Handles missing data gracefully
-- Validates input data
+We built a data processing pipeline that transforms values inside ``Maybe`` and ``ImmutableList`` containers using ``fmap``. The same operator works on both types, and transformations compose cleanly without any explicit ``None`` checks.

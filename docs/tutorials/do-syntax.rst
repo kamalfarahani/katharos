@@ -1,12 +1,12 @@
 Combining Multiple Monadic Values with Do Syntax
 ==================================================
 
-In this tutorial, we will take a plain function with **three arguments** and feed it values that live inside ``Maybe``. We will first do it the hard way (nested bind lambdas) and then rewrite it with do syntax. By the end, we will have a single Python script that combines several monadic values into one result, cleanly and readably.
+In this tutorial, we will build a script that combines several ``Maybe`` values into a single result through a multi-argument plain function. Along the way, we will encounter ``do.arrow``, ``do.ret``, ``do.eval``, and the ``DoVariable`` pitfall — and see why do syntax is cleaner than nested bind lambdas.
 
 Prerequisites
 -------------
 
-- Complete the :doc:`monadic-computation` tutorial so you are familiar with ``|`` (bind) and ``Maybe.ret``.
+- Complete the :doc:`monadic-computation` tutorial so you are familiar with ``|`` (bind) and ``Maybe[T].ret``.
 
 Step 1: Create the Script and a Multi-Argument Function
 --------------------------------------------------------
@@ -50,7 +50,7 @@ Next, we use ``|`` (bind) to unwrap each value and pass it to ``process``. Repla
    result = m1 | (
        lambda x: m2 | (
            lambda y: m3 | (
-               lambda z: Maybe.ret(process(x, y, z))
+               lambda z: Maybe[float].ret(process(x, y, z))
            )
        )
    )
@@ -148,7 +148,7 @@ Now, we change one of the inputs to ``Nothing()`` to see what happens when any v
 
 .. code-block:: python
 
-   m2 = Maybe.Nothing()
+   m2 = Maybe[float].Nothing()
 
 Run the file. The output should look like this:
 
@@ -165,14 +165,14 @@ Finally, we add a transformation step whose own result is a ``Maybe``. For that 
 
 .. code-block:: python
 
-   m2 = Maybe.Just(3.0)
+   m2 = Maybe[float].Just(3.0)
 
    def safe_sqrt(x: float) -> Maybe[float]:
        if x < 0:
-           return Maybe.Nothing()
-       return Maybe.Just(x ** 0.5)
+           return Maybe[float].Nothing()
+       return Maybe[float].Just(x ** 0.5)
 
-   raw = Maybe.Just(16.0)
+   raw = Maybe[float].Just(16.0)
 
 Then replace the ``Do`` block with:
 

@@ -1,6 +1,8 @@
 Getting Started with Katharos
 ==============================
 
+In this tutorial, we will install Katharos and write our first program using the ``Maybe`` type. Along the way, we will verify the installation works and confirm we can import from the library.
+
 Prerequisites
 -------------
 
@@ -10,22 +12,18 @@ Prerequisites
 Step 1: Install Katharos
 ------------------------
 
-In this tutorial, we will install Katharos and verify it works. First, install Katharos using pip:
+Install Katharos using pip:
 
 .. code-block:: bash
 
    pip install katharos
 
-Or using uv:
-
-.. code-block:: bash
-
-   uv add katharos
+You will see pip download and install the package. The last line of output should say something like ``Successfully installed katharos-...``.
 
 Step 2: Verify Your Installation
 ---------------------------------
 
-Now, create a new Python file called ``verify_katharos.py``:
+Create a new Python file called ``verify_katharos.py``:
 
 .. code-block:: python
 
@@ -33,15 +31,22 @@ Now, create a new Python file called ``verify_katharos.py``:
    from katharos.types import Maybe
 
    print("Katharos installed successfully!")
+
 Run the file:
 
 .. code-block:: bash
 
    python verify_katharos.py
 
-You should see output like this:
+You should see:
 
 .. code-block:: text
 
    Katharos installed successfully!
 
+If you see an ``ImportError`` instead, the installation did not complete successfully — re-run the pip install step and check for any error messages.
+
+What We Built
+-------------
+
+We installed Katharos and confirmed the library can be imported. In the next tutorial, we will use the ``Maybe`` type to safely handle values that might be missing.

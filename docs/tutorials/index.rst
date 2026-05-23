@@ -18,6 +18,8 @@ Available Tutorials
    do-syntax
    error-handling
    immutable-lists
+   io
+   functools
 
 Covered topics
 --------------

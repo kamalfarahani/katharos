@@ -1,12 +1,23 @@
 Build a User Registration System with Result
 ============================================
 
-In this tutorial, we will build a user registration system that handles errors functionally. By the end, you will have a working system that validates user input and creates user accounts without using exceptions.
+In this tutorial, we will build a user registration system that handles errors functionally. Along the way, we will encounter ``Result``, ``fmap``, the ``|`` operator for chaining validations, and the ``Do`` block for combining multiple results cleanly.
+
+.. note::
+
+   Always supply both type arguments when constructing a ``Result`` value — use ``Result[Exception, str].Success("ok")`` and ``Result[Exception, str].Failure(err)``, not ``Result.Success("ok")``. The two type parameters are the error type and the success type; providing them lets your type checker verify each step of the pipeline.
+
+Prerequisites
+-------------
+
+- Python 3.13 or later
+- Katharos installed (see :doc:`getting-started`)
+- Complete the :doc:`handling-null` tutorial so you are familiar with ``Maybe``
 
 Step 1: Create Your First Result
 ---------------------------------
 
-First, we will create a simple function that returns a ``Result``. Create a new Python file called ``registration.py`` and add this code:
+Create a new Python file called ``registration.py`` with the following contents:
 
 .. code-block:: python
 
@@ -17,28 +28,28 @@ First, we will create a simple function that returns a ``Result``. Create a new 
            return Result[Exception, str].Success(password)
        return Result[Exception, str].Failure(ValueError("Password too short"))
 
-Now run this code:
+   print(check_password_length("secret123"))
+   print(check_password_length("short"))
 
-.. code-block:: python
+Run the file:
 
-   result = check_password_length("secret123")
-   print(result)
+.. code-block:: bash
 
-You should see ``Success(secret123)``. Notice how the ``Result`` wraps the password when it's valid.
+   python registration.py
 
-Now try with a short password:
+You should see:
 
-.. code-block:: python
+.. code-block:: text
 
-   result = check_password_length("short")
-   print(result)
+   Success(secret123)
+   Failure(ValueError('Password too short'))
 
-You should see ``Failure(ValueError('Password too short'))``. The error is captured inside the ``Result`` instead of being thrown.
+Notice how the ``Result`` wraps a valid password in ``Success`` and captures an error in ``Failure`` — no exception is raised.
 
 Step 2: Add Email Validation
 -----------------------------
 
-Now we will add another validation function. Add this to your file:
+Now we will add another validation function. Remove the two ``print`` lines from the bottom of ``registration.py`` and add:
 
 .. code-block:: python
 
@@ -47,49 +58,51 @@ Now we will add another validation function. Add this to your file:
            return Result[Exception, str].Success(email)
        return Result[Exception, str].Failure(ValueError("Invalid email format"))
 
-Test it:
+   print(check_email_format("user@example.com"))
+   print(check_email_format("notanemail"))
+
+Run the file:
+
+.. code-block:: bash
+
+   python registration.py
+
+You should see:
+
+.. code-block:: text
+
+   Success(user@example.com)
+   Failure(ValueError('Invalid email format'))
+
+Step 3: Transform a Success Value with fmap
+--------------------------------------------
+
+We will now normalise the email to lowercase using ``fmap``. Replace the two ``print`` lines with:
 
 .. code-block:: python
 
-   result = check_email_format("user@example.com")
-   print(result)
+   print(check_email_format("User@Example.COM").fmap(lambda email: email.lower()))
+   print(check_email_format("invalid").fmap(lambda email: email.lower()))
 
-You should see ``Success(user@example.com)``.
+Run the file:
 
-Try an invalid email:
+.. code-block:: bash
 
-.. code-block:: python
+   python registration.py
 
-   result = check_email_format("notanemail")
-   print(result)
+You should see:
 
-You should see ``Failure(ValueError('Invalid email format'))``.
+.. code-block:: text
 
-Step 3: Transform Success Values
----------------------------------
+   Success(user@example.com)
+   Failure(ValueError('Invalid email format'))
 
-We will now transform the email to lowercase. Add this code:
+Notice that ``fmap`` applied the lowercase transformation only to the ``Success`` value. The ``Failure`` passed through unchanged without ever calling the lambda.
 
-.. code-block:: python
+Step 4: Chain Validations with |
+----------------------------------
 
-   result = check_email_format("User@Example.COM").fmap(lambda email: email.lower())
-   print(result)
-
-You should see ``Success(user@example.com)``. The ``fmap`` method applies the function only if the ``Result`` is a success.
-
-Now try with an invalid email:
-
-.. code-block:: python
-
-   result = check_email_format("invalid").fmap(lambda email: email.lower())
-   print(result)
-
-You should see ``Failure(ValueError('Invalid email format'))``. Notice that the function was never called because the ``Result`` was already a failure.
-
-Step 4: Chain Validations Together
------------------------------------
-
-Now we will chain multiple validations. Add this function:
+Now we will chain multiple validations using the ``|`` operator. Remove the two ``print`` lines and add:
 
 .. code-block:: python
 
@@ -98,34 +111,30 @@ Now we will chain multiple validations. Add this function:
            return Result[Exception, str].Success(password)
        return Result[Exception, str].Failure(ValueError("Password must contain a number"))
 
-Chain the password validations using the ``|`` operator:
+   print(check_password_length("secret123") | check_password_strength)
+   print(check_password_length("secretword") | check_password_strength)
+   print(check_password_length("short") | check_password_strength)
 
-.. code-block:: python
+Run the file:
 
-   result = (
-       check_password_length("secret123")
-       | check_password_strength
-   )
-   print(result)
+.. code-block:: bash
 
-You should see ``Success(secret123)``. Both validations passed.
+   python registration.py
 
-Now try a password that fails the second check:
+You should see:
 
-.. code-block:: python
+.. code-block:: text
 
-   result = (
-       check_password_length("secretword")
-       | check_password_strength
-   )
-   print(result)
+   Success(secret123)
+   Failure(ValueError('Password must contain a number'))
+   Failure(ValueError('Password too short'))
 
-You should see ``Failure(ValueError('Password must contain a number'))``. The chain stopped at the first failure.
+Notice how the chain stops at the first ``Failure``. In the third case, ``check_password_strength`` is never called because the password was already rejected by ``check_password_length``.
 
 Step 5: Build the Registration Function
 ----------------------------------------
 
-Now we will combine everything into a registration function. Add this code:
+Now we will combine everything into a single registration function using a ``Do`` block. Remove the three ``print`` lines and add:
 
 .. code-block:: python
 
@@ -146,57 +155,44 @@ Now we will combine everything into a registration function. Add this code:
            )
        return user
 
-Test it with valid input:
+   print(register_user("Alice@Example.com", "secret123"))
+   print(register_user("notanemail", "secret123"))
+   print(register_user("alice@example.com", "short"))
 
-.. code-block:: python
+Run the file:
 
-   user = register_user("Alice@Example.com", "secret123")
-   print(user)
+.. code-block:: bash
 
-You should see ``Success({'email': 'alice@example.com', 'password': 'secret123'})``.
+   python registration.py
 
-Try with an invalid email:
+You should see:
 
-.. code-block:: python
+.. code-block:: text
 
-   user = register_user("notanemail", "secret123")
-   print(user)
+   Success({'email': 'alice@example.com', 'password': 'secret123'})
+   Failure(ValueError('Invalid email format'))
+   Failure(ValueError('Password too short'))
 
-You should see ``Failure(ValueError('Invalid email format'))``. The function stopped at the first error.
-
-Try with an invalid password:
-
-.. code-block:: python
-
-   user = register_user("alice@example.com", "short")
-   print(user)
-
-You should see ``Failure(ValueError('Password too short'))`` or similar.
+Notice that the ``Do`` block stops at the first failed ``do.arrow`` call and returns that ``Failure`` immediately, without running the remaining steps.
 
 Step 6: Extract Values from Results
 ------------------------------------
 
-Now we will extract the user data when registration succeeds. Add this code:
+Now we will extract the user data when registration succeeds. Replace the three ``print`` lines at the bottom with:
 
 .. code-block:: python
 
    result = register_user("bob@example.com", "password123")
-   
+
    if result.is_success():
        user_data = result.value
        print(f"User created: {user_data['email']}")
    else:
        error = result.error
        print(f"Registration failed: {error}")
-
-Run this code. You should see ``User created: bob@example.com``.
-
-Now try with invalid data:
-
-.. code-block:: python
 
    result = register_user("invalid", "password123")
-   
+
    if result.is_success():
        user_data = result.value
        print(f"User created: {user_data['email']}")
@@ -204,20 +200,20 @@ Now try with invalid data:
        error = result.error
        print(f"Registration failed: {error}")
 
-You should see ``Registration failed: Invalid email format``.
+Run the file:
 
+.. code-block:: bash
+
+   python registration.py
+
+You should see:
+
+.. code-block:: text
+
+   User created: bob@example.com
+   Registration failed: Invalid email format
 
 What We Built
 -------------
 
-We built a complete user registration system that:
-
-- Validates email format
-- Validates password length
-- Validates password strength
-- Chains validations together
-- Returns explicit success or failure
-- Never throws exceptions
-
-The ``Result`` type made every possible error visible in the function signatures, and the ``|`` operator let us chain validations cleanly.
-
+We built a complete user registration system that validates email format, password length, and password strength, chains validations with ``|``, and uses ``Do`` to combine multiple results into a single function. Every possible error is captured in the ``Result`` type and never thrown as an exception.
