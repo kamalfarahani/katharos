@@ -30,11 +30,7 @@ Because each ``F.compose(f)`` returns a single-argument function, you can chain 
 
 .. code-block:: python
 
-   pipeline = F.compose(exclaim)(
-                  F.compose(upper)(
-                      strip
-                  )
-              )
+   pipeline = F.compose(exclaim)(F.compose(upper)(strip))
 
 For pipelines with many steps, use ``F.foldl`` over a list of transforms (see below).
 
