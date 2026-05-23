@@ -118,7 +118,7 @@ class IO(Monad["IO[Any]", A]):
             A new IO action with the result of applying f to the value
         """
         f = cast(Callable[[A], IO[B]], f)
-        return f(self.value)
+        return self >> f(self.value)
 
     def then[B](self, other: Monad[IO, B]) -> IO[B]:
         """
