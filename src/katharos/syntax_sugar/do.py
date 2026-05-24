@@ -6,13 +6,14 @@ from typing import Any
 from katharos.algebra import Monad
 
 type DoBlock[R] = Generator[Any, Any, R]
-"""Generator type for use with the :func:`do` decorator.
+"""Generator type for do-notation blocks.
 
-``R`` is the plain return type of the block. Yield expressions evaluate to
-``Any`` because Python's ``Generator`` has a single ``SendType`` for the
-entire function; per-yield type inference across different inner types is not
-expressible without a type-checker plugin. Annotate individual bindings
-inline instead::
+``R`` is the plain return type of the block. Individual yield expressions
+evaluate to ``Any`` — Python's ``Generator`` has a single ``SendType`` for
+the whole function, so per-yield type inference across different inner types
+is not expressible without a type-checker plugin.
+
+Annotate individual yield results inline when you need a specific type::
 
     @do(Maybe)
     def computation() -> DoBlock[int]:
@@ -20,10 +21,12 @@ inline instead::
         y: str = yield Maybe.Just("hi")
         return x + len(y)
 
-Note:
-    Because Python lacks higher-kinded types, the decorated function's return
-    type is inferred as ``M`` (e.g. ``Maybe``) rather than ``M[R]``
-    (e.g. ``Maybe[int]``).
+The return type ``R`` is checked: the block must return a plain value of
+type ``R``, which is then lifted via ``monad_type.ret()``.
+
+Limitation: because Python lacks higher-kinded types, the decorated
+function's return type is inferred as ``M`` (e.g. ``Maybe``) rather than
+``M[R]`` (e.g. ``Maybe[int]``).
 """
 
 
@@ -34,12 +37,16 @@ def do[M: Monad, R](
 
     Each ``yield monad`` extracts the wrapped value, analogous to ``<-`` in
     Haskell. The unwrapped value is immediately available for use in subsequent
-    yields. Annotate the generator with :data:`DoBlock[R]` where ``R`` is the
-    plain return type, lifted via ``monad_type.ret()`` at the end of the block.
-    Annotate individual yield sites inline for per-binding types::
+    yields.
+
+    Annotate the generator with :data:`DoBlock[R]` where ``R`` is the plain
+    return type. Annotate individual yield sites inline for per-binding types::
 
         x: int = yield Maybe.Just(3)
         y: str = yield Maybe.Just("hi")
+
+    A plain ``return value`` is automatically lifted via ``monad_type.ret()``.
+    Returning an already-monadic value passes it through unchanged.
 
     Short-circuiting is handled transparently by ``bind``: if any yielded monad
     is ``Nothing`` or ``Failure``, the rest of the generator is abandoned and
@@ -91,11 +98,12 @@ def do[M: Monad, R](
                         monad = gen.send(value)
                 except StopIteration as e:
                     result = e.value
+                    print(f"Generator finished with result: {result!r}")
                     return monad_type.ret(result)  # type: ignore[return-value]
-
-                return monad.bind(  # type: ignore[return-value]
-                    lambda value, h=history: step(h + (value,))
-                )
+                else:
+                    return monad.bind(  # type: ignore[return-value]
+                        lambda value, h=history: step(h + (value,))
+                    )
 
             return step(())
 
