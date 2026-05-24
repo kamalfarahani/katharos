@@ -98,7 +98,6 @@ def do[M: Monad, R](
                         monad = gen.send(value)
                 except StopIteration as e:
                     result = e.value
-                    print(f"Generator finished with result: {result!r}")
                     return monad_type.ret(result)  # type: ignore[return-value]
                 else:
                     return monad.bind(  # type: ignore[return-value]
