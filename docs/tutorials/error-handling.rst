@@ -1,7 +1,7 @@
 Build a User Registration System with Result
 ============================================
 
-In this tutorial, we will build a user registration system that handles errors functionally. Along the way, we will encounter ``Result``, ``fmap``, the ``|`` operator for chaining validations, and the ``Do`` block for combining multiple results cleanly.
+In this tutorial, we will build a user registration system that handles errors functionally. Along the way, we will encounter ``Result``, ``fmap``, the ``|`` operator for chaining validations, and the ``@do`` decorator for combining multiple results cleanly.
 
 .. note::
 
@@ -134,26 +134,20 @@ Notice how the chain stops at the first ``Failure``. In the third case, ``check_
 Step 5: Build the Registration Function
 ----------------------------------------
 
-Now we will combine everything into a single registration function using a ``Do`` block. Remove the three ``print`` lines and add:
+Now we will combine everything into a single registration function using the ``@do`` decorator. Remove the three ``print`` lines and add:
 
 .. code-block:: python
 
-   from katharos.syntax_sugar import Do
+   from katharos.syntax_sugar import do, DoBlock
 
    def register_user(email: str, password: str) -> Result[Exception, dict]:
-       with Do[Result]() as do:
-           validated_email = do.arrow(
-               check_email_format(email).fmap(lambda e: e.lower())
-           )
-           validated_password = do.arrow(
-               check_password_length(password) | check_password_strength
-           )
-           user = do.ret(
-               lambda e, p: {"email": e, "password": p},
-               e=validated_email,
-               p=validated_password,
-           )
-       return user
+       @do(Result)
+       def block() -> DoBlock[dict]:
+           validated_email: str = yield check_email_format(email).fmap(lambda e: e.lower())
+           validated_password: str = yield check_password_length(password) | check_password_strength
+           return {"email": validated_email, "password": validated_password}
+
+       return block()
 
    print(register_user("Alice@Example.com", "secret123"))
    print(register_user("notanemail", "secret123"))
@@ -173,7 +167,7 @@ You should see:
    Failure(ValueError('Invalid email format'))
    Failure(ValueError('Password too short'))
 
-Notice that the ``Do`` block stops at the first failed ``do.arrow`` call and returns that ``Failure`` immediately, without running the remaining steps.
+Notice that the block stops at the first ``Failure`` and returns it immediately, without running the remaining ``yield`` steps. Also notice that ``validated_email`` and ``validated_password`` are real ``str`` values inside the block — they can be used directly in the ``return`` expression without any placeholder workaround.
 
 Step 6: Extract Values from Results
 ------------------------------------
@@ -216,4 +210,4 @@ You should see:
 What We Built
 -------------
 
-We built a complete user registration system that validates email format, password length, and password strength, chains validations with ``|``, and uses ``Do`` to combine multiple results into a single function. Every possible error is captured in the ``Result`` type and never thrown as an exception.
+We built a complete user registration system that validates email format, password length, and password strength, chains validations with ``|``, and uses ``@do`` to combine multiple results into a single function. Every possible error is captured in the ``Result`` type and never thrown as an exception.

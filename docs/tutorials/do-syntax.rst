@@ -1,7 +1,7 @@
 Combining Multiple Monadic Values with Do Syntax
 ==================================================
 
-In this tutorial, we will build a script that combines several ``Maybe`` values into a single result through a multi-argument plain function. Along the way, we will encounter ``do.arrow``, ``do.ret``, ``do.eval``, and the ``DoVariable`` pitfall — and see why do syntax is cleaner than nested bind lambdas.
+In this tutorial, we will build a script that combines several ``Maybe`` values into a single result through a multi-argument plain function. Along the way, we will encounter the ``@do`` decorator, the ``DoBlock`` return type, and see how bound values are available immediately for use in subsequent steps — without any placeholder workarounds.
 
 Prerequisites
 -------------
@@ -67,22 +67,24 @@ It works (``2*2 + 3 + 4**2 = 23``), but notice the problem: each new monadic inp
 Step 3: Rewrite the Same Logic with Do Syntax
 ----------------------------------------------
 
-Now, we replace the nested bind block with a ``Do`` block. Add a new import at the top of the file:
+Now, we replace the nested bind block with a ``@do`` decorated generator. Add a new import at the top of the file:
 
 .. code-block:: python
 
-   from katharos.syntax_sugar import Do
+   from katharos.syntax_sugar import do, DoBlock
 
 Then replace the entire ``result = ...`` block from Step 2 with:
 
 .. code-block:: python
 
-   with Do[Maybe]() as do:
-       x = do.arrow(m1)
-       y = do.arrow(m2)
-       z = do.arrow(m3)
-       result = do.ret(process, x=x, y=y, z=z)
+   @do(Maybe)
+   def block() -> DoBlock[float]:
+       x: float = yield m1
+       y: float = yield m2
+       z: float = yield m3
+       return process(x, y, z)
 
+   result = block()
    print(result)
 
 Run the file. The output should look like this:
@@ -94,52 +96,47 @@ Run the file. The output should look like this:
 Notice three things:
 
 - The result is identical to Step 2.
-- Each monadic input is unwrapped on its own line with ``do.arrow``.
-- ``do.ret`` calls our plain ``process`` function with the unwrapped values and wraps the final answer back into ``Maybe`` for us.
+- ``@do(Maybe)`` tells the decorator which monad this block works with. Every ``yield`` must produce a value of that monad type.
+- ``DoBlock[float]`` is the return type annotation for the generator. The type argument — ``float`` here — is the type of the plain value returned by the block. The decorator lifts it into the monad automatically.
 
-Step 4: Discover the DoVariable Pitfall
-----------------------------------------
+Notice also that each ``yield`` expression evaluates to ``Any`` at runtime from Python's perspective — the language cannot track different inner types across multiple ``yield`` sites in the same generator. Write the type of each bound value inline, as shown with ``x: float = yield m1``, to let your type checker and readers know what to expect.
 
-It is tempting to use ``x``, ``y``, ``z`` as if they were ordinary numbers, but ``do.arrow`` does **not** return the unwrapped value — it returns a ``DoVariable`` placeholder that only stands in for the value while the block is being assembled.
+Step 4: Use a Bound Value in a Subsequent Yield
+------------------------------------------------
 
-Let's see what happens when we treat a placeholder like a real number. Replace the ``Do`` block from Step 3 with:
+Unlike the old context-manager API, ``yield`` gives you the real unwrapped value immediately. You can use it in the very next line — including passing it to another monadic function. Replace the ``block`` definition with:
 
 .. code-block:: python
 
-   with Do[Maybe]() as do:
-       x = do.arrow(m1)
-       y = do.arrow(m2)
-       z = do.arrow(m3)
-       print("x is:", x)
-       result = do.ret(lambda: process(x + 1, y, z))
+   @do(Maybe)
+   def block() -> DoBlock[float]:
+       x: float = yield m1
+       x_scaled: float = yield Maybe[float].Just(x * 3)  # x is 2.0 here
+       y: float = yield m2
+       z: float = yield m3
+       return process(x_scaled, y, z)
 
+   result = block()
    print(result)
 
 Run the file. The output should look like this:
 
 .. code-block:: text
 
-   x is: DoVariable(index=0, monad=Just(2.0))
-   Traceback (most recent call last):
-     ...
-   TypeError: unsupported operand type(s) for +: 'DoVariable' and 'int'
+   Just(25.0)
 
-Notice two things:
+Notice that ``x`` on the second line is the real number ``2.0``, not a placeholder. We multiplied it by ``3`` and wrapped the result in a new ``Maybe`` before yielding — something impossible with a placeholder-based API. The computation is ``(2.0 * 3) * 2 + 3.0 + 4.0 ** 2 = 25.0``.
 
-- ``x`` is a ``DoVariable``, not the number ``2.0``. You cannot do arithmetic on it, index it, or call methods on the value it represents.
-- The fix is always the same: hand placeholders to ``do.ret`` / ``do.eval`` as **keyword arguments**, and let the framework pass the unwrapped values into your function.
-
-Now, restore the working version from Step 3 before continuing:
+Now restore ``block`` to the simpler version from Step 3 before continuing:
 
 .. code-block:: python
 
-   with Do[Maybe]() as do:
-       x = do.arrow(m1)
-       y = do.arrow(m2)
-       z = do.arrow(m3)
-       result = do.ret(process, x=x, y=y, z=z)
-
-   print(result)
+   @do(Maybe)
+   def block() -> DoBlock[float]:
+       x: float = yield m1
+       y: float = yield m2
+       z: float = yield m3
+       return process(x, y, z)
 
 Step 5: Watch the Block Short-Circuit
 --------------------------------------
@@ -156,12 +153,12 @@ Run the file. The output should look like this:
 
    Nothing()
 
-Notice that ``process`` was never called. As soon as any ``do.arrow`` step yields ``Nothing()``, the whole block short-circuits, exactly like a chain of ``|``.
+Notice that ``process`` was never called. As soon as any ``yield`` step receives ``Nothing()``, the whole block short-circuits, exactly like a chain of ``|``.
 
-Step 6: Insert a Step That Itself Returns a Maybe
---------------------------------------------------
+Step 6: Yield a Step That Itself Returns a Maybe
+-------------------------------------------------
 
-Finally, we add a transformation step whose own result is a ``Maybe``. For that we use ``do.eval`` (instead of ``do.ret``) so the result is **not** wrapped a second time. First, restore ``m2`` and add a new function and input:
+Finally, we add a transformation step whose own result is a ``Maybe``. With the ``@do`` decorator, there is no special handling needed: if a function already returns a ``Maybe``, just ``yield`` its result directly. First, restore ``m2`` and add a new function and input:
 
 .. code-block:: python
 
@@ -174,17 +171,19 @@ Finally, we add a transformation step whose own result is a ``Maybe``. For that 
 
    raw = Maybe[float].Just(16.0)
 
-Then replace the ``Do`` block with:
+Then replace ``block`` with:
 
 .. code-block:: python
 
-   with Do[Maybe]() as do:
-       r = do.arrow(raw)
-       x = do.arrow(do.eval(safe_sqrt, x=r))
-       y = do.arrow(m2)
-       z = do.arrow(m3)
-       result = do.ret(process, x=x, y=y, z=z)
+   @do(Maybe)
+   def block() -> DoBlock[float]:
+       r: float = yield raw
+       x: float = yield safe_sqrt(r)  # safe_sqrt returns Maybe[float] — just yield it
+       y: float = yield m2
+       z: float = yield m3
+       return process(x, y, z)
 
+   result = block()
    print(result)
 
 Run the file. The output should look like this:
@@ -193,16 +192,17 @@ Run the file. The output should look like this:
 
    Just(27.0)
 
-Notice the value flow: ``raw = 16``, ``safe_sqrt(16) = 4``, then ``process(4, 3, 4) = 4*2 + 3 + 4**2 = 27``. We used ``do.eval`` for ``safe_sqrt`` because it already returns a ``Maybe``; using ``do.ret`` there would have produced ``Just(Just(4.0))``.
+Notice the value flow: ``raw = 16.0``, ``safe_sqrt(16.0) = 4.0``, then ``process(4.0, 3.0, 4.0) = 4.0*2 + 3.0 + 4.0**2 = 27.0``. Because ``safe_sqrt`` already returns a ``Maybe``, we ``yield`` its result directly and the bind chain takes care of the rest — no distinction between "plain return" and "monadic return" is needed.
 
 What We Built
 -------------
 
 We built a script that:
 
-- Combines several monadic values into a single result through a multi-argument plain function.
-- Uses ``do.arrow`` to unwrap each input on its own line.
-- Uses ``do.ret`` to lift a plain function's result back into the monad.
-- Uses ``do.eval`` to call a function that already returns a monad without double-wrapping.
+- Uses ``@do(Maybe)`` to declare which monad the block works with.
+- Uses ``DoBlock[float]`` to declare the plain return type of the block.
+- Binds each monadic input to a real value with ``yield``, annotating the type inline.
+- Uses bound values immediately in subsequent ``yield`` expressions.
+- Returns a plain value that the decorator lifts into the monad automatically.
 - Short-circuits to ``Nothing()`` as soon as any input is missing.
-- Treats ``do.arrow`` results as ``DoVariable`` placeholders, never as real values.
+- Passes a ``Maybe``-returning function's result straight to ``yield`` without any wrapping distinction.
