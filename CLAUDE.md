@@ -63,14 +63,15 @@ Each type implements the appropriate algebra interfaces:
 ### Layer 3: Utilities
 
 - **`src/katharos/functools/f.py`** — `F` static namespace: `compose`, `id`, `foldr`, `foldl`, `sigma` (fold a `NonEmptyList[Semigroup]`), `curry`
-- **`src/katharos/syntax_sugar/do.py`** — `Do[M]` context manager for Haskell-style do-notation:
+- **`src/katharos/syntax_sugar/do.py`** — `do` decorator for Haskell-style do-notation:
   ```python
-  with Do[Maybe]() as do:
-      x = do.arrow(Maybe.Just(3))   # analogous to x <- Just 3 in haskell
-      y = do.arrow(Maybe.Just(4))
-      result = do.ret(lambda x, y: x + y, x=x, y=y)
+  @do(Maybe)
+  def computation() -> DoBlock[int]:
+      x: int = yield Maybe.Just(3)   # analogous to x <- Just 3 in Haskell
+      y: int = yield Maybe.Just(4)
+      return x + y
   ```
-  Use `do.ret()` when the final function returns a plain value; use `do.eval()` when it returns a monadic value.
+  Each `yield` unwraps the monadic value (short-circuits on `Nothing`/`Failure`). The plain `return` is automatically lifted via `Maybe.ret()`.
 
 ### Operator summary
 
