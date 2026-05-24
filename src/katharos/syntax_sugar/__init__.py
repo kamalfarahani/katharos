@@ -3,12 +3,13 @@
 This module provides convenient syntax for working with monads, making
 monadic code more readable and maintainable.
 
-The :class:`Do` context manager provides Haskell-style do-notation for
-sequencing monadic computations in an imperative style.
+The :func:`do` decorator provides Haskell-style do-notation for sequencing
+monadic computations using generator functions.
 """
 
-from .do import Do
+from .do import DoBlock, do
 
 __all__ = [
-    "Do",
+    "do",
+    "DoBlock",
 ]
