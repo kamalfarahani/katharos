@@ -88,7 +88,7 @@ class IO(Monad["IO[Any]", A]):
         Returns:
             A new IO action containing the mapped value.
         """
-        return IO(f(self.value))
+        return self >> IO(f(self.value))
 
     def ap[B](
         self,
@@ -102,7 +102,7 @@ class IO(Monad["IO[Any]", A]):
         Returns:
             A new IO action with the result of applying the function.
         """
-        return IO(wrapped_funcs.value(self.value))  # type: ignore
+        return self >> IO(wrapped_funcs.value(self.value))  # type: ignore
 
     def bind[B](
         self,
