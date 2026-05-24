@@ -1,7 +1,7 @@
 How to Implement a Custom Functor, Applicative, and Monad
 ==========================================================
 
-This guide walks you through implementing a new container type that participates fully in Katharos' algebraic hierarchy. By the end you will have a type that works with ``fmap``, ``**``, ``|``, ``>>`` and ``Do``, with accurate types throughout.
+This guide walks you through implementing a new container type that participates fully in Katharos' algebraic hierarchy. By the end you will have a type that works with ``fmap``, ``**``, ``|``, ``>>`` and ``@do``, with accurate types throughout.
 
 Prerequisites
 -------------
@@ -333,7 +333,7 @@ All operators and do-notation work without any extra implementation:
 
 .. code-block:: python
 
-   from katharos.syntax_sugar import Do
+   from katharos.syntax_sugar import do, DoBlock
 
    def validate_name(name: str) -> Validated[str]:
        name = name.strip()
@@ -354,17 +354,19 @@ All operators and do-notation work without any extra implementation:
    print(result)  # Valid({'name': 'Alice', 'age': 30})
 
    # Do-notation
-   with Do[Validated]() as do:
-       name   = do.arrow(validate_name("Alice"))
-       age    = do.arrow(validate_age(30))
-       record = do.ret(lambda name, age: {"name": name, "age": age}, name=name, age=age)
+   @do(Validated)
+   def block() -> DoBlock[dict]:
+       name: str = yield validate_name("Alice")
+       age:  int = yield validate_age(30)
+       return {"name": name, "age": age}
 
-   print(record)  # Valid({'name': 'Alice', 'age': 30})
+   print(block())  # Valid({'name': 'Alice', 'age': 30})
 
    # Short-circuit on invalid
-   with Do[Validated]() as do:
-       name   = do.arrow(validate_name(""))       # Invalid — block short-circuits here
-       age    = do.arrow(validate_age(30))
-       record = do.ret(lambda name, age: {"name": name, "age": age}, name=name, age=age)
+   @do(Validated)
+   def block_invalid() -> DoBlock[dict]:
+       name: str = yield validate_name("")   # Invalid — block short-circuits here
+       age:  int = yield validate_age(30)
+       return {"name": name, "age": age}
 
-   print(record)  # Invalid(['name cannot be blank'])
+   print(block_invalid())  # Invalid(['name cannot be blank'])

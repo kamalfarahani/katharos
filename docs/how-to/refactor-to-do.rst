@@ -53,58 +53,29 @@ This is the signal: a lambda inside a lambda captures an outer variable.
 
 The inner lambda captures ``user`` from the outer lambda. This nesting grows with every additional value you need.
 
-Step 2: Replace with Do[M]
----------------------------
+Step 2: Replace with @do(M)
+----------------------------
 
-Each ``lambda x: ...`` in the bind chain maps directly to a ``do.arrow`` call:
+Each ``lambda x: ...`` in the bind chain maps directly to a ``yield`` expression. Because ``yield`` returns the real unwrapped value, you can use it on the very next line — including indexing it, calling methods on it, or passing it to another monadic function:
 
 .. code-block:: python
 
-   from katharos.syntax_sugar import Do
+   from katharos.syntax_sugar import do, DoBlock
 
-   # Pre-compute dependent monads before entering the do block
-   user_maybe = find_user(1)
-   team_maybe = user_maybe.fmap(lambda u: u["team_id"]) | find_team
+   @do(Maybe)
+   def block() -> DoBlock[str]:
+       user: dict = yield find_user(1)
+       team: dict = yield find_team(user["team_id"])  # user is the real dict here
+       return budget_report(user, team)
 
-   with Do[Maybe]() as do:
-       user   = do.arrow(user_maybe)
-       team   = do.arrow(team_maybe)
-       result = do.ret(budget_report, user=user, team=team)
+   result = block()
 
-.. warning::
+Notice that ``user["team_id"]`` works directly inside the block — no pre-computation outside the block is needed, because ``user`` is already the unwrapped ``dict`` value at that point.
 
-   ``user`` returned by ``do.arrow`` is a ``DoVariable`` placeholder, not the actual unwrapped dict.
-   Only pass ``DoVariable`` values as keyword arguments to ``do.ret`` or ``do.eval`` — never use them
-   in expressions outside those calls.
+Step 3: When the final function returns a monad, just yield it
+--------------------------------------------------------------
 
-   **Do not** write:
-
-   .. code-block:: python
-
-      with Do[Maybe]() as do:
-          user   = do.arrow(find_user(1))
-          team   = do.arrow(find_team(user["team_id"]))  # BUG: user is a DoVariable here
-
-   ``do.arrow``'s argument is evaluated *immediately* in Python, before ``do.arrow`` is even called.
-   At that point ``user`` is still a ``DoVariable``, so ``user["team_id"]`` raises
-   ``TypeError: 'DoVariable' object is not subscriptable``.
-
-   Instead, pre-compute any dependent monads *before* the ``with`` block using ``fmap`` and ``bind``:
-
-   .. code-block:: python
-
-      user_maybe = find_user(1)
-      team_maybe = user_maybe.fmap(lambda u: u["team_id"]) | find_team
-
-      with Do[Maybe]() as do:
-          user   = do.arrow(user_maybe)
-          team   = do.arrow(team_maybe)
-          result = do.ret(budget_report, user=user, team=team)
-
-Step 3: Use do.eval when the final function returns a monad
------------------------------------------------------------
-
-If ``budget_report`` itself returned a ``Maybe[str]`` instead of a plain ``str``, switch from ``do.ret`` to ``do.eval``:
+If a step itself returns a ``Maybe`` (or whichever monad you are working with), pass its result straight to ``yield``. No special ``eval`` call is needed — ``yield`` handles both plain-returning and monad-returning steps the same way:
 
 .. code-block:: python
 
@@ -113,10 +84,14 @@ If ``budget_report`` itself returned a ``Maybe[str]`` instead of a plain ``str``
            return Maybe[str].Nothing()
        return Maybe[str].Just(f"{user['name']} — budget: {team['budget']}")
 
-   with Do[Maybe]() as do:
-       user   = do.arrow(find_user(1))
-       team   = do.arrow(find_team(user["team_id"]))
-       result = do.eval(budget_report_safe, user=user, team=team)
+   @do(Maybe)
+   def block() -> DoBlock[str]:
+       user:   dict = yield find_user(1)
+       team:   dict = yield find_team(user["team_id"])
+       report: str  = yield budget_report_safe(user, team)  # returns Maybe — just yield it
+       return report
+
+   result = block()
 
 Step 4: Verify the result is identical
 ----------------------------------------
@@ -125,4 +100,4 @@ Run both versions side by side to confirm they produce the same value:
 
 .. code-block:: python
 
-   assert result_bind == result_do
+   assert result_bind == result
