@@ -6,11 +6,11 @@ These guides solve specific tasks you'll encounter when using Katharos. Each gui
 .. toctree::
    :maxdepth: 1
 
+   error-handling
    chain-operations
    do-notation
    refactor-to-do
    custom-semigroups
    custom-monad
-   error-handling
    function-composition
    side-effects
