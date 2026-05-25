@@ -96,6 +96,58 @@ For a monadic fallback — where the recovery itself may also fail — use a pla
            return read_file(fallback) | parse_json
        return result
 
+Using do-notation to flatten multi-step pipelines
+---------------------------------------------------
+
+When several ``Result``-returning steps depend on one another, the ``@do`` decorator
+lets you write them as a plain sequence of bindings instead of a ``|`` chain.
+Each ``yield`` unwraps the value on success; the first ``Failure`` short-circuits
+the entire block and is returned immediately — no subsequent steps run.
+
+Rewriting the config pipeline with do-notation:
+
+.. code-block:: python
+
+   from katharos.syntax_sugar import do, DoBlock
+   from katharos.types import Result
+
+   @do(Result)
+   def load_config(path: str) -> DoBlock[dict]:
+       text:   str  = yield read_file(path)
+       config: dict = yield parse_json(text)
+       return config
+
+   result = load_config("config.json")
+
+   if result.is_success():
+       print(result.value)
+   else:
+       print(f"Could not load config: {result.error}")
+
+If ``read_file`` returns a ``Failure``, the block stops there and ``parse_json`` is
+never called.  If ``parse_json`` fails, that ``Failure`` is what the block returns.
+
+Do-notation is especially readable when intermediate values need to be used in later
+steps:
+
+.. code-block:: python
+
+   def get_setting(config: dict, key: str) -> Result[Exception, str]:
+       if key not in config:
+           return Result.Failure(KeyError(f"missing key: {key!r}"))
+       return Result.Success(config[key])
+
+   @do(Result)
+   def load_host_and_port(path: str) -> DoBlock[tuple[str, str]]:
+       text:   str  = yield read_file(path)
+       config: dict = yield parse_json(text)
+       host:   str  = yield get_setting(config, "host")
+       port:   str  = yield get_setting(config, "port")
+       return host, port
+
+   load_host_and_port("config.json")
+   # Success(('localhost', '8080'))  — or Failure at whichever step first fails
+
 Converting between Maybe and Result
 --------------------------------------
 
