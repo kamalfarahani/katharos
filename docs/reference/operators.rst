@@ -1,151 +1,138 @@
 Operator Reference
 ==================
 
-Katharos provides several operators for convenient functional composition. This reference documents all available operators and their usage.
+Katharos exposes algebraic operations as Python operators. This page documents each operator, its syntax, and the method it delegates to.
 
-Functor Operators
------------------
+----
 
-fmap (method)
-~~~~~~~~~~~~~
-
-Maps a function over a functor.
+``fmap`` — Functor map
+-----------------------
 
 **Syntax:** ``functor.fmap(f)``
 
-**Example:**
+**Delegates to:** ``Functor.fmap``
+
+Applies *f* to the value inside the functor. Returns a new functor of the same shape.
 
 .. code-block:: python
 
    from katharos.types import Maybe
-   
-   result = Maybe.Just(5).fmap(lambda x: x * 2)
-   # Just(10)
 
-Applicative Operators
+   Maybe[int].Just(5).fmap(lambda x: x * 2)   # Just(10)
+   Maybe[int].Nothing().fmap(lambda x: x * 2) # Nothing()
+
+----
+
+``**`` — Applicative apply
+---------------------------
+
+**Syntax:** ``value ** wrapped_func``
+
+**Delegates to:** ``Applicative.ap``
+
+Applies the function inside *wrapped_func* to the value inside *value*.
+
+.. code-block:: python
+
+   from katharos.types import Maybe
+
+   add = lambda x: lambda y: x + y
+
+   Maybe[int].Just(3) ** Maybe[int].Just(add(5))    # Just(8)
+   Maybe[int].Nothing() ** Maybe[int].Just(add(5))  # Nothing()
+
+----
+
+``|`` — Monadic bind
 ---------------------
 
-\*\* (power)
-~~~~~~~~~~~~
+**Syntax:** ``monad | f``
 
-Applies a wrapped function to a wrapped value.
+**Delegates to:** ``Monad.bind``
 
-**Syntax:** ``value ** wrapped_function``
-
-**Example:**
+Passes the unwrapped value to *f* and returns the resulting monad.
+Short-circuits on ``Nothing`` or ``Failure`` — *f* is not called.
 
 .. code-block:: python
 
    from katharos.types import Maybe
-   
-   add = lambda x: lambda y: x + y
-   result = Maybe.Just(3) ** Maybe.Just(add(5))
-   # Just(8)
 
-Monad Operators
----------------
+   def lookup_role(uid: int) -> Maybe[str]:
+       roles = {1: "admin", 2: "viewer"}
+       r = roles.get(uid)
+       return Maybe[str].Just(r) if r is not None else Maybe[str].Nothing()
 
-| (pipe/bind)
-~~~~~~~~~~~~~
+   Maybe[int].Just(1) | lookup_role   # Just('admin')
+   Maybe[int].Just(9) | lookup_role   # Nothing()
+   Maybe[int].Nothing() | lookup_role # Nothing()
 
-Binds a monadic computation, sequencing operations that return wrapped values.
+----
 
-**Syntax:** ``monad | function``
-
-**Example:**
-
-.. code-block:: python
-
-   from katharos.types import Maybe
-   
-   def safe_sqrt(x):
-       if x < 0:
-           return Maybe.Nothing()
-       return Maybe.Just(x ** 0.5)
-   
-   result = Maybe.Just(16) | safe_sqrt
-   # Just(4.0)
-
->> (then)
-~~~~~~~~~
-
-Sequences two monadic actions, discarding the result of the first.
+``>>`` — Sequence
+------------------
 
 **Syntax:** ``monad1 >> monad2``
 
-**Example:**
+**Delegates to:** ``Monad.then``
+
+Sequences two monadic actions. The value of *monad1* is discarded; the result is *monad2*.
 
 .. code-block:: python
 
    from katharos.types import Maybe
-   
-   result = Maybe.Just(5) >> Maybe.Just(10)
-   # Just(10)
 
-Semigroup Operators
--------------------
+   Maybe[int].Just(5) >> Maybe[str].Just("ok")  # Just('ok')
+   Maybe[int].Nothing() >> Maybe[str].Just("ok") # Nothing()
 
-@ (matmul)
-~~~~~~~~~~
+----
 
-Combines two semigroup values using the semigroup operation.
+``@`` — Semigroup combine
+--------------------------
 
-**Syntax:** ``semigroup1 @ semigroup2``
+**Syntax:** ``a @ b``
 
-**Example:**
+**Delegates to:** ``Semigroup.op``
+
+Combines two semigroup values. Must satisfy associativity:
+``(a @ b) @ c == a @ (b @ c)``.
 
 .. code-block:: python
 
    from katharos.types import NonEmptyList
-   
-   list1 = NonEmptyList(1, [2, 3])
-   list2 = NonEmptyList(4, [5, 6])
-   result = list1 @ list2
+
+   NonEmptyList(1, [2, 3]) @ NonEmptyList(4, [5, 6])
    # NonEmptyList(1, [2, 3, 4, 5, 6])
+
+----
 
 Operator Precedence
 -------------------
 
-When combining operators, Python's operator precedence applies:
+Python's built-in precedence applies. From highest to lowest:
 
-1. ``**`` (highest precedence)
-2. ``@``
-3. ``>>``
-4. ``|`` (lowest precedence)
+======  =======================
+``**``  Applicative apply
+``@``   Semigroup combine
+``>>``  Sequence
+``|``   Monadic bind (lowest)
+======  =======================
 
-**Example:**
+Use parentheses when mixing operators to make evaluation order explicit.
 
-.. code-block:: python
+----
 
-   # These are equivalent:
-   result1 = (m | f) | g
-   result2 = m | f | g  # Left-associative
-
-Use parentheses for clarity when combining different operators.
-
-Operator Chaining
+Operators by Type
 -----------------
 
-Most operators can be chained for fluent composition:
-
-.. code-block:: python
-
-   from katharos.types import Maybe
-   
-   result = (
-       Maybe.Just(5)
-       .fmap(lambda x: x * 2)      # Just(10)
-       .fmap(lambda x: x + 3)      # Just(13)
-       | (lambda x: Maybe.Just(x ** 2))  # Just(169)
-   )
-
-Type-Specific Operators
------------------------
-
-Some types provide additional operators. See their respective API documentation:
-
-- :class:`katharos.types.Maybe` - ``|``, ``**``
-- :class:`katharos.types.Result` - ``|``, ``**``
-- :class:`katharos.types.ImmutableList` - ``+``, ``|``, ``**``, ``@``
-- :class:`katharos.types.NonEmptyList` - ``@``, ``|``, ``**``
-- :class:`katharos.types.IO` - ``|``
+===================  =====================================
+Type                 Operators
+===================  =====================================
+``Maybe[A]``         ``fmap``, ``|``, ``**``, ``>>``
+``Result[E, A]``     ``fmap``, ``|``, ``**``, ``>>``
+``IO[A]``            ``fmap``, ``|``, ``**``, ``>>``
+``ImmutableList[T]`` ``fmap``, ``|``, ``**``, ``>>`` ``+``, ``@``
+``NonEmptyList[T]``  ``fmap``, ``|``, ``**``, ``>>`` ``@``
+``Sum``              ``@``
+``Product``          ``@``
+``MonoidMaybe[A]``   ``@``
+===================  =====================================
