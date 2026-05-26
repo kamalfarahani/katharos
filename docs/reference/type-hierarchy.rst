@@ -1,216 +1,163 @@
-Type Hierarchy
-==============
+Type Hierarchy Reference
+========================
 
-This page documents the hierarchy of algebraic abstractions in Katharos and which types implement which abstractions.
+Katharos organises its types into two independent abstract hierarchies defined in ``katharos.algebra``.
 
-Abstraction Hierarchy
----------------------
+.. code-block:: none
 
-Katharos follows a clear hierarchy of algebraic abstractions, where each level builds upon the previous:
+    Combining             Computational
+    ---------             -------------
+    Semigroup[S]          Functor[F, A]
+         |                     |
+    Monoid[M]            Applicative[App, A]
+                               |
+                          Monad[Mon, A]
 
-.. code-block:: text
+    Concrete types
+    Maybe[A]         -> Monad
+    Result[E, A]     -> Monad
+    IO[A]            -> Monad
+    ImmutableList[T] -> Monad + Monoid
+    NonEmptyList[T]  -> Monad + Semigroup
+    MonoidMaybe[A]   -> Monoid
+    Sum              -> Monoid
+    Product          -> Monoid
 
-   Semigroup
-       ↓
-   Monoid
-       ↓
-   Functor
-       ↓
-   Applicative
-       ↓
-   Monad
+----
 
-Each abstraction adds more structure and capabilities:
+Combining Hierarchy
+-------------------
 
-- **Semigroup**: Associative binary operation (``@``)
-- **Monoid**: Semigroup + identity element
-- **Functor**: Can map functions over the structure (``fmap``)
-- **Applicative**: Functor + function application (``pure``, ``ap``)
-- **Monad**: Applicative + sequencing (``bind``, ``ret``)
+``Semigroup[S]``
+~~~~~~~~~~~~~~~~
 
-Implementation Matrix
----------------------
+**Module:** ``katharos.algebra.semigroup``
 
-This table shows which types implement which abstractions:
+Abstract base class for types with an associative binary operation.
+
+``op(other: S) -> S``
+    Combines this value with *other*. Must satisfy ``(a @ b) @ c == a @ (b @ c)``.
+
+    Exposed as the ``@`` operator: ``a @ b`` is equivalent to ``a.op(b)``.
+
+----
+
+``Monoid[M]``
+~~~~~~~~~~~~~
+
+**Module:** ``katharos.algebra.monoid``  |  **Extends:** ``Semigroup[M]``
+
+Adds an identity element to ``Semigroup``.
+
+``identity() -> M``  *(classmethod)*
+    Returns the identity element. Must satisfy ``a @ identity() == a`` and
+    ``identity() @ a == a`` for all ``a``.
+
+----
+
+Computational Hierarchy
+-----------------------
+
+``Functor[F, A]``
+~~~~~~~~~~~~~~~~~
+
+**Module:** ``katharos.algebra.functor``
+
+Abstract base class for types that support mapping a function over their contents.
+
+*Laws:* ``x.fmap(id) == x``  |  ``x.fmap(g ∘ f) == x.fmap(f).fmap(g)``
+
+``fmap(f: Callable[[A], B]) -> Functor[F, B]``
+    Applies *f* to the value inside the functor and returns a new functor of type ``B``.
+
+----
+
+``Applicative[App, A]``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+**Module:** ``katharos.algebra.applicative``  |  **Extends:** ``Functor[App, A]``
+
+Adds the ability to lift plain values into the context and to apply a wrapped function
+to a wrapped value.
+
+*Laws:*
+
+- ``v ** App.pure(id) == v``
+- ``App.pure(x) ** App.pure(f) == App.pure(f(x))``
+- ``App.pure(y) ** u == u ** App.pure(lambda f: f(y))``
+- ``w ** (v ** (u ** App.pure(compose))) == (w ** v) ** u``
+
+``pure(x: T) -> Applicative[App, T]``  *(classmethod)*
+    Lifts a plain value into the applicative context.
+
+``ap(wrapped_funcs: Applicative[App, Callable[[A], B]]) -> Applicative[App, B]``
+    Applies the function inside *wrapped_funcs* to the value inside this applicative.
+
+    Exposed as the ``**`` operator: ``value ** wrapped_func`` is equivalent to
+    ``value.ap(wrapped_func)``.
+
+----
+
+``Monad[Mon, A]``
+~~~~~~~~~~~~~~~~~
+
+**Module:** ``katharos.algebra.monad``  |  **Extends:** ``Applicative[Mon, A]``
+
+Adds sequencing of computations that themselves produce monadic values.
+
+*Laws:*
+
+- ``Monad.ret(a).bind(f) == f(a)``
+- ``m.bind(ret) == m``
+- ``m.bind(f).bind(g) == m.bind(lambda x: f(x).bind(g))``
+
+``ret(x: T) -> Monad[Mon, T]``  *(classmethod)*
+    Lifts a plain value into the monad. Delegates to ``pure``.
+
+``bind(f: Callable[[A], Monad[Mon, B]]) -> Monad[Mon, B]``  *(abstract)*
+    Passes the unwrapped value to *f* and returns the resulting monad.
+    Short-circuits on failure contexts (``Nothing``, ``Failure``).
+
+    Exposed as the ``|`` operator: ``m | f`` is equivalent to ``m.bind(f)``.
+
+``then(other: Monad[Mon, B]) -> Monad[Mon, B]``
+    Sequences two monadic actions, discarding the value of the first.
+
+    Exposed as the ``>>`` operator: ``m1 >> m2`` is equivalent to ``m1.then(m2)``.
+
+----
+
+Concrete Types
+--------------
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 15 15 15 15 15
+   :widths: 22 28 50
 
    * - Type
-     - Semigroup
-     - Monoid
-     - Functor
-     - Applicative
-     - Monad
-   * - Maybe
-     - ❌
-     - ❌
-     - ✅
-     - ✅
-     - ✅
-   * - MonoidMaybe
-     - ✅
-     - ✅
-     - ✅
-     - ✅
-     - ✅
-   * - Result
-     - ❌
-     - ❌
-     - ✅
-     - ✅
-     - ✅
-   * - ImmutableList
-     - ✅
-     - ✅
-     - ✅
-     - ✅
-     - ✅
-   * - NonEmptyList
-     - ✅
-     - ❌
-     - ✅
-     - ✅
-     - ✅
-   * - IO
-     - ❌
-     - ❌
-     - ✅
-     - ✅
-     - ✅
-
-Type Details
-------------
-
-Maybe
-~~~~~
-
-:Implements: Functor, Applicative, Monad
-:Purpose: Optional values without None checks
-:Operations: ``fmap``, ``pure``, ``ap``, ``bind``
-:Operators: ``|`` (bind), ``**`` (ap)
-
-.. code-block:: python
-
-   from katharos.types import Maybe
-   
-   # Functor
-   Maybe.Just(5).fmap(lambda x: x * 2)  # Just(10)
-   
-   # Applicative
-   Maybe.Just(5) ** Maybe.Just(lambda x: x * 2)  # Just(10)
-   
-   # Monad
-   Maybe.Just(5) | (lambda x: Maybe.Just(x * 2))  # Just(10)
-
-MonoidMaybe
-~~~~~~~~~~~
-
-:Implements: Semigroup, Monoid, Functor, Applicative, Monad
-:Purpose: Maybe with monoid operations
-:Operations: ``op``, ``identity``, ``fmap``, ``pure``, ``ap``, ``bind``
-:Operators: ``@`` (op), ``|`` (bind), ``**`` (ap)
-
-Result
-~~~~~~
-
-:Implements: Functor, Applicative, Monad
-:Purpose: Error handling without exceptions
-:Operations: ``fmap``, ``pure``, ``ap``, ``bind``
-:Operators: ``|`` (bind), ``**`` (ap)
-
-.. code-block:: python
-
-   from katharos.types import Result
-   
-   # Success case
-   Result.Success(5).fmap(lambda x: x * 2)  # Success(10)
-   
-   # Failure case
-   Result.Failure(ValueError("error")).fmap(lambda x: x * 2)
-   # Failure(ValueError('error'))
-
-ImmutableList
-~~~~~~~~~~~~~
-
-:Implements: Semigroup, Monoid, Functor, Applicative, Monad
-:Purpose: Immutable list with full algebraic operations
-:Operations: ``op``, ``identity``, ``fmap``, ``pure``, ``ap``, ``bind``
-:Operators: ``@`` (op), ``+`` (concat), ``|`` (bind), ``**`` (ap)
-
-.. code-block:: python
-
-   from katharos.types import ImmutableList
-   
-   # Semigroup
-   ImmutableList([1, 2]) @ ImmutableList([3, 4])
-   # ImmutableList([1, 2, 3, 4])
-   
-   # Monoid
-   ImmutableList.identity()  # ImmutableList([])
-   
-   # Monad
-   ImmutableList([1, 2, 3]) | (lambda x: ImmutableList([x, x * 2]))
-   # ImmutableList([1, 2, 2, 4, 3, 6])
-
-NonEmptyList
-~~~~~~~~~~~~
-
-:Implements: Semigroup, Functor, Applicative, Monad
-:Purpose: List guaranteed to have at least one element
-:Operations: ``op``, ``fmap``, ``pure``, ``ap``, ``bind``
-:Operators: ``@`` (op), ``|`` (bind), ``**`` (ap)
-
-Note: NonEmptyList is a Semigroup but not a Monoid (no identity element).
-
-IO
-~~
-
-:Implements: Functor, Applicative, Monad
-:Purpose: Lazy computation with side effects
-:Operations: ``fmap``, ``pure``, ``ap``, ``bind``
-:Operators: ``|`` (bind), ``**`` (ap)
-
-.. code-block:: python
-
-   from katharos.types import IO
-   
-   # Lazy computation
-   io = IO(lambda: print("Hello"))
-   # Nothing printed yet!
-   
-   io.run()  # Now it prints: Hello
-
-Choosing the Right Type
------------------------
-
-Use this guide to select the appropriate type:
-
-**For optional values:**
-  - Use :class:`~katharos.types.Maybe`
-  - Example: User lookup, configuration values
-
-**For error handling:**
-  - Use :class:`~katharos.types.Result`
-  - Example: Parsing, validation, I/O operations
-
-**For collections:**
-  - Use :class:`~katharos.types.ImmutableList` for general lists
-  - Use :class:`~katharos.types.NonEmptyList` when you need at least one element
-  - Example: Processing sequences, aggregations
-
-**For side effects:**
-  - Use :class:`~katharos.types.IO`
-  - Example: File I/O, network requests, printing
-
-**For combining values:**
-  - Use types with Monoid/Semigroup when you need to combine values
-  - Example: Accumulating results, merging configurations
-
-See Also
---------
-
-- :doc:`../explanation/algebraic-abstractions` - Theory behind the hierarchy
-- :doc:`../explanation/monad-laws` - Laws that govern these abstractions
-- :doc:`operators` - Operator reference
+     - Implements
+     - Notes
+   * - ``Maybe[A]``
+     - ``Monad``
+     - States: ``Just(value)`` / ``Nothing()``. ``@final`` — do not subclass.
+   * - ``Result[E, A]``
+     - ``Monad``
+     - States: ``Success(value)`` / ``Failure(exc)``. ``@final`` — do not subclass.
+   * - ``IO[A]``
+     - ``Monad``
+     - Lazy side-effect wrapper. Call ``.execute()`` to run the wrapped action.
+   * - ``ImmutableList[T]``
+     - ``Monad``, ``Monoid``
+     - Immutable sequence wrapping a Python list.
+   * - ``NonEmptyList[T]``
+     - ``Monad``, ``Semigroup``
+     - Guaranteed non-empty. Exposes ``.head`` and ``.tail``.
+   * - ``MonoidMaybe[A]``
+     - ``Monoid``
+     - ``Maybe`` with a ``Monoid`` instance. Requires the wrapped type to be a ``Semigroup``.
+   * - ``Sum``
+     - ``Monoid``
+     - Numeric monoid under addition. Identity: ``0``.
+   * - ``Product``
+     - ``Monoid``
+     - Numeric monoid under multiplication. Identity: ``1``.
