@@ -6,7 +6,6 @@ This guide shows you how to chain ``Maybe`` and ``Result`` operations using the 
 Prerequisites
 -------------
 
-- ``katharos`` installed (``pip install katharos`` or ``uv add katharos``)
 - Familiarity with ``Maybe.Just`` / ``Maybe.Nothing`` and ``Result.Success`` / ``Result.Failure``
 
 Chaining with Maybe
@@ -18,35 +17,35 @@ Use ``|`` to pass the unwrapped value of a ``Just`` into the next function. If a
 
    from katharos.types import Maybe
 
-   def parse_int(s: str) -> Maybe[int]:
-       try:
-           return Maybe[int].Just(int(s))
-       except ValueError:
-           return Maybe[int].Nothing()
+   def lookup_user(uid: int) -> Maybe[dict]:
+       users = {1: {"name": "Alice", "role_id": 3}, 2: {"name": "Bob"}}
+       u = users.get(uid)
+       return Maybe[dict].Just(u) if u is not None else Maybe[dict].Nothing()
 
-   def reciprocal(n: int) -> Maybe[float]:
-       if n == 0:
-           return Maybe[float].Nothing()
-       return Maybe[float].Just(1.0 / n)
+   def lookup_role(user: dict) -> Maybe[str]:
+       roles = {3: "admin", 4: "viewer"}
+       role_id = user.get("role_id")
+       if role_id is None:
+           return Maybe[str].Nothing()
+       r = roles.get(role_id)
+       return Maybe[str].Just(r) if r is not None else Maybe[str].Nothing()
 
-   def percent(x: float) -> Maybe[str]:
-       return Maybe[str].Just(f"{x * 100:.1f}%")
+   def format_badge(role: str) -> Maybe[str]:
+       return Maybe[str].Just(f"[{role.upper()}]")
 
    result = (
-       parse_int("4")
-       | reciprocal
-       | percent
+       lookup_user(1)
+       | lookup_role
+       | format_badge
    )
-   # result == Just('25.0%')
+   # result == Just('[ADMIN]')
 
    missing = (
-       parse_int("0")
-       | reciprocal      # returns Nothing() here
-       | percent         # skipped
+       lookup_user(2)
+       | lookup_role      # returns Nothing() — Bob has no role_id
+       | format_badge     # skipped
    )
    # missing == Nothing()
-
-Each function in the chain must accept a plain value and return a ``Maybe``. The ``|`` operator unwraps the ``Just`` before calling the next function; on ``Nothing()`` it bypasses all remaining steps.
 
 Chaining with Result
 ---------------------
@@ -55,35 +54,41 @@ Chaining with Result
 
 .. code-block:: python
 
+   import json
    from katharos.types import Result
 
-   def parse_float(s: str) -> Result[Exception, float]:
+   def read_file(path: str) -> Result[Exception, str]:
        try:
-           return Result[Exception, float].Success(float(s))
-       except ValueError as e:
-           return Result[Exception, float].Failure(e)
+           with open(path) as f:
+               return Result[Exception, str].Success(f.read())
+       except OSError as e:
+           return Result[Exception, str].Failure(e)
 
-   def safe_sqrt(x: float) -> Result[Exception, float]:
-       if x < 0:
-           return Result[Exception, float].Failure(ValueError(f"Cannot take sqrt of {x}"))
-       return Result[Exception, float].Success(x ** 0.5)
+   def parse_json(text: str) -> Result[Exception, dict]:
+       try:
+           return Result[Exception, dict].Success(json.loads(text))
+       except json.JSONDecodeError as e:
+           return Result[Exception, dict].Failure(e)
 
-   def to_two_dp(x: float) -> Result[Exception, str]:
-       return Result[Exception, str].Success(f"{x:.2f}")
+   def get_host(config: dict) -> Result[Exception, str]:
+       host = config.get("host")
+       if host is None:
+           return Result[Exception, str].Failure(KeyError("missing 'host' key"))
+       return Result[Exception, str].Success(host)
 
    result = (
-       parse_float("16.0")
-       | safe_sqrt        # 4.0
-       | to_two_dp        # "4.00"
+       read_file("config.json")
+       | parse_json
+       | get_host
    )
-   # result == Success('4.00')
+   # result == Success('localhost')
 
    bad = (
-       parse_float("abc")   # Failure(ValueError(...))
-       | safe_sqrt          # skipped
-       | to_two_dp          # skipped
+       read_file("missing.json")   # Failure(FileNotFoundError(...))
+       | parse_json                # skipped
+       | get_host                  # skipped
    )
-   # bad == Failure(ValueError("could not convert string to float: 'abc'"))
+   # bad == Failure(FileNotFoundError(...))
 
 Accessing the final value
 --------------------------
@@ -92,7 +97,7 @@ Call ``.unwrap()`` on a ``Just`` or ``Success`` to get the inner value when you 
 
 .. code-block:: python
 
-   value = result.unwrap()  # '4.00'
+   value = result.unwrap()  # 'localhost'
 
 Check the state before unwrapping when the result may be a failure:
 
@@ -106,17 +111,13 @@ Check the state before unwrapping when the result may be a failure:
 Mixing ``fmap`` and ``|``
 --------------------------
 
-Use ``fmap`` when a step cannot fail (the transform always produces a value). Use ``|`` when the step itself might return ``Nothing`` or ``Failure``.
+Use ``fmap`` for infallible steps (the transform always produces a value); use ``|`` for steps that may return ``Nothing`` or ``Failure``.
 
 .. code-block:: python
 
    result = (
-       parse_float("9.0")
-       | safe_sqrt                          # fallible — use |
-       .fmap(lambda x: round(x, 3))        # infallible — use fmap
-       | to_two_dp                          # fallible — use |
+       read_file("config.json")
+       | parse_json                              # fallible — use |
+       .fmap(lambda cfg: cfg.get("host", "localhost"))  # infallible — use fmap
+       | get_host                                # fallible — use |
    )
-
-.. note::
-
-   ``fmap`` wraps the return value automatically, so a function passed to ``fmap`` should return a plain value, not a ``Maybe`` or ``Result``. Passing a monadic-returning function to ``fmap`` nests the container — use ``|`` instead.
