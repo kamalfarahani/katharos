@@ -50,4 +50,4 @@ Utilities
 ~~~~~~~~~
 
 - :class:`katharos.functools.F`
-- :class:`katharos.syntax_sugar.Do`
+- :class:`katharos.syntax_sugar.do`
