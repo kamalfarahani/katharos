@@ -1,5 +1,5 @@
 How to Manage Side Effects with ``IO``
-====================================
+======================================
 
 This guide shows you how to use ``IO`` to defer and sequence side-effectful operations — keeping your pure computation separate from I/O until you are ready to execute it.
 
@@ -19,7 +19,7 @@ The core model
 - ``>>`` (then) sequences two ``IO`` values, discarding the first value but merging both side effects in the same way as ``|``.
 
 Creating an ``IO`` value with a side effect
------------------------------------------
+-------------------------------------------
 
 Use ``FunctionWithSideEffect`` to attach a callable (a function that takes no arguments and returns ``None``) to an ``IO`` value:
 
@@ -59,7 +59,7 @@ To transform the value *and* keep the side effect, create a new ``IO`` explicitl
    )
 
 Sequencing multiple ``IO`` actions with ``>>``
-----------------------------------------
+----------------------------------------------
 
 ``>>`` (the ``then`` operator) sequences two ``IO`` values: it keeps the second value but merges both side effects so they execute in order:
 
@@ -120,7 +120,7 @@ Use ``|`` (bind) to thread the value from one ``IO`` into a function that produc
    # formatted: answer=10
 
 Mixing ``fmap`` and ``|`` in the same pipeline
-----------------------------------------
+----------------------------------------------
 
 Use ``fmap`` for steps that transform the value but produce no side effect. Use ``|`` for steps that both transform the value and produce a side effect. Both can appear in the same chain:
 

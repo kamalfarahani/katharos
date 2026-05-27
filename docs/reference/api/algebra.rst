@@ -2,9 +2,7 @@ Algebra Module
 ==============
 
 .. automodule:: katharos.algebra
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   :no-members:
 
 Semigroup
 ---------

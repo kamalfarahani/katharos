@@ -9,8 +9,8 @@ specific task.
 .. toctree::
    :maxdepth: 1
 
-   semigroups-monoids-mathematics
    why-fp-in-python
+   semigroups-monoids-mathematics
    category-theory-primer
    functors-mathematics
    applicatives-mathematics

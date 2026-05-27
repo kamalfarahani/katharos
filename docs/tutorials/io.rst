@@ -101,7 +101,7 @@ You should see:
 Notice that the print statement only appeared after ``execute()`` was called. The ``FunctionWithSideEffect`` stores the action; it does not run it immediately.
 
 Step 4: Sequence Two IO Actions with ``>>``
------------------------------------------
+-------------------------------------------
 
 Now we will chain two ``IO`` actions together so both of their side effects run in order. Replace the contents of ``audit.py`` with:
 

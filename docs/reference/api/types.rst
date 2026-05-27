@@ -2,9 +2,7 @@ Types Module
 ============
 
 .. automodule:: katharos.types
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   :no-members:
 
 Maybe
 -----
