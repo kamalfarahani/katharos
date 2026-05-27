@@ -30,8 +30,8 @@ pip install katharos
 ```python
 from katharos.types import Maybe
 
-result = Maybe.Just(5) | (lambda x: Maybe.Just(x * 2))  # Just(10)
-nothing = Maybe.Nothing() | (lambda x: Maybe.Just(x * 2))  # Nothing()
+result = Maybe[int].Just(5) | (lambda x: Maybe[int].Just(x * 2))  # Just(10)
+nothing = Maybe[int].Nothing() | (lambda x: Maybe[int].Just(x * 2))  # Nothing()
 ```
 
 **Model errors as values instead of exceptions:**
@@ -45,8 +45,8 @@ def parse_int(s: str) -> Result[ValueError, int]:
     except ValueError as e:
         return Result.Failure(e)
 
-parse_int("42") | (lambda n: Result.Success(n * 2))  # Success(84)
-parse_int("??") | (lambda n: Result.Success(n * 2))  # Failure(...)
+parse_int("42") | (lambda n: Result[ValueError, int].Success(n * 2))  # Success(84)
+parse_int("??") | (lambda n: Result[ValueError, int].Success(n * 2))  # Failure(...)
 ```
 
 **Chain operations with do-notation:**
