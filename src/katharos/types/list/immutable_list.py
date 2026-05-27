@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar, cast  # noqa: F401
 
 from katharos.algebra import Monad, Monoid
 from katharos.algebra.applicative.applicative import Applicative
@@ -16,20 +16,14 @@ class ImmutableList(
     Monad["ImmutableList[Any]", T],
     Monoid["ImmutableList[T]"],
 ):
-    """
-    A covariant immutable list implementation.
+    """A covariant immutable list with full monad and monoid support.
 
-    This class provides an immutable wrapper around a list, ensuring that the
-    underlying data cannot be modified after creation. The type parameter T is
-    covariant, meaning that ImmutableList[Child] is a subtype of ImmutableList[Parent]
-    when Child is a subtype of Parent.
+    Provides an immutable wrapper around a Python list. The type parameter
+    ``T`` is covariant, so ``ImmutableList[Child]`` is a subtype of
+    ``ImmutableList[Parent]`` when ``Child`` is a subtype of ``Parent``.
 
-    The immutable nature makes instances hashable and safe to use as dictionary keys
-    or in sets. All standard sequence operations are supported for read-only access.
-
-    Args:
-        elements: The list of elements to wrap. A copy is not made, so the original
-                 list should not be modified after passing it to this constructor.
+    Instances are hashable and safe to use as dictionary keys or set members.
+    All standard sequence operations are supported for read-only access.
 
     Examples:
         >>> numbers = ImmutableList([1, 2, 3, 4, 5])
@@ -43,109 +37,110 @@ class ImmutableList(
         [1, 2, 3, 4, 5]
         >>> numbers + [6, 7]
         ImmutableList([1, 2, 3, 4, 5, 6, 7])
-
-        # Covariance example:
-        >>> strings: ImmutableList[str] = ImmutableList(["hello", "world"])
-        >>> objects: ImmutableList[object] = strings  # Valid due to covariance
     """
 
     def __eq__(self, other: object) -> bool:
-        """
-        Return True if the list is equal to the other object, False otherwise.
+        """Check equality with another ImmutableList.
 
         Args:
-            other: The object to compare to.
+            other: The object to compare with.
 
         Returns:
-            bool: True if the list is equal to the other object, False otherwise.
+            True if ``other`` is an ImmutableList with identical elements.
         """
         if not isinstance(other, ImmutableList):
             return False
         return self._elements == other._elements
 
     def __hash__(self) -> int:
-        """
-        Return the hash value of the list.
+        """Return a hash of the list contents.
 
         Returns:
-            int: The hash value of the list.
+            Hash of the element tuple.
         """
         return hash(tuple(self._elements))
 
     def __repr__(self) -> str:
-        """
-        Return a string representation of the list.
+        """Return the canonical string representation of this list.
 
         Returns:
-            str: A string representation of the list.
+            ``ImmutableList([...])`` with the element list.
         """
         return f"ImmutableList({self._elements!r})"
 
     def __str__(self) -> str:
-        """
-        Return a string representation of the list.
+        """Return the string form of the underlying element list.
 
         Returns:
-            str: A string representation of the list.
+            The string representation of the internal Python list.
         """
         return str(self._elements)
 
     def __add__(self, other: Iterable[T]) -> ImmutableList[T]:
-        """
-        Return a new ImmutableList containing the elements of the list and the other list.
+        """Concatenate this list with another iterable.
 
         Args:
-            other: The list to add to the list.
+            other: The elements to append.
 
         Returns:
-            ImmutableList[T]: A new ImmutableList containing the elements of the list and the other list.
+            A new ImmutableList containing elements from both sequences.
         """
         return ImmutableList(list(self) + list(other))
 
     @classmethod
     def identity(cls: type[ImmutableList[T]]) -> ImmutableList[T]:
-        """
-        Return the identity element for the monoid operation.
+        """Return the identity element for the monoid operation.
 
         Returns:
-            ImmutableList[T]: An empty ImmutableList.
+            An empty ImmutableList.
         """
         return ImmutableList([])
 
     @classmethod
     def pure[T_1](cls: type[ImmutableList[T_1]], x: T_1) -> ImmutableList[T_1]:
-        """
-        Return a singleton ImmutableList containing the given element.
+        """Wrap a single value in an ImmutableList.
 
         Args:
-            x: The element to wrap in an ImmutableList.
+            x: The element to wrap.
 
         Returns:
-            ImmutableList[T]: An ImmutableList containing only the given element.
+            A singleton ImmutableList containing only ``x``.
         """
         return ImmutableList([x])
 
-    def op(self, other: ImmutableList[T]) -> ImmutableList[T]:
-        """
-        Combine this ImmutableList with another using concatenation (monoid operation).
+    @classmethod
+    def ret[T_1](cls: type[ImmutableList[T_1]], x: T_1) -> ImmutableList[T_1]:
+        """Wrap a single value in an ImmutableList.
+
+        Alias for :meth:`pure`, provided to satisfy the Monad interface.
 
         Args:
-            other: Another ImmutableList to concatenate with this one.
+            x: The element to wrap.
 
         Returns:
-            ImmutableList[T]: A new ImmutableList containing elements from both lists.
+            A singleton ImmutableList containing only ``x``.
+        """
+        return cls.pure(x)
+
+    def op(self, other: ImmutableList[T]) -> ImmutableList[T]:
+        """Combine this list with another using concatenation.
+
+        Args:
+            other: Another ImmutableList to concatenate with.
+
+        Returns:
+            A new ImmutableList containing elements from both lists.
         """
         return self + other
 
     def fmap[B](self, f: Callable[[T], B]) -> ImmutableList[B]:
-        """
-        Map a function over the elements of this ImmutableList.
+        """Map a function over every element.
 
         Args:
             f: A function to apply to each element.
 
         Returns:
-            ImmutableList[B]: A new ImmutableList with the function applied to each element.
+            A new ImmutableList with the function applied to each element.
         """
         return ImmutableList(map(f, self._elements))
 
@@ -153,14 +148,14 @@ class ImmutableList(
         self,
         wrapped_funcs: Applicative[ImmutableList, Callable[[T], B]],
     ) -> ImmutableList[B]:
-        """
-        Apply functions in this ImmutableList to values in another ImmutableList.
+        """Apply each wrapped function to each element (cartesian product).
 
         Args:
             wrapped_funcs: An ImmutableList of functions to apply.
 
         Returns:
-            ImmutableList[B]: A new ImmutableList with results of applying functions.
+            A new ImmutableList with results of applying every function to
+            every element.
         """
         wrapped_funcs = cast(ImmutableList[Callable[[T], B]], wrapped_funcs)
         return ImmutableList[B]([f(x) for f in wrapped_funcs for x in self])
@@ -169,29 +164,26 @@ class ImmutableList(
         self,
         f: Callable[[T], Monad[ImmutableList, B]],
     ) -> ImmutableList[B]:
-        """
-        Bind (flatMap) this ImmutableList with a function that returns another Monad.
+        """Flatmap this list with a function that returns a list (concatMap).
 
         Args:
             f: A function that takes an element and returns an ImmutableList.
 
         Returns:
-            ImmutableList[B]: A new ImmutableList with the results of applying the function.
+            A new ImmutableList with the results of all returned lists
+            concatenated.
         """
         f = cast(Callable[[T], ImmutableList[B]], f)
         return ImmutableList[B]([x for elem in self for x in f(elem)])
 
     def __matmul__(self, other: ImmutableList[T]) -> ImmutableList[T]:
-        """
-        Infix operator for semigroup operation (concatenation).
-        Enables syntax like list1 @ list2 for concatenation.
-        Equivalent to the + operator.
+        """Infix operator for the semigroup concatenation (``@``).
 
         Args:
-            other: Another ImmutableList to concatenate with this one.
+            other: Another ImmutableList to concatenate with.
 
         Returns:
-            ImmutableList[T]: A new ImmutableList containing all elements from both lists.
+            A new ImmutableList containing all elements from both lists.
         """
         return self.op(other)
 
@@ -199,15 +191,14 @@ class ImmutableList(
         self,
         wrapped_funcs: Applicative[ImmutableList, Callable[[T], B]],
     ) -> ImmutableList[B]:
-        """
-        Apply functions using the applicative style (** operator).
-        This enables applicative-style function application.
+        """Infix operator for applicative application (``**``).
 
         Args:
-            wrapped_funcs: An Applicative of functions to apply.
+            wrapped_funcs: An ImmutableList of functions to apply.
 
         Returns:
-            ImmutableList[B]: A new ImmutableList with results of applying functions.
+            A new ImmutableList with results of applying every function to
+            every element.
         """
         return self.ap(wrapped_funcs)
 
@@ -215,14 +206,12 @@ class ImmutableList(
         self,
         f: Callable[[T], Monad[ImmutableList, B]],
     ) -> ImmutableList[B]:
-        """
-        Chain operations using the Kleisli composition (|) operator.
-        This enables monadic chaining where each function returns a Monad.
+        """Infix operator for monadic bind (``|``).
 
         Args:
-            f: A function that takes an element and returns a Monad[ImmutableList, B].
+            f: A function that takes an element and returns an ImmutableList.
 
         Returns:
-            ImmutableList[B]: A new ImmutableList with the results of chaining operations.
+            A new ImmutableList with all returned lists concatenated.
         """
         return self.bind(f)

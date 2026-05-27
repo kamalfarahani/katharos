@@ -7,67 +7,45 @@ from katharos.algebra.applicative.applicative import Applicative
 
 
 class Monad[Mon, A](Applicative[Mon, A], ABC):
-    """
-    A Monad is a monadic type that represents a computation that can be sequenced.
+    """Abstract base class for monads.
 
-    A Monad extends Applicative and provides the `bind` operation (also known as
-    flatMap or >>=) which allows sequencing computations that produce monadic values.
+    A monad extends :class:`~katharos.algebra.Applicative` with the ``bind``
+    operation (``>>=`` in Haskell, exposed as ``|``), which allows sequencing
+    computations that produce monadic values.
 
-    Monad Laws:
-    -----------
-    All instances of Monad must satisfy the following three laws:
+    Use :meth:`ret` to lift a plain value, and ``|`` (or :meth:`bind`) to
+    chain computations. Use ``>>`` (or :meth:`then`) to sequence actions while
+    discarding the first result.
 
-    1. Left Identity:
-       ret(a).bind(f) == f(a)
+    Note:
+        Instances must satisfy the monad laws:
 
-       Wrapping a value in a monad and binding it with a function should be
-       the same as applying the function directly to the value.
-
-    2. Right Identity:
-       m.bind(ret) == m
-
-       Binding a monad with the `ret` function should return the original monad.
-
-    3. Associativity:
-       m.bind(f).bind(g) == m.bind(lambda x: f(x).bind(g))
-
-       The order of binding operations should not matter. Chaining binds should
-       be associative.
-
-    Type Parameters:
-    ----------------
-    A : The type of value contained in the Monad.
-
-    Abstract Methods:
-    -----------------
-    bind : Sequence a monadic computation with a function that returns a Monad.
+        - **Left identity**: ``ret(a).bind(f) == f(a)``
+        - **Right identity**: ``m.bind(ret) == m``
+        - **Associativity**: ``m.bind(f).bind(g) == m.bind(lambda x: f(x).bind(g))``
 
     Examples:
-    ---------
-    Using the bind operation:
-        >>> m = SomeMonad.ret(5)
-        >>> result = m.bind(lambda x: SomeMonad.ret(x * 2))
+        Using ``bind`` (``|`` operator)::
 
-    Using the | operator (infix bind):
-        >>> m = SomeMonad.ret(5)
-        >>> result = m | (lambda x: SomeMonad.ret(x * 2))
+            m = SomeMonad.ret(5)
+            result = m | (lambda x: SomeMonad.ret(x * 2))
 
-    Sequencing monads with then (>>):
-        >>> m1 = SomeMonad.ret(1)
-        >>> m2 = SomeMonad.ret(2)
-        >>> result = m1 >> m2  # Returns m2, discarding m1's value
+        Sequencing with ``then`` (``>>`` operator)::
+
+            m1 = SomeMonad.ret(1)
+            m2 = SomeMonad.ret(2)
+            result = m1 >> m2  # returns m2, discarding m1's value
     """
 
     @classmethod
     def ret[T](cls: type[Monad[Mon, T]], x: T) -> Monad[Mon, T]:
-        """
-        Return a Monad containing the given value.
+        """Wrap a value in the monad.
 
         Args:
-            x: The value to wrap in a Monad.
+            x: The value to wrap.
 
         Returns:
-            Monad[Mon, T]: A Monad containing the given value.
+            A monad containing the given value.
         """
         return cls.pure(x)  # type: ignore[return-value]
 
@@ -76,49 +54,47 @@ class Monad[Mon, A](Applicative[Mon, A], ABC):
         self,
         f: Callable[[A], Monad[Mon, B]],
     ) -> Monad[Mon, B]:
-        """
-        Monad bind operation.
+        """Chain this monad with a function that returns a monad.
 
         Args:
-            f: A function that takes a value of type A and returns a Monad of type B.
+            f: A function that takes a value of type A and returns a monad
+                of type B.
 
         Returns:
-            Monad[Mon, B]: A Monad containing the result of applying the function to the value.
+            A monad containing the result of applying the function.
         """
         raise NotImplementedError()
 
     def then[B](self, other: Monad[Mon, B]) -> Monad[Mon, B]:
-        """
-        Sequence two monadic actions, discarding the result of the first.
+        """Sequence two monadic actions, discarding the first result.
 
         Args:
-            other: The Monad to sequence after this one.
+            other: The monad to sequence after this one.
 
         Returns:
-            Monad[Mon, B]: The result of the second Monad.
+            The result of the second monad.
         """
         return self | (lambda _: other)
 
     def __or__[B](self, f: Callable[[A], Monad[Mon, B]]) -> Monad[Mon, B]:
-        """
-        Infix operator for bind.
+        """Infix operator for monadic bind (``|``).
 
         Args:
-            f: A function that takes a value of type A and returns a Monad of type B.
+            f: A function that takes a value of type A and returns a monad
+                of type B.
 
         Returns:
-            Monad[Mon, B]: A Monad containing the result of applying the function to the value.
+            A monad containing the result of applying the function.
         """
         return self.bind(f)
 
     def __rshift__[B](self, other: Monad[Mon, B]) -> Monad[Mon, B]:
-        """
-        Infix operator for then (sequence two monadic actions).
+        """Infix operator for sequencing two monadic actions (``>>``).
 
         Args:
-            other: The Monad to sequence after this one.
+            other: The monad to sequence after this one.
 
         Returns:
-            Monad[Mon, B]: The result of the second Monad.
+            The result of the second monad.
         """
         return self.then(other)

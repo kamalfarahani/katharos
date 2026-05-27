@@ -7,44 +7,48 @@ from .maybe import Maybe
 
 
 class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
+    """A :class:`~katharos.algebra.Monoid` instance for optional semigroup values.
+
+    Lifts a semigroup ``A`` into an optional context: two ``Just`` values are
+    combined using their semigroup ``@`` operation; ``Nothing`` acts as the
+    identity element, leaving the other operand unchanged.
+    """
+
     @classmethod
     def identity(cls) -> MonoidMaybe[A]:
-        """
-        Return the identity element of the MonoidMaybe monoid.
+        """Return the identity element of the MonoidMaybe monoid.
 
         Returns:
-            MonoidMaybe[A]: A MonoidMaybe containing Nothing, which acts as the identity.
+            A MonoidMaybe wrapping Nothing, which acts as the identity.
         """
         return MonoidMaybe(maybe=Maybe[A]())
 
     def __init__(self, maybe: Maybe[A]) -> None:
-        """
-        Initialize the MonoidMaybe with a Maybe value.
+        """Initialize the MonoidMaybe with a Maybe value.
 
         Args:
-            maybe: The Maybe value to wrap in a MonoidMaybe.
+            maybe: The Maybe value to wrap.
         """
         self._maybe = maybe
 
     @property
     def maybe(self) -> Maybe[A]:
-        """
-        Returns the Maybe value.
+        """The wrapped Maybe value.
 
         Returns:
-            Maybe[A]: The Maybe value.
+            The Maybe value held by this MonoidMaybe.
         """
         return self._maybe
 
     def op(self, other: MonoidMaybe[A]) -> MonoidMaybe[A]:
-        """
-        Combine this MonoidMaybe with another MonoidMaybe.
+        """Combine this MonoidMaybe with another using the semigroup operation.
 
         Args:
             other: Another MonoidMaybe to combine with.
 
         Returns:
-            MonoidMaybe[A]: The result of combining the two MonoidMaybes.
+            The other operand if this is Nothing; this operand if other is
+            Nothing; otherwise a MonoidMaybe wrapping ``Just(self @ other)``.
         """
         match self.maybe.is_just(), other.maybe.is_just():
             case False, _:

@@ -4,16 +4,22 @@ from typing import Callable
 
 @dataclass
 class FunctionWithSideEffect:
+    """A callable that wraps a side-effecting function with an optional description.
+
+    Attributes:
+        f: The zero-argument callable that performs the side effect.
+        description: Human-readable label for the side effect.
+    """
+
     f: Callable[[], None]
     description: str = ""
 
     @staticmethod
     def no_op() -> "FunctionWithSideEffect":
-        """
-        Return a no-op FunctionWithSideEffect instance.
+        """Return a no-op instance that performs no operation when called.
 
-        The returned instance wraps a function that ignores all arguments and
-        performs no operation when called.
+        Returns:
+            A FunctionWithSideEffect wrapping a function that does nothing.
         """
         return FunctionWithSideEffect(
             f=lambda *args, **kwargs: None,
@@ -21,21 +27,20 @@ class FunctionWithSideEffect:
         )
 
     def __call__(self):
+        """Invoke the wrapped side-effect function."""
         self.f()
 
     def __rshift__(
         self,
         other: "FunctionWithSideEffect",
     ) -> "FunctionWithSideEffect":
-        """
-        Returns a new FunctionWithSideEffect that sequentially executes the function wrapped in `self`
-        and then the function wrapped in `other`.
+        """Return a new instance that runs this effect then ``other`` in sequence.
 
         Args:
-            other: The FunctionWithSideEffect to execute sequentially.
+            other: The effect to run after this one.
 
         Returns:
-            A new FunctionWithSideEffect that sequentially executes `self` and `other`.
+            A new FunctionWithSideEffect that executes both effects in order.
         """
 
         def seq() -> None:
