@@ -94,19 +94,20 @@ Quick Examples
 
 .. code-block:: python
 
-   from katharos.syntax_sugar import Do
+   from katharos.syntax_sugar import do, DoBlock
    from katharos.types import Maybe
 
    def get_value(x: int) -> Maybe[int]:
        return Maybe.Just(x) if x > 0 else Maybe.Nothing()
 
    # Clean, imperative-style monadic code
-   with Do[Maybe]() as do:
-       x = do.arrow(get_value(5))
-       y = do.arrow(get_value(3))
-       result = do.ret(lambda a, b: a + b, a=x, b=y)
+   @do(Maybe)
+   def do_block() -> DoBlock[int]:
+       x: int = yield get_value(5)
+       y: int = yield get_value(3)
+       return x + y
 
-   print(result)  # Just(8)
+   print(do_block())  # Just(8)
 
 Documentation Structure
 -----------------------
