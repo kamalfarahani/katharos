@@ -5,7 +5,7 @@
 <h1 align="center">Katharos</h1>
 
 <p align="center">
-  Functional programming abstractions for Python — Monads, Applicatives, Functors, and immutable data structures for composable, type-safe code.
+  Stop writing <code>if x is None</code> and bare <code>try/except</code>. Katharos gives Python type-safe <code>Maybe</code> and <code>Result</code> types — handle missing values and errors as data, chain operations cleanly, and short-circuit failures automatically.
 </p>
 
 <p align="center">
@@ -23,7 +23,63 @@
 pip install katharos
 ```
 
-## Quick Start
+Or using `uv`
+
+```bash
+uv add katharos
+```
+
+## What it looks like
+
+**Before** — scattered `None` checks and exception handling:
+
+```python
+user = find_user(user_id)
+if user is None:
+    return None
+account = find_account(user)
+if account is None:
+    return None
+return account.discount
+```
+
+**After** — `do`-notation that short-circuits cleanly on `Nothing`:
+
+```python
+from katharos.types import Maybe
+from katharos.syntax_sugar import do, DoBlock
+
+@do(Maybe)
+def lookup_discount(user_id: int) -> DoBlock[float]:
+    user    = yield find_user(user_id)
+    account = yield find_account(user)
+    return account.discount   # Just(0.15) or Nothing()
+```
+
+**Before** — nested try/except to propagate errors:
+
+```python
+def process(raw: str) -> int:
+    try:
+        n = parse_int(raw)
+    except ValueError as e:
+        raise RuntimeError("bad input") from e
+    try:
+        return validate_positive(n)
+    except ValueError as e:
+        raise RuntimeError("bad value") from e
+```
+
+**After** — errors as values, chained with `|`:
+
+```python
+from katharos.types import Result
+
+def process(raw: str) -> Result[Exception, int]:
+    return parse_int(raw) | validate_positive   # Failure short-circuits automatically
+```
+
+## More examples
 
 **Handle optional values without `None` checks:**
 
@@ -45,23 +101,8 @@ def parse_int(s: str) -> Result[ValueError, int]:
     except ValueError as e:
         return Result.Failure(e)
 
-parse_int("42") | (lambda n: Result[ValueError, int].Success(n * 2))  # Success(84)
-parse_int("??") | (lambda n: Result[ValueError, int].Success(n * 2))  # Failure(...)
-```
-
-**Chain operations with do-notation:**
-
-```python
-from katharos.types import Maybe
-from katharos.syntax_sugar import do, DoBlock
-
-@do(Maybe)
-def lookup_discount(user_id: int) -> DoBlock[float]:
-    user    = yield find_user(user_id)      # short-circuits on Nothing
-    account = yield find_account(user)
-    return account.discount
-
-lookup_discount(42)  # Just(0.15) or Nothing()
+parse_int("42").fmap(lambda n: n * 2) # Success(84)
+parse_int("??").fmap(lambda n: n * 2)  # Failure(...)
 ```
 
 **Combine values with the Semigroup operator:**
@@ -71,6 +112,28 @@ from katharos.types import ImmutableList
 
 ImmutableList([1, 2]) @ ImmutableList([3, 4])  # ImmutableList([1, 2, 3, 4])
 ```
+
+## Do-notation
+
+`do`-notation works with any monad — `Maybe`, `Result`, `IO`, `ImmutableList` and your custom monads. Each `yield` unwraps the monadic value:
+
+```python
+from katharos.syntax_sugar import do, DoBlock
+from katharos.types import Result
+
+def parse_positive(x: int) -> Result[ValueError, int]:
+    return Result.Success(x) if x > 0 else Result.Failure(ValueError(f"{x} is not positive"))
+
+# Clean, imperative-style monadic code
+@do(Result)
+def do_block() -> DoBlock[int]:
+    x: int = yield parse_positive(5)
+    y: int = yield parse_positive(3)
+    return x + y
+
+print(do_block())  # Success(8)
+```
+
 
 ## Documentation
 
