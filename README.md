@@ -5,7 +5,7 @@
 <h1 align="center">Katharos</h1>
 
 <p align="center">
-  Stop writing <code>if x is None</code> and bare <code>try/except</code>. Katharos gives Python type-safe <code>Maybe</code> and <code>Result</code> types — handle missing values and errors as data, chain operations cleanly, and short-circuit failures automatically.
+  A functional programming library for Python. Katharos brings algebraic abstractions — <code>Functor</code>, <code>Applicative</code>, <code>Monad</code>, <code>Semigroup</code>, <code>Monoid</code> — together with concrete types like <code>Maybe</code>, <code>Result</code>, <code>ImmutableList</code>, and <code>IO</code>, so you can model effects, errors, and data transformations as composable, type-safe pipelines.
 </p>
 
 <p align="center">
