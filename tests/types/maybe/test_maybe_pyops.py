@@ -125,7 +125,7 @@ class TestMaybeRepr:
 
     def test_just_repr_with_string(self):
         m = Maybe.Just("hello")
-        assert repr(m) == "Just(hello)"
+        assert repr(m) == "Just('hello')"
 
     def test_just_repr_with_list(self):
         m = Maybe.Just([1, 2, 3])
