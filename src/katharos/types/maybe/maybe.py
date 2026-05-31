@@ -260,7 +260,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         Returns:
             ``Just(<value>)`` or ``Nothing()``.
         """
-        return f"Just({self._value})" if self.is_just() else "Nothing()"
+        return f"Just({self._value!r})" if self.is_just() else "Nothing()"
 
     def __hash__(self) -> int:
         """Return a hash of this Maybe.
