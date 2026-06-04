@@ -3,7 +3,7 @@ from collections.abc import Callable, Iterable
 from functools import wraps
 from operator import matmul
 
-from katharos.algebra import Semigroup
+from katharos.algebra import Applicative, Semigroup
 from katharos.types.list import NonEmptyList
 
 
@@ -25,6 +25,13 @@ class F:
         Returns:
             A function that takes a function from A to B and returns a function
             from A to C.
+
+        Examples:
+            >>> inc = lambda x: x + 1
+            >>> double = lambda x: x * 2
+            >>> inc_then_double = F.compose(double)(inc)
+            >>> inc_then_double(5)
+            12
         """
 
         def inner(g: Callable[[A], B]) -> Callable[[A], C]:
@@ -41,6 +48,12 @@ class F:
 
         Returns:
             The same value x.
+
+        Examples:
+            >>> F.id(42)
+            42
+            >>> F.id("hello")
+            'hello'
         """
         return x
 
@@ -60,6 +73,12 @@ class F:
 
         Returns:
             The accumulator value after applying f to each element of xs.
+
+        Examples:
+            >>> F.foldr(lambda x, acc: acc + [x], [], [1, 2, 3])
+            [3, 2, 1]
+            >>> F.foldr(lambda x, acc: f"({x}+{acc})", "0", [1, 2, 3])
+            '(1+(2+(3+0)))'
         """
         result = acc
         for x in reversed(list(xs)):
@@ -83,6 +102,12 @@ class F:
 
         Returns:
             The accumulator value after applying f to each element of xs.
+
+        Examples:
+            >>> F.foldl(lambda acc, x: acc + x, 0, [1, 2, 3])
+            6
+            >>> F.foldl(lambda acc, x: f"({acc}+{x})", "0", [1, 2, 3])
+            '(((0+1)+2)+3)'
         """
         result = acc
         for x in xs:
@@ -99,6 +124,12 @@ class F:
 
         Returns:
             The result of combining all elements using the semigroup's @ operator.
+
+        Examples:
+            >>> from katharos.types.list import NonEmptyList
+            >>> from katharos.types.monoid import Sum
+            >>> F.sigma(NonEmptyList(Sum(1), [Sum(2), Sum(3)]))
+            Sum(6)
         """
         return F.foldl(
             matmul,
@@ -158,3 +189,75 @@ class F:
             return partial
 
         return curried
+
+    @staticmethod
+    def lift_a2[A, B, C, App](
+        f: Callable[[A, B], C],
+        fa: Applicative[App, A],
+        fb: Applicative[App, B],
+    ) -> Applicative[App, C]:
+        """Lift a binary function into an applicative context.
+
+        Applies a two-argument function to the values held inside two
+        applicatives of the same type, combining their contexts.
+
+        Args:
+            f: A function taking two arguments of types A and B.
+            fa: An applicative containing a value of type A.
+            fb: An applicative containing a value of type B.
+
+        Returns:
+            An applicative containing the result of applying f to the two
+            wrapped values.
+
+        Examples:
+            >>> from katharos.types.maybe import Maybe
+            >>> F.lift_a2(lambda x, y: x + y, Maybe.Just(2), Maybe.Just(3))
+            Just(5)
+            >>> F.lift_a2(lambda x, y: x + y, Maybe.Just(2), Maybe.Nothing())
+            Nothing()
+        """
+        curried = F.curry(f)
+        return fb.ap(fa.ap(fa.pure(curried)))
+
+    @staticmethod
+    def lift_a3[A, B, C, D, App](
+        f: Callable[[A, B, C], D],
+        fa: Applicative[App, A],
+        fb: Applicative[App, B],
+        fc: Applicative[App, C],
+    ) -> Applicative[App, D]:
+        """Lift a ternary function into an applicative context.
+
+        Applies a three-argument function to the values held inside three
+        applicatives of the same type, combining their contexts.
+
+        Args:
+            f: A function taking three arguments of types A, B and C.
+            fa: An applicative containing a value of type A.
+            fb: An applicative containing a value of type B.
+            fc: An applicative containing a value of type C.
+
+        Returns:
+            An applicative containing the result of applying f to the three
+            wrapped values.
+
+        Examples:
+            >>> from katharos.types.maybe import Maybe
+            >>> F.lift_a3(
+            ...     lambda x, y, z: x + y + z,
+            ...     Maybe.Just(1),
+            ...     Maybe.Just(2),
+            ...     Maybe.Just(3),
+            ... )
+            Just(6)
+            >>> F.lift_a3(
+            ...     lambda x, y, z: x + y + z,
+            ...     Maybe.Just(1),
+            ...     Maybe.Nothing(),
+            ...     Maybe.Just(3),
+            ... )
+            Nothing()
+        """
+        curried = F.curry(f)
+        return fc.ap(fb.ap(fa.ap(fa.pure(curried))))

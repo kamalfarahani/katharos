@@ -1,6 +1,9 @@
 import pytest
 
 from katharos.functools.f import F
+from katharos.types.list import ImmutableList
+from katharos.types.maybe import Maybe
+from katharos.types.result import Result
 
 
 class TestCompose:
@@ -250,3 +253,128 @@ class TestCurry:
 
         curried_combine = F.curry(combine)
         assert curried_combine(10)(5)(2)(3) == 17
+
+
+class TestLiftA2:
+    def test_lift_a2_maybe_both_just(self):
+        result = F.lift_a2(lambda x, y: x + y, Maybe.Just(2), Maybe.Just(3))
+        assert result == Maybe.Just(5)
+
+    def test_lift_a2_maybe_first_nothing(self):
+        result = F.lift_a2(lambda x, y: x + y, Maybe.Nothing(), Maybe.Just(3))
+        assert result == Maybe.Nothing()
+
+    def test_lift_a2_maybe_second_nothing(self):
+        result = F.lift_a2(lambda x, y: x + y, Maybe.Just(2), Maybe.Nothing())
+        assert result == Maybe.Nothing()
+
+    def test_lift_a2_mixed_types(self):
+        result = F.lift_a2(
+            lambda name, age: f"{name} is {age}",
+            Maybe.Just("Alice"),
+            Maybe.Just(30),
+        )
+        assert result == Maybe.Just("Alice is 30")
+
+    def test_lift_a2_result_both_success(self):
+        result = F.lift_a2(lambda x, y: x * y, Result.Success(4), Result.Success(5))
+        assert result == Result.Success(20)
+
+    def test_lift_a2_result_short_circuits_on_failure(self):
+        error = ValueError("boom")
+        result = F.lift_a2(lambda x, y: x + y, Result.Failure(error), Result.Success(3))
+        assert result == Result.Failure(error)
+
+    def test_lift_a2_immutable_list_cartesian_product(self):
+        result = F.lift_a2(
+            lambda x, y: (x, y),
+            ImmutableList([1, 2]),
+            ImmutableList(["a", "b"]),
+        )
+        assert result == ImmutableList([(1, "a"), (1, "b"), (2, "a"), (2, "b")])
+
+    def test_lift_a2_immutable_list_empty(self):
+        result = F.lift_a2(lambda x, y: x + y, ImmutableList([]), ImmutableList([1, 2]))
+        assert result == ImmutableList([])
+
+    def test_lift_a2_does_not_mutate_arguments(self):
+        fa = Maybe.Just(2)
+        fb = Maybe.Just(3)
+        F.lift_a2(lambda x, y: x + y, fa, fb)
+        assert fa == Maybe.Just(2)
+        assert fb == Maybe.Just(3)
+
+
+class TestLiftA3:
+    def test_lift_a3_maybe_all_just(self):
+        result = F.lift_a3(
+            lambda x, y, z: x + y + z,
+            Maybe.Just(1),
+            Maybe.Just(2),
+            Maybe.Just(3),
+        )
+        assert result == Maybe.Just(6)
+
+    def test_lift_a3_maybe_first_nothing(self):
+        result = F.lift_a3(
+            lambda x, y, z: x + y + z,
+            Maybe.Nothing(),
+            Maybe.Just(2),
+            Maybe.Just(3),
+        )
+        assert result == Maybe.Nothing()
+
+    def test_lift_a3_maybe_middle_nothing(self):
+        result = F.lift_a3(
+            lambda x, y, z: x + y + z,
+            Maybe.Just(1),
+            Maybe.Nothing(),
+            Maybe.Just(3),
+        )
+        assert result == Maybe.Nothing()
+
+    def test_lift_a3_maybe_last_nothing(self):
+        result = F.lift_a3(
+            lambda x, y, z: x + y + z,
+            Maybe.Just(1),
+            Maybe.Just(2),
+            Maybe.Nothing(),
+        )
+        assert result == Maybe.Nothing()
+
+    def test_lift_a3_preserves_argument_order(self):
+        result = F.lift_a3(
+            lambda x, y, z: f"{x}-{y}-{z}",
+            Maybe.Just("a"),
+            Maybe.Just("b"),
+            Maybe.Just("c"),
+        )
+        assert result == Maybe.Just("a-b-c")
+
+    def test_lift_a3_result_all_success(self):
+        result = F.lift_a3(
+            lambda x, y, z: x + y + z,
+            Result.Success(1),
+            Result.Success(2),
+            Result.Success(3),
+        )
+        assert result == Result.Success(6)
+
+    def test_lift_a3_result_short_circuits_on_failure(self):
+        error = ValueError("boom")
+        result = F.lift_a3(
+            lambda x, y, z: x + y + z,
+            Result.Success(1),
+            Result.Failure(error),
+            Result.Success(3),
+        )
+        assert result == Result.Failure(error)
+
+    def test_lift_a3_immutable_list_cartesian_product(self):
+        result = F.lift_a3(
+            lambda x, y, z: x + y + z,
+            ImmutableList([1, 2]),
+            ImmutableList([10]),
+            ImmutableList([100, 200]),
+        )
+        assert result == ImmutableList([111, 211, 112, 212])
