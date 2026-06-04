@@ -12,7 +12,7 @@
   <a href="https://pypi.org/project/katharos/"><img src="https://img.shields.io/pypi/v/katharos" alt="PyPI"></a>
   <a href="https://katharos.readthedocs.io/en/latest/"><img src="https://img.shields.io/readthedocs/katharos" alt="Docs"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
-  <img src="https://img.shields.io/pypi/pyversions/katharos" alt="Python versions">
+  <img src="https://img.shields.io/badge/coverage-94%25-brightgreen" alt="Coverage">
 </p>
 
 ---
