@@ -5,18 +5,22 @@ from typing import Any
 
 from katharos.algebra import Monad
 
-type DoBlock[R] = Generator[Any, Any, R]
+type DoBlock[M: Monad, R] = Generator[M, Any, R]
 """Generator type for do-notation blocks.
 
-``R`` is the plain return type of the block. Individual yield expressions
-evaluate to ``Any`` — Python's ``Generator`` has a single ``SendType`` for
-the whole function, so per-yield type inference across different inner types
-is not expressible without a type-checker plugin.
+``M`` is the monad being yielded and ``R`` is the plain return type of the
+block. Typing the generator's ``YieldType`` as ``M`` lets the type checker
+verify that every ``yield`` produces a value of the expected monad, catching
+mistakes such as yielding a ``Result`` inside a ``@do(Maybe)`` block.
 
-Annotate individual yield results inline when you need a specific type::
+The unwrapped value sent back into each ``yield`` is typed as ``Any`` —
+Python's ``Generator`` has a single ``SendType`` for the whole function, so
+per-yield type inference across different inner types is not expressible
+without a type-checker plugin. Annotate individual yield results inline when
+you need a specific type::
 
     @do(Maybe)
-    def computation() -> DoBlock[int]:
+    def computation() -> DoBlock[Maybe, int]:
         x: int = yield Maybe.Just(3)
         y: str = yield Maybe.Just("hi")
         return x + len(y)
@@ -32,15 +36,17 @@ function's return type is inferred as ``M`` (e.g. ``Maybe``) rather than
 
 def do[M: Monad, R](
     monad_type: type[M],
-) -> Callable[[Callable[..., DoBlock[R]]], Callable[..., M]]:
+) -> Callable[[Callable[..., DoBlock[M, R]]], Callable[..., M]]:
     """Decorator for generator-based do-notation.
 
     Each ``yield monad`` extracts the wrapped value, analogous to ``<-`` in
     Haskell. The unwrapped value is immediately available for use in subsequent
     yields.
 
-    Annotate the generator with :data:`DoBlock[R]` where ``R`` is the plain
-    return type. Annotate individual yield sites inline for per-binding types::
+    Annotate the generator with :data:`DoBlock[M, R]` where ``M`` is the monad
+    being yielded and ``R`` is the plain return type. Typing ``M`` lets the type
+    checker confirm each ``yield`` produces the expected monad. Annotate
+    individual yield sites inline for per-binding types::
 
         x: int = yield Maybe.Just(3)
         y: str = yield Maybe.Just("hi")
@@ -72,7 +78,7 @@ def do[M: Monad, R](
     Examples:
         >>> from katharos.types import Maybe
         >>> @do(Maybe)
-        ... def computation() -> DoBlock[int]:
+        ... def computation() -> DoBlock[Maybe, int]:
         ...     x: int = yield Maybe.Just(3)
         ...     y: int = yield Maybe.Just(x + 1)  # x is 3 here
         ...     return x + y
@@ -80,7 +86,7 @@ def do[M: Monad, R](
         Just(7)
 
         >>> @do(Maybe)
-        ... def short_circuit() -> DoBlock[int]:
+        ... def short_circuit() -> DoBlock[Maybe, int]:
         ...     x: int = yield Maybe.Just(10)
         ...     y: int = yield Maybe.Nothing()    # stops here
         ...     return x + y                      # never reached
@@ -88,7 +94,7 @@ def do[M: Monad, R](
         Nothing()
     """
 
-    def decorator(f: Callable[..., DoBlock[R]]) -> Callable[..., M]:
+    def decorator(f: Callable[..., DoBlock[M, R]]) -> Callable[..., M]:
         def wrapper(*args: Any, **kwargs: Any) -> M:
             def step(history: tuple) -> M:
                 gen = f(*args, **kwargs)
