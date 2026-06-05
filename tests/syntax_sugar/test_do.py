@@ -7,7 +7,7 @@ from katharos.types import ImmutableList, Maybe, Result
 class TestDoWithMaybe:
     def test_two_just_values_are_combined(self):
         @do(Maybe)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Maybe, int]:
             x: int = yield Maybe.Just(3)
             y: int = yield Maybe.Just(4)
             return x + y
@@ -16,7 +16,7 @@ class TestDoWithMaybe:
 
     def test_first_nothing_short_circuits(self):
         @do(Maybe)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Maybe, int]:
             x: int = yield Maybe.Nothing()
             y: int = yield Maybe.Just(4)
             return x + y
@@ -25,7 +25,7 @@ class TestDoWithMaybe:
 
     def test_second_nothing_short_circuits(self):
         @do(Maybe)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Maybe, int]:
             x: int = yield Maybe.Just(3)
             y: int = yield Maybe.Nothing()
             return x + y
@@ -34,7 +34,7 @@ class TestDoWithMaybe:
 
     def test_single_just_value(self):
         @do(Maybe)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Maybe, int]:
             x: int = yield Maybe.Just(10)
             return x * 2
 
@@ -42,7 +42,7 @@ class TestDoWithMaybe:
 
     def test_single_nothing(self):
         @do(Maybe)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Maybe, int]:
             x: int = yield Maybe.Nothing()
             return x * 2
 
@@ -50,7 +50,7 @@ class TestDoWithMaybe:
 
     def test_three_just_values(self):
         @do(Maybe)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Maybe, int]:
             x: int = yield Maybe.Just(1)
             y: int = yield Maybe.Just(2)
             z: int = yield Maybe.Just(3)
@@ -60,7 +60,7 @@ class TestDoWithMaybe:
 
     def test_middle_nothing_short_circuits(self):
         @do(Maybe)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Maybe, int]:
             x: int = yield Maybe.Just(1)
             y: int = yield Maybe.Nothing()
             z: int = yield Maybe.Just(3)
@@ -70,7 +70,7 @@ class TestDoWithMaybe:
 
     def test_intermediate_value_used_in_subsequent_yield(self):
         @do(Maybe)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Maybe, int]:
             x: int = yield Maybe.Just(3)
             y: int = yield Maybe.Just(x + 1)
             return x + y
@@ -79,7 +79,7 @@ class TestDoWithMaybe:
 
     def test_different_inner_types(self):
         @do(Maybe)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Maybe, int]:
             x: int = yield Maybe.Just(3)
             y: str = yield Maybe.Just("hi")
             return x + len(y)
@@ -90,7 +90,7 @@ class TestDoWithMaybe:
 class TestDoWithResult:
     def test_two_successes_are_combined(self):
         @do(Result)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Result, int]:
             x: int = yield Result.Success(10)
             y: int = yield Result.Success(5)
             return x - y
@@ -101,7 +101,7 @@ class TestDoWithResult:
         err = ValueError("bad input")
 
         @do(Result)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Result, int]:
             x: int = yield Result.Failure(err)
             y: int = yield Result.Success(5)
             return x + y
@@ -114,7 +114,7 @@ class TestDoWithResult:
         err = TypeError("wrong type")
 
         @do(Result)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Result, int]:
             x: int = yield Result.Success(10)
             y: int = yield Result.Failure(err)
             return x + y
@@ -125,7 +125,7 @@ class TestDoWithResult:
 
     def test_single_success(self):
         @do(Result)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Result, int]:
             x: int = yield Result.Success(7)
             return x**2
 
@@ -135,7 +135,7 @@ class TestDoWithResult:
         err = RuntimeError("oops")
 
         @do(Result)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Result, int]:
             x: int = yield Result.Failure(err)
             return x + 1
 
@@ -145,7 +145,7 @@ class TestDoWithResult:
 
     def test_three_successes(self):
         @do(Result)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Result, int]:
             x: int = yield Result.Success(2)
             y: int = yield Result.Success(3)
             z: int = yield Result.Success(4)
@@ -155,7 +155,7 @@ class TestDoWithResult:
 
     def test_intermediate_value_used_in_subsequent_yield(self):
         @do(Result)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[Result, int]:
             x: int = yield Result.Success(10)
             y: int = yield Result.Success(x * 2)
             return x + y
@@ -166,7 +166,7 @@ class TestDoWithResult:
 class TestDoWithImmutableList:
     def test_cartesian_product_of_two_lists(self):
         @do(ImmutableList)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[ImmutableList, int]:
             x: int = yield ImmutableList([1, 2])
             y: int = yield ImmutableList([10, 20])
             return x + y
@@ -175,7 +175,7 @@ class TestDoWithImmutableList:
 
     def test_empty_first_list_yields_empty(self):
         @do(ImmutableList)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[ImmutableList, int]:
             x: int = yield ImmutableList([])
             y: int = yield ImmutableList([1, 2, 3])
             return x + y
@@ -184,7 +184,7 @@ class TestDoWithImmutableList:
 
     def test_empty_second_list_yields_empty(self):
         @do(ImmutableList)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[ImmutableList, int]:
             x: int = yield ImmutableList([1, 2, 3])
             y: int = yield ImmutableList([])
             return x + y
@@ -193,7 +193,7 @@ class TestDoWithImmutableList:
 
     def test_single_element_lists(self):
         @do(ImmutableList)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[ImmutableList, int]:
             x: int = yield ImmutableList([5])
             y: int = yield ImmutableList([3])
             return x * y
@@ -202,7 +202,7 @@ class TestDoWithImmutableList:
 
     def test_single_list_flatmap(self):
         @do(ImmutableList)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[ImmutableList, int]:
             x: int = yield ImmutableList([1, 2, 3])
             sign: int = yield ImmutableList([1, -1])
             return x * sign
@@ -211,7 +211,7 @@ class TestDoWithImmutableList:
 
     def test_three_lists_cartesian(self):
         @do(ImmutableList)
-        def computation() -> DoBlock[int]:
+        def computation() -> DoBlock[ImmutableList, int]:
             x: int = yield ImmutableList([0, 1])
             y: int = yield ImmutableList([0, 1])
             z: int = yield ImmutableList([0, 1])
