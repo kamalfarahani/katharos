@@ -355,7 +355,7 @@ All operators and do-notation work without any extra implementation:
 
    # Do-notation
    @do(Validated)
-   def block() -> DoBlock[dict]:
+   def block() -> DoBlock[Validated, dict]:
        name: str = yield validate_name("Alice")
        age:  int = yield validate_age(30)
        return {"name": name, "age": age}
@@ -364,7 +364,7 @@ All operators and do-notation work without any extra implementation:
 
    # Short-circuit on invalid
    @do(Validated)
-   def block_invalid() -> DoBlock[dict]:
+   def block_invalid() -> DoBlock[Validated, dict]:
        name: str = yield validate_name("")   # Invalid — block short-circuits here
        age:  int = yield validate_age(30)
        return {"name": name, "age": age}

@@ -102,7 +102,7 @@ Quick Examples
 
    # Clean, imperative-style monadic code
    @do(Maybe)
-   def do_block() -> DoBlock[int]:
+   def do_block() -> DoBlock[Maybe, int]:
        x: int = yield get_value(5)
        y: int = yield get_value(3)
        return x + y

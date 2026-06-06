@@ -78,7 +78,7 @@ Then replace the entire ``result = ...`` block from Step 2 with:
 .. code-block:: python
 
    @do(Maybe)
-   def block() -> DoBlock[float]:
+   def block() -> DoBlock[Maybe, float]:
        x: float = yield m1
        y: float = yield m2
        z: float = yield m3
@@ -97,7 +97,7 @@ Notice three things:
 
 - The result is identical to Step 2.
 - ``@do(Maybe)`` tells the decorator which monad this block works with. Every ``yield`` must produce a value of that monad type.
-- ``DoBlock[float]`` is the return type annotation for the generator. The type argument — ``float`` here — is the type of the plain value returned by the block. The decorator lifts it into the monad automatically.
+- ``DoBlock[Maybe, float]`` is the return type annotation for the generator. The first argument is the monad type and the second — ``float`` here — is the type of the plain value returned by the block. The decorator lifts it into the monad automatically.
 
 Notice also that each ``yield`` expression evaluates to ``Any`` at runtime from Python's perspective — the language cannot track different inner types across multiple ``yield`` sites in the same generator. Write the type of each bound value inline, as shown with ``x: float = yield m1``, to let your type checker and readers know what to expect.
 
@@ -109,7 +109,7 @@ Unlike the old context-manager API, ``yield`` gives you the real unwrapped value
 .. code-block:: python
 
    @do(Maybe)
-   def block() -> DoBlock[float]:
+   def block() -> DoBlock[Maybe, float]:
        x: float = yield m1
        x_scaled: float = yield Maybe[float].Just(x * 3)  # x is 2.0 here
        y: float = yield m2
@@ -132,7 +132,7 @@ Now restore ``block`` to the simpler version from Step 3 before continuing:
 .. code-block:: python
 
    @do(Maybe)
-   def block() -> DoBlock[float]:
+   def block() -> DoBlock[Maybe, float]:
        x: float = yield m1
        y: float = yield m2
        z: float = yield m3
@@ -176,7 +176,7 @@ Then replace ``block`` with:
 .. code-block:: python
 
    @do(Maybe)
-   def block() -> DoBlock[float]:
+   def block() -> DoBlock[Maybe, float]:
        r: float = yield raw
        x: float = yield safe_sqrt(r)  # safe_sqrt returns Maybe[float] — just yield it
        y: float = yield m2
@@ -200,7 +200,7 @@ What We Built
 We built a script that:
 
 - Uses ``@do(Maybe)`` to declare which monad the block works with.
-- Uses ``DoBlock[float]`` to declare the plain return type of the block.
+- Uses ``DoBlock[Maybe, float]`` to declare the monad type and the plain return type of the block.
 - Binds each monadic input to a real value with ``yield``, annotating the type inline.
 - Uses bound values immediately in subsequent ``yield`` expressions.
 - Returns a plain value that the decorator lifts into the monad automatically.

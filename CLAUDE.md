@@ -66,7 +66,7 @@ Each type implements the appropriate algebra interfaces:
 - **`src/katharos/syntax_sugar/do.py`** — `do` decorator for Haskell-style do-notation:
   ```python
   @do(Maybe)
-  def computation() -> DoBlock[int]:
+  def computation() -> DoBlock[Maybe, int]:
       x: int = yield Maybe.Just(3)   # analogous to x <- Just 3 in Haskell
       y: int = yield Maybe.Just(4)
       return x + y
