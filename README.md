@@ -126,7 +126,7 @@ def parse_positive(x: int) -> Result[ValueError, int]:
 
 # Clean, imperative-style monadic code
 @do(Result)
-def do_block() -> DoBlock[int]:
+def do_block() -> DoBlock[Result, int]:
     x: int = yield parse_positive(5)
     y: int = yield parse_positive(3)
     return x + y

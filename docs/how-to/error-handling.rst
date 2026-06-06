@@ -112,7 +112,7 @@ Rewriting the config pipeline with do-notation:
    from katharos.types import Result
 
    @do(Result)
-   def load_config(path: str) -> DoBlock[dict]:
+   def load_config(path: str) -> DoBlock[Result, dict]:
        text:   str  = yield read_file(path)
        config: dict = yield parse_json(text)
        return config
@@ -138,7 +138,7 @@ steps:
        return Result.Success(config[key])
 
    @do(Result)
-   def load_host_and_port(path: str) -> DoBlock[tuple[str, str]]:
+   def load_host_and_port(path: str) -> DoBlock[Result, tuple[str, str]]:
        text:   str  = yield read_file(path)
        config: dict = yield parse_json(text)
        host:   str  = yield get_setting(config, "host")

@@ -142,7 +142,7 @@ Now we will combine everything into a single registration function using the ``@
 
    def register_user(email: str, password: str) -> Result[Exception, dict]:
        @do(Result)
-       def block() -> DoBlock[dict]:
+       def block() -> DoBlock[Result, dict]:
            validated_email: str = yield check_email_format(email).fmap(lambda e: e.lower())
            validated_password: str = yield check_password_length(password) | check_password_strength
            return {"email": validated_email, "password": validated_password}

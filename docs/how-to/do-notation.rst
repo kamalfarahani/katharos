@@ -20,7 +20,7 @@ A do-block is a generator function decorated with ``@do(M)``. Each ``yield`` ext
    from katharos.types import Maybe
 
    @do(Maybe)
-   def block() -> DoBlock[int]:
+   def block() -> DoBlock[Maybe, int]:
        x: int = yield Maybe[int].Just(10)
        y: int = yield Maybe[int].Just(5)
        return x + y
@@ -28,7 +28,7 @@ A do-block is a generator function decorated with ``@do(M)``. Each ``yield`` ext
    block()  # Just(15)
 
 - ``@do(Maybe)`` — declares which monad the block works with. Every ``yield`` must produce a value of that monad type.
-- ``DoBlock[int]`` — the return type annotation for the generator. The type argument is the plain return type; the decorator lifts it into the monad.
+- ``DoBlock[Maybe, int]`` — the return type annotation for the generator. The first argument is the monad type; the second is the plain return type. The decorator lifts it into the monad.
 - ``x: int = yield Maybe[int].Just(10)`` — extracts the wrapped value and binds it to ``x``. Annotate the type inline because Python's ``Generator`` cannot infer per-yield types automatically.
 
 Short-circuit behaviour
@@ -39,7 +39,7 @@ When any ``yield`` step holds a ``Nothing()`` or ``Failure``, the entire block s
 .. code-block:: python
 
    @do(Maybe)
-   def block() -> DoBlock[int]:
+   def block() -> DoBlock[Maybe, int]:
        x: int = yield Maybe[int].Just(10)
        y: int = yield Maybe[int].Nothing()   # short-circuits here
        return x + y
@@ -63,7 +63,7 @@ Because ``yield`` returns the real unwrapped value — not a placeholder — you
        return Maybe[str].Nothing()
 
    @do(Maybe)
-   def block() -> DoBlock[str]:
+   def block() -> DoBlock[Maybe, str]:
        role:   str = yield lookup("alice")
        result: str = yield greet(role)   # role is "admin" here — greet returns Maybe
        return result
@@ -93,7 +93,7 @@ The same pattern works with ``Result``:
        return Result[Exception, float].Success(a / b)
 
    @do(Result)
-   def block() -> DoBlock[float]:
+   def block() -> DoBlock[Result, float]:
        a:      int   = yield parse_int("20")
        b:      int   = yield parse_int("4")
        result: float = yield safe_divide(a, b)
@@ -112,7 +112,7 @@ Sequencing without capturing a value
        return Maybe[int].Just(n) if n > 0 else Maybe[int].Nothing()
 
    @do(Maybe)
-   def block() -> DoBlock[int]:
+   def block() -> DoBlock[Maybe, int]:
        yield validate_positive(5)       # must succeed; value unused
        x: int = yield Maybe[int].Just(100)
        return x * 2

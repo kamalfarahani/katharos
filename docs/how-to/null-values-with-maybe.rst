@@ -90,7 +90,7 @@ When several steps each return a ``Maybe`` and each depends on the previous resu
        return Maybe[int].Just(b) if b is not None else Maybe[int].Nothing()
 
    @do(Maybe)
-   def user_budget(uid: int) -> DoBlock[int]:
+   def user_budget(uid: int) -> DoBlock[Maybe, int]:
        user:   dict = yield find_user(uid)
        dept:   str  = yield get_department(user)
        budget: int  = yield get_budget(dept)
@@ -109,7 +109,7 @@ checking ``is_just()`` on each result manually:
 .. code-block:: python
 
    @do(Maybe)
-   def greet(uid: int, greeting_id: int) -> DoBlock[str]:
+   def greet(uid: int, greeting_id: int) -> DoBlock[Maybe, str]:
        greetings = {1: "Hello", 2: "Hi"}
 
        def get_greeting(g_id: int) -> Maybe[str]:

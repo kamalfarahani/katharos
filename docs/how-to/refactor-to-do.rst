@@ -63,7 +63,7 @@ Each ``lambda x: ...`` in the bind chain maps directly to a ``yield`` expression
    from katharos.syntax_sugar import do, DoBlock
 
    @do(Maybe)
-   def block() -> DoBlock[str]:
+   def block() -> DoBlock[Maybe, str]:
        user: dict = yield find_user(1)
        team: dict = yield find_team(user["team_id"])  # user is the real dict here
        return budget_report(user, team)
@@ -85,7 +85,7 @@ If a step itself returns a ``Maybe`` (or whichever monad you are working with), 
        return Maybe[str].Just(f"{user['name']} — budget: {team['budget']}")
 
    @do(Maybe)
-   def block() -> DoBlock[str]:
+   def block() -> DoBlock[Maybe, str]:
        user:   dict = yield find_user(1)
        team:   dict = yield find_team(user["team_id"])
        report: str  = yield budget_report_safe(user, team)  # returns Maybe — just yield it
