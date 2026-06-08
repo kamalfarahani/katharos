@@ -50,7 +50,7 @@ from katharos.types import Maybe
 from katharos.syntax_sugar import do, DoBlock
 
 @do(Maybe)
-def lookup_discount(user_id: int) -> DoBlock[float]:
+def lookup_discount(user_id: int) -> DoBlock[Maybe, float]:
     user    = yield find_user(user_id)
     account = yield find_account(user)
     return account.discount   # Just(0.15) or Nothing()
