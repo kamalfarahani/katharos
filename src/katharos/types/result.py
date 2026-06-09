@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable
 from typing import Any, Generic, TypeVar, cast, final
 
@@ -480,3 +481,68 @@ class Result(
             return self.value == value.value
         else:
             return self.error == value.error
+
+    @staticmethod
+    def catch[Err: BaseException](ExceptionType: type[Err]):
+        """Decorator factory that converts a throwing function into one returning a Result.
+
+        Wraps the decorated function so that any exception of type ``ExceptionType``
+        raised during its execution is caught and returned as a ``Failure``, while
+        normal return values are wrapped in a ``Success``. All other exception types
+        propagate unchanged.
+
+        Args:
+            ExceptionType: The exception class to catch. Only instances of this
+                exact type (or its subclasses) are intercepted.
+
+        Returns:
+            A decorator that transforms ``Callable[P, R]`` into
+            ``Callable[P, Result[Err, R]]``.
+
+        Examples:
+            Basic usage — catch a ``ValueError``:
+
+            >>> @Result.catch(ValueError)
+            ... def parse_int(s: str) -> int:
+            ...     return int(s)
+            >>> parse_int("42")
+            Success(42)
+            >>> parse_int("bad")
+            Failure(ValueError("invalid literal for int() with base 10: 'bad'"))
+
+            Only the declared exception type is caught; others propagate:
+
+            >>> @Result.catch(ValueError)
+            ... def risky(x: int) -> int:
+            ...     if x < 0:
+            ...         raise TypeError("negative")
+            ...     return x
+            >>> risky(1)
+            Success(1)
+            >>> risky(-1)
+            Traceback (most recent call last):
+                ...
+            TypeError: negative
+
+            Can be used with functions that take multiple arguments:
+
+            >>> @Result.catch(ZeroDivisionError)
+            ... def divide(a: float, b: float) -> float:
+            ...     return a / b
+            >>> divide(10.0, 2.0)
+            Success(5.0)
+            >>> divide(10.0, 0.0)
+            Failure(ZeroDivisionError('division by zero'))
+        """
+
+        def decorator[**P, R](func: Callable[P, R]) -> Callable[P, Result[Err, R]]:
+            @functools.wraps(func)
+            def safe_func(*args: P.args, **kwargs: P.kwargs) -> Result[Err, R]:
+                try:
+                    return Result[Err, R].Success(func(*args, **kwargs))
+                except ExceptionType as e:
+                    return Result[Err, R].Failure(e)
+
+            return safe_func
+
+        return decorator
