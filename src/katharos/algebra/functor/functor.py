@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from typing import Any, Generic, TypeVar
+
+F = TypeVar("F", bound="Functor[Any, Any]", covariant=True)
+A = TypeVar("A", covariant=True)
 
 
-class Functor[F, A](ABC):
+class Functor(ABC, Generic[F, A]):
     """Abstract base class for functors.
 
     A functor is a type that implements :meth:`fmap`, allowing functions to be

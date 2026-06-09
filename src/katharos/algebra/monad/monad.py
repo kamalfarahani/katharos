@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from typing import Any, TypeVar
 
 from katharos.algebra.applicative.applicative import Applicative
 
+Mon = TypeVar("Mon", bound="Monad[Any, Any]", covariant=True)
+A = TypeVar("A", covariant=True)
 
-class Monad[Mon, A](Applicative[Mon, A], ABC):
+
+class Monad(Applicative[Mon, A], ABC):
     """Abstract base class for monads.
 
     A monad extends :class:`~katharos.algebra.Applicative` with the ``bind``
