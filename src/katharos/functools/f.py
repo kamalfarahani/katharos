@@ -191,7 +191,7 @@ class F:
         return curried
 
     @staticmethod
-    def lift_a2[A, B, C, App](
+    def lift_a2[A, B, C, App: Applicative](
         f: Callable[[A, B], C],
         fa: Applicative[App, A],
         fb: Applicative[App, B],
@@ -221,7 +221,7 @@ class F:
         return fb.ap(fa.ap(fa.pure(curried)))
 
     @staticmethod
-    def lift_a3[A, B, C, D, App](
+    def lift_a3[A, B, C, D, App: Applicative](
         f: Callable[[A, B, C], D],
         fa: Applicative[App, A],
         fb: Applicative[App, B],

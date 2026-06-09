@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from typing import Any, TypeVar
 
 from katharos.algebra.semigroup.semigroup import Semigroup
 
+M = TypeVar("M", bound="Monoid[Any]", covariant=True)
 
-class Monoid[M](Semigroup[M]):
+
+class Monoid(Semigroup[M]):
     """Abstract base class for monoids.
 
     A monoid is a semigroup with an identity element.

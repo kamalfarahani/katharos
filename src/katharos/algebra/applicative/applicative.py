@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Self
+from typing import Any, Self, TypeVar
 
 from katharos.algebra.functor.functor import Functor
 
+App = TypeVar("App", bound="Applicative[Any, Any]", covariant=True)
+A = TypeVar("A", covariant=True)
 
-class Applicative[App, A](Functor[App, A], ABC):
+
+class Applicative(Functor[App, A], ABC):
     """Abstract base class for applicative functors.
 
     An applicative functor extends :class:`~katharos.algebra.Functor` with the

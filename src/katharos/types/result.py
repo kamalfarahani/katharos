@@ -278,18 +278,20 @@ class Result(
 
         return Result(f(self._value))
 
-    def ap[B](
+    def ap[BE: BaseException, B](
         self,
-        wrapped_funcs: Applicative[Result[E, Any], Callable[[A], B]],
-    ) -> Result[E, B]:
+        wrapped_funcs: Applicative[Result[BE, Any], Callable[[A], B]],
+    ) -> Result[BE, B]:
         """Apply a function wrapped in a Result to this Result.
 
         Args:
             wrapped_funcs: A Result containing the function to apply.
 
         Returns:
-            Result[E, B]: The result of applying the wrapped function to this
-                value, or the first encountered Failure.
+            Result[BE, B]: The result of applying the wrapped function to this
+                value. The error type ``BE`` comes from ``wrapped_funcs``, not
+                from ``self``. Returns the first encountered Failure if either
+                operand is a Failure.
 
         Examples:
             >>> wrapped_fn = Result.Success(lambda x: x + 1)
@@ -303,13 +305,13 @@ class Result(
             >>> Result.Success(5).ap(failure_fn)
             Failure(TypeError('bad fn'))
         """
-        wrapped_funcs = cast(Result[E, Callable[[A], B]], wrapped_funcs)
+        wrapped_funcs = cast(Result[BE, Callable[[A], B]], wrapped_funcs)
         if isinstance(self._value, BaseException):
-            result_err = cast(Result[E, B], self)
+            result_err = cast(Result[BE, B], self)
             return result_err
 
         if isinstance(wrapped_funcs._value, BaseException):
-            result_err = cast(Result[E, B], wrapped_funcs)
+            result_err = cast(Result[BE, B], wrapped_funcs)
             return result_err
 
         casted_self = cast(A, self._value)
@@ -317,19 +319,21 @@ class Result(
 
         return Result(inner_func(casted_self))
 
-    def bind[B](
+    def bind[BE: BaseException, B](
         self,
-        f: Callable[[A], Monad[Result[E, Any], B]],
-    ) -> Result[E, B]:
+        f: Callable[[A], Monad[Result[BE, Any], B]],
+    ) -> Result[BE, B]:
         """Bind a function that returns a Result to this Result.
 
         Args:
-            f: A function that takes a value of type A and returns a Result of
-                type B.
+            f: A function that takes a value of type A and returns a
+                ``Result[BE, B]``.
 
         Returns:
-            Result[E, B]: The result of applying the function to the success
-                value, or the original Failure unchanged.
+            Result[BE, B]: The result of applying ``f`` to the success value.
+                The error type ``BE`` comes from ``f``'s return type, not from
+                ``self``. If ``self`` is a Failure, it is returned unchanged
+                (re-typed as ``Result[BE, B]``).
 
         Examples:
             >>> Result.Success(5).bind(lambda x: Result.Success(x + 1))
@@ -341,9 +345,9 @@ class Result(
             >>> Result.Failure(ValueError("err")).bind(lambda x: Result.Success(x + 1))
             Failure(ValueError('err'))
         """
-        f = cast(Callable[[A], Result[E, B]], f)
+        f = cast(Callable[[A], Result[BE, B]], f)
         if isinstance(self._value, BaseException):
-            return Result[E, B](self._value)  # type: ignore
+            return Result[BE, B](self._value)  # type: ignore
 
         return f(self._value)
 
@@ -380,18 +384,20 @@ class Result(
         """
         return not self.is_success()
 
-    def __pow__[B](
+    def __pow__[BE: BaseException, B](
         self,
-        wrapped_funcs: Applicative[Result[E, Any], Callable[[A], B]],
-    ) -> Result[E, B]:
+        wrapped_funcs: Applicative[Result[BE, Any], Callable[[A], B]],
+    ) -> Result[BE, B]:
         """Infix operator for applicative application (``**``).
 
         Args:
             wrapped_funcs: A Result containing the function to apply.
 
         Returns:
-            Result[E, B]: The result of applying the wrapped function to this
-                value, or the first encountered Failure.
+            Result[BE, B]: The result of applying the wrapped function to this
+                value. The error type ``BE`` comes from ``wrapped_funcs``, not
+                from ``self``. Returns the first encountered Failure if either
+                operand is a Failure.
 
         Examples:
             >>> Result.Success(5) ** Result.Success(lambda x: x + 1)
@@ -402,19 +408,21 @@ class Result(
         """
         return self.ap(wrapped_funcs)
 
-    def __or__[B](
+    def __or__[BE: BaseException, B](
         self,
-        f: Callable[[A], Monad[Result[E, Any], B]],
-    ) -> Result[E, B]:
+        f: Callable[[A], Monad[Result[BE, Any], B]],
+    ) -> Result[BE, B]:
         """Infix operator for monadic bind (``|``).
 
         Args:
-            f: A function that takes a value of type A and returns a Result of
-                type B.
+            f: A function that takes a value of type A and returns a
+                ``Result[BE, B]``.
 
         Returns:
-            Result[E, B]: The result of applying the function to the success
-                value, or the original Failure unchanged.
+            Result[BE, B]: The result of applying ``f`` to the success value.
+                The error type ``BE`` comes from ``f``'s return type, not from
+                ``self``. If ``self`` is a Failure, it is returned unchanged
+                (re-typed as ``Result[BE, B]``).
 
         Examples:
             >>> Result.Success(5) | (lambda x: Result.Success(x + 1))
