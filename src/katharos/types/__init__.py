@@ -11,6 +11,7 @@ Available types:
     - :class:`NonEmptyList`: List guaranteed to have at least one element
     - :class:`IO`: Lazy computation with side effects
     - :class:`MonoidMaybe`: Maybe with monoid instance
+    - :class:`Promise`: Lazy synchronous computation monad
 
 Each type implements appropriate algebraic abstractions (Functor, Applicative,
 Monad, etc.) and provides operators for convenient composition.
@@ -18,6 +19,7 @@ Monad, etc.) and provides operators for convenient composition.
 
 from .list import ImmutableList, NonEmptyList
 from .maybe import Maybe, MonoidMaybe
+from .promise import Promise
 from .result import Result
 from .side_effect import IO
 
@@ -26,6 +28,7 @@ __all__ = [
     "NonEmptyList",
     "Maybe",
     "MonoidMaybe",
+    "Promise",
     "Result",
     "IO",
 ]
