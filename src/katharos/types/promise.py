@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import threading
 from typing import Any, Callable, cast
 
 from katharos.algebra import Applicative, Monad
+from katharos.types.maybe import Maybe
 
 
 class Promise[A](Monad["Promise[Any]", A]):
     """A lazy, synchronous computation monad.
 
     ``Promise`` wraps a zero-argument callable (the *fetch* function) whose
-    return value is produced on demand.  The computation is not executed until
-    :meth:`execute` is called, and each call to :meth:`execute` re-runs the
-    fetch function.
+    return value is produced on demand.  The computation is not run until
+    :meth:`resolve` is called, which caches the result so the fetch function
+    runs at most once.
 
     It implements the :class:`~katharos.algebra.Monad`,
     :class:`~katharos.algebra.Applicative`, and
@@ -20,23 +22,24 @@ class Promise[A](Monad["Promise[Any]", A]):
 
     Examples:
         >>> p = Promise(fetcher=lambda: 21)
-        >>> p.fmap(lambda x: x * 2).execute()
+        >>> p.fmap(lambda x: x * 2).resolve()
         42
 
         >>> add_one = Promise(fetcher=lambda: lambda x: x + 1)
         >>> Promise(fetcher=lambda: 10) ** add_one
         Promise(...)
-        >>> (Promise(fetcher=lambda: 10) ** add_one).execute()
+        >>> (Promise(fetcher=lambda: 10) ** add_one).resolve()
         11
 
         >>> Promise(fetcher=lambda: 3) | (lambda x: Promise(fetcher=lambda: x * 10))
         Promise(...)
-        >>> (Promise(fetcher=lambda: 3) | (lambda x: Promise(fetcher=lambda: x * 10))).execute()
+        >>> (Promise(fetcher=lambda: 3) | (lambda x: Promise(fetcher=lambda: x * 10))).resolve()
         30
 
     Note:
         Supports the ``|`` (bind) and ``**`` (applicative apply) operators.
-        Every call to :meth:`execute` re-evaluates the full computation chain.
+        The first call to :meth:`resolve` evaluates the full computation chain
+        and memoizes the result.
     """
 
     @classmethod
@@ -47,10 +50,10 @@ class Promise[A](Monad["Promise[Any]", A]):
             x: The value to wrap.
 
         Returns:
-            A Promise that immediately yields ``x`` when executed.
+            A Promise that immediately yields ``x`` when resolved.
 
         Examples:
-            >>> Promise.pure(42).execute()
+            >>> Promise.pure(42).resolve()
             42
         """
         return Promise[T](fetcher=lambda: x)
@@ -65,10 +68,10 @@ class Promise[A](Monad["Promise[Any]", A]):
             x: The value to wrap.
 
         Returns:
-            A Promise that immediately yields ``x`` when executed.
+            A Promise that immediately yields ``x`` when resolved.
 
         Examples:
-            >>> Promise.ret("hello").execute()
+            >>> Promise.ret("hello").resolve()
             'hello'
         """
         return cls.pure(x)
@@ -81,10 +84,13 @@ class Promise[A](Monad["Promise[Any]", A]):
 
         Args:
             fetcher: A zero-argument callable whose return value is the
-                result of this Promise.  It is called lazily each time
-                :meth:`execute` is invoked.
+                result of this Promise.  It is called lazily the first
+                time :meth:`resolve` is invoked.
         """
+        self._value = Maybe[A].Nothing()
+        self._error = Maybe[BaseException].Nothing()
         self._fetcher = fetcher
+        self._lock = threading.Lock()
 
     def ap[B](
         self,
@@ -93,23 +99,23 @@ class Promise[A](Monad["Promise[Any]", A]):
         """Apply a function wrapped in a Promise to this Promise's value.
 
         Both this Promise and ``wrapped_funcs`` are evaluated lazily; neither
-        is executed until the returned Promise is executed.
+        is run until the returned Promise is resolved.
 
         Args:
             wrapped_funcs: A Promise containing a function ``A -> B`` to apply.
 
         Returns:
-            A new Promise that, when executed, applies the fetched function
+            A new Promise that, when resolved, applies the fetched function
             to the fetched value.
 
         Examples:
             >>> double = Promise(fetcher=lambda: lambda x: x * 2)
-            >>> (Promise(fetcher=lambda: 5) ** double).execute()
+            >>> (Promise(fetcher=lambda: 5) ** double).resolve()
             10
         """
         wrapped_funcs = cast(Promise[Callable[[A], B]], wrapped_funcs)
 
-        return Promise(lambda: wrapped_funcs._fetcher()(self._fetcher()))
+        return Promise(lambda: wrapped_funcs.resolve()(self.resolve()))
 
     def bind[B](self, f: Callable[[A], Monad[Promise, B]]) -> Promise[B]:
         """Chain a function that returns a Promise.
@@ -119,15 +125,15 @@ class Promise[A](Monad["Promise[Any]", A]):
                 ``Promise[B]``.
 
         Returns:
-            A new Promise that, when executed, resolves this Promise and then
+            A new Promise that, when resolved, resolves this Promise and then
             resolves the Promise returned by ``f``.
 
         Examples:
-            >>> (Promise(fetcher=lambda: 3) | (lambda x: Promise.pure(x + 7))).execute()
+            >>> (Promise(fetcher=lambda: 3) | (lambda x: Promise.pure(x + 7))).resolve()
             10
         """
         f = cast(Callable[[A], Promise[B]], f)
-        promise_b = Promise(lambda: f(self._fetcher())._fetcher())
+        promise_b = Promise(lambda: f(self.resolve()).resolve())
 
         return promise_b
 
@@ -139,27 +145,52 @@ class Promise[A](Monad["Promise[Any]", A]):
 
         Returns:
             A new Promise that applies ``f`` to the result of this Promise
-            when executed.
+            when resolved.
 
         Examples:
-            >>> Promise(fetcher=lambda: 4).fmap(lambda x: x ** 2).execute()
+            >>> Promise(fetcher=lambda: 4).fmap(lambda x: x ** 2).resolve()
             16
         """
-        return Promise(lambda: f(self._fetcher()))
+        return Promise(lambda: f(self.resolve()))
 
-    def execute(self) -> A:
-        """Run the computation and return its result.
+    def resolve(self) -> A:
+        """Execute the fetcher and memoize its result.
 
-        Each call re-evaluates the full fetch chain.
+        The fetcher is run at most once: the resolved value is cached so
+        subsequent calls return it without re-executing. If the fetcher
+        raises, the exception is cached too and re-raised on every
+        subsequent call, so failure is also evaluated at most once.
+
+        Evaluation is guarded by a per-Promise lock, so concurrent calls
+        from multiple threads still run the fetcher exactly once; the
+        losing threads block until the result (or error) is cached.
 
         Returns:
-            The value produced by the underlying fetch callable.
+            The resolved value.
+
+        Raises:
+            BaseException: Whatever the fetcher raised. Cached on the first
+                failure and re-raised on each subsequent call.
 
         Examples:
-            >>> Promise(fetcher=lambda: "done").execute()
-            'done'
+            >>> Promise(fetcher=lambda: 6).resolve()
+            6
         """
-        return self._fetcher()
+        with self._lock:
+            if self._value.is_just():
+                return self._value.unwrap()
+
+            if self._error.is_just():
+                raise self._error.unwrap()
+
+            try:
+                value = self._fetcher()
+            except BaseException as e:
+                self._error = Maybe[BaseException].Just(e)
+                raise
+            else:
+                self._value = Maybe[A].Just(value)
+                return value
 
     def __pow__[B](
         self,
