@@ -192,6 +192,33 @@ class Promise[A](Monad["Promise[Any]", A]):
                 self._value = Maybe[A].Just(value)
                 return value
 
+    def go(self) -> threading.Thread:
+        """Start resolving this Promise in a new background thread.
+
+        Spawns a daemon thread that calls :meth:`resolve`, eagerly forcing
+        evaluation without blocking the caller. Because resolution is guarded
+        by a per-Promise lock and memoized, a later :meth:`resolve` call (or a
+        second ``go``) will reuse the cached result rather than re-running the
+        fetcher.
+
+        Returns:
+            The started :class:`threading.Thread`, so callers can ``join`` it
+            if they want to wait for resolution to finish.
+
+        Examples:
+            >>> p = Promise(fetcher=lambda: 6)
+            >>> t = p.go()
+            >>> t.join()
+            >>> p.resolve()
+            6
+        """
+        thread = threading.Thread(
+            target=self.resolve,
+            daemon=True,
+        )
+        thread.start()
+        return thread
+
     def __pow__[B](
         self,
         wrapped_funcs: Applicative[Promise, Callable[[A], B]],
