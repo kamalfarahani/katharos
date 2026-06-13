@@ -133,6 +133,137 @@ class TestPromiseResolution:
         assert results == [1] * 8
 
 
+class TestPromiseGo:
+    def test_go_returns_thread(self):
+        p = Promise(fetcher=lambda: 42)
+
+        t = p.go()
+        t.join()
+
+        assert isinstance(t, threading.Thread)
+
+    def test_go_returns_alive_daemon_thread(self):
+        started = threading.Event()
+        release = threading.Event()
+
+        def slow():
+            started.set()
+            release.wait()
+            return 42
+
+        p = Promise(fetcher=slow)
+        t = p.go()
+
+        started.wait()
+        assert t.is_alive()
+        assert t.daemon is True
+
+        release.set()
+        t.join()
+
+    def test_go_resolves_in_background(self):
+        p = Promise(fetcher=lambda: 42)
+
+        t = p.go()
+        t.join()
+
+        assert p.resolve() == 42
+
+    def test_go_runs_fetcher(self):
+        called = threading.Event()
+
+        def fetcher():
+            called.set()
+            return 42
+
+        p = Promise(fetcher=fetcher)
+        t = p.go()
+        t.join()
+
+        assert called.is_set()
+
+    def test_go_does_not_block_caller(self):
+        release = threading.Event()
+
+        def slow():
+            release.wait()
+            return 42
+
+        p = Promise(fetcher=slow)
+        t = p.go()
+
+        # Caller proceeds while the fetcher is still blocked.
+        assert t.is_alive()
+
+        release.set()
+        t.join()
+        assert p.resolve() == 42
+
+    def test_resolve_after_go_reuses_cached_result(self):
+        counter = [0]
+
+        def increment():
+            counter[0] += 1
+            return counter[0]
+
+        p = Promise(fetcher=increment)
+        t = p.go()
+        t.join()
+
+        assert p.resolve() == 1
+        assert p.resolve() == 1
+        assert counter[0] == 1
+
+    def test_go_runs_fetcher_once_across_resolve(self):
+        counter = [0]
+
+        def slow():
+            counter[0] += 1
+            time.sleep(0.01)
+            return counter[0]
+
+        p = Promise(fetcher=slow)
+        t = p.go()
+        # Race the main thread's resolve() against the background thread.
+        result = p.resolve()
+        t.join()
+
+        assert result == 1
+        assert counter[0] == 1
+
+    def test_second_go_reuses_cached_result(self):
+        counter = [0]
+
+        def increment():
+            counter[0] += 1
+            return counter[0]
+
+        p = Promise(fetcher=increment)
+        first = p.go()
+        first.join()
+        second = p.go()
+        second.join()
+
+        assert p.resolve() == 1
+        assert counter[0] == 1
+
+    @pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+    def test_go_caches_fetcher_exception(self):
+        counter = [0]
+
+        def boom():
+            counter[0] += 1
+            raise ValueError("nope")
+
+        p = Promise(fetcher=boom)
+        t = p.go()
+        t.join()
+
+        with pytest.raises(ValueError, match="nope"):
+            p.resolve()
+        assert counter[0] == 1
+
+
 class TestFunctorLaws:
     """
     Functor laws:
