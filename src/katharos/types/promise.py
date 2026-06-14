@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import threading
 from typing import Any, Callable, cast
 
 from katharos.algebra import Applicative, Monad
+from katharos.concurrency import BaseThreadingBackend, default_backend
 from katharos.types.maybe import Maybe
 
 
@@ -79,6 +79,7 @@ class Promise[A](Monad["Promise[Any]", A]):
     def __init__(
         self,
         fetcher: Callable[[], A],
+        backend: BaseThreadingBackend | None = None,
     ) -> None:
         """Initialize a Promise with a fetcher callable.
 
@@ -90,7 +91,8 @@ class Promise[A](Monad["Promise[Any]", A]):
         self._value = Maybe[A].Nothing()
         self._error = Maybe[BaseException].Nothing()
         self._fetcher = fetcher
-        self._lock = threading.Lock()
+        self._backend = backend or default_backend()
+        self._lock = self._backend.create_lock()
 
     def ap[B](
         self,
