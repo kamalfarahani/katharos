@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any, Callable, cast
 
 from katharos.algebra import Applicative, Monad
-from katharos.concurrency import BaseThreadingBackend, default_backend
+from katharos.concurrency.base_threading_backend import BaseThreadingBackend
+from katharos.concurrency.threading_backend import default_backend
 from katharos.types.maybe import Maybe
 
 
