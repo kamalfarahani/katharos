@@ -76,6 +76,31 @@ class TestThreadingBackend:
         with cond:
             cond.notify_all()
 
+    def test_create_local_stores_attributes(self):
+        backend = ThreadingBackend()
+
+        local = backend.create_local()
+        local.value = 42
+
+        assert local.value == 42
+
+    def test_create_local_is_isolated_per_thread(self):
+        backend = ThreadingBackend()
+        local = backend.create_local()
+        local.value = "main"
+        seen: list[bool] = []
+
+        def worker():
+            # The attribute set on the main thread is not visible here.
+            seen.append(hasattr(local, "value"))
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+
+        assert seen == [False]
+        assert local.value == "main"
+
 
 class TestDefaultBackend:
     def test_default_backend_is_threading_backend(self):
@@ -105,6 +130,9 @@ class RecordingBackend(BaseThreadingBackend):
     def create_condition(self) -> AbstractCondition:
         self.conditions_created += 1
         return self._delegate.create_condition()
+
+    def create_local(self) -> Any:
+        return self._delegate.create_local()
 
 
 class TestBackendInjection:
