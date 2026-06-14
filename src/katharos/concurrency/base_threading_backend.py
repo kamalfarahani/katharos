@@ -117,12 +117,14 @@ class BaseThreadingBackend(ABC):
     ``greenlet`` or ``gevent``) can be supplied instead, as long as it
     provides compatible thread spawning and synchronization primitives.
 
-    A backend exposes two capabilities:
+    A backend exposes three capabilities:
 
     - **Spawning** lightweight units of work via :meth:`spawn`.
     - **Synchronization primitives** via :meth:`create_lock` and
       :meth:`create_condition`, so consumers coordinate using primitives that
       cooperate with the backend's scheduler.
+    - **Context-local storage** via :meth:`create_local`, isolated per unit of
+      concurrency the backend schedules.
     """
 
     @abstractmethod
@@ -154,5 +156,26 @@ class BaseThreadingBackend(ABC):
         Returns:
             A condition variable that cooperates with this backend's
             scheduler.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def create_local(self) -> Any:
+        """Create a context-local storage object.
+
+        The returned object stores attributes independently for each unit of
+        concurrency the backend schedules: per OS thread for a thread-based
+        backend, per green thread for a green-thread backend. It is used to
+        hold execution-context-specific state, such as the active scopes of a
+        :class:`~katharos.concurrency.csp.Go` launcher.
+
+        Using the backend's own context-local (rather than hardcoding
+        :class:`threading.local`) is what keeps that per-context state correct
+        when the backend multiplexes many tasks onto a single OS thread.
+
+        Returns:
+            An object supporting arbitrary attribute get/set/delete that is
+            isolated per scheduled context (for example
+            :class:`threading.local`).
         """
         raise NotImplementedError()

@@ -78,6 +78,14 @@ class ThreadingBackend(BaseThreadingBackend):
         """
         return threading.Condition()
 
+    def create_local(self) -> threading.local:
+        """Create a new :class:`threading.local`.
+
+        Returns:
+            Standard-library thread-local storage, isolated per OS thread.
+        """
+        return threading.local()
+
 
 _default_backend = ThreadingBackend()
 
