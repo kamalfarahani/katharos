@@ -1,16 +1,30 @@
-"""Concurrency primitives for Katharos.
+"""Concurrency backends and primitives for Katharos.
 
-This module provides tools for coordinating concurrent computations:
-
-    - :class:`Channel`: a Go-style, thread-safe channel for communicating
-      values between threads (paired with :meth:`katharos.types.Promise.go`).
-    - :class:`ChannelClosedError`: raised on sending to or closing a closed
-      channel.
+A :class:`BaseThreadingBackend` abstracts thread spawning and synchronization
+primitives so concurrency types (such as :class:`~katharos.types.Promise` and
+:class:`~katharos.concurrency.csp.Channel`) are not tied to a specific
+threading library. :class:`ThreadingBackend` is the standard-library default.
 """
 
-from .channel import Channel, ChannelClosedError
+from .base_threading_backend import (
+    AbstractCondition,
+    AbstractLock,
+    BaseThreadHandle,
+    BaseThreadingBackend,
+)
+from .csp import Channel, ChannelClosedError, Go, go
+from .threading_backend import ThreadingBackend, ThreadingHandle, default_backend
 
 __all__ = [
+    "AbstractCondition",
+    "AbstractLock",
+    "BaseThreadHandle",
+    "BaseThreadingBackend",
     "Channel",
     "ChannelClosedError",
+    "Go",
+    "ThreadingBackend",
+    "ThreadingHandle",
+    "default_backend",
+    "go",
 ]
