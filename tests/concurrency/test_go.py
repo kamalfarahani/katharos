@@ -32,6 +32,9 @@ class RecordingBackend(BaseThreadingBackend):
     def create_condition(self) -> AbstractCondition:
         return self._delegate.create_condition()
 
+    def create_local(self) -> Any:
+        return self._delegate.create_local()
+
 
 class TestGo:
     def test_runs_callable_concurrently(self):
