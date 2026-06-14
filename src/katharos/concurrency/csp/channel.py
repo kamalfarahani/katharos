@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import threading
 from collections import deque
 from collections.abc import Iterator
 
+from katharos.concurrency.base_threading_backend import BaseThreadingBackend
+from katharos.concurrency.threading_backend import default_backend
 from katharos.types.maybe import Maybe
 
 
@@ -42,13 +43,21 @@ class Channel[A]:
         Nothing()
     """
 
-    def __init__(self, capacity: int = 0) -> None:
+    def __init__(
+        self,
+        capacity: int = 0,
+        *,
+        backend: BaseThreadingBackend | None = None,
+    ) -> None:
         """Initialize a channel.
 
         Args:
             capacity: Buffer size. ``0`` (the default) makes the channel
                 unbuffered, so each send blocks for a matching receive.
                 A positive value buffers that many pending values.
+            backend: The threading backend whose condition variable
+                coordinates senders and receivers. Defaults to the shared
+                :func:`~katharos.concurrency.threading_backend.default_backend`.
 
         Raises:
             ValueError: If ``capacity`` is negative.
@@ -56,10 +65,11 @@ class Channel[A]:
         if capacity < 0:
             raise ValueError("capacity must be non-negative")
 
+        self._backend = backend or default_backend()
         self._capacity = capacity
         self._buffer: deque[A] = deque()
         self._closed = False
-        self._cond = threading.Condition()
+        self._cond = self._backend.create_condition()
 
     @property
     def capacity(self) -> int:
