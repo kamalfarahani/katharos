@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import threading
 from types import TracebackType
 from typing import Any, Callable
 
@@ -24,9 +23,10 @@ class Go:
     Used as a context manager, ``Go`` becomes a *structured-concurrency
     scope*: every call made inside the ``with`` block is tracked, and leaving
     the block blocks until all of that work has finished (similar to a
-    ``sync.WaitGroup``). Scopes are tracked per thread and nest correctly, so
-    the module-level :data:`go` instance is safe to share. Calls made outside
-    any ``with`` block are pure fire-and-forget and are not tracked.
+    ``sync.WaitGroup``). Scopes are tracked per execution context (via the
+    backend's context-local storage) and nest correctly, so the module-level
+    :data:`go` instance is safe to share. Calls made outside any ``with``
+    block are pure fire-and-forget and are not tracked.
 
     The module-level :data:`go` instance is bound to the default backend and
     is the one you normally use; construct your own ``Go`` only to pin a
@@ -76,17 +76,18 @@ class Go:
                 :func:`~katharos.concurrency.threading_backend.default_backend`.
         """
         self._backend = backend or default_backend()
-        self._local = threading.local()
+        self._local = self._backend.create_local()
 
     def _scope_stack(self) -> list[list[BaseThreadHandle]]:
-        """Return the calling thread's stack of active scopes.
+        """Return the calling context's stack of active scopes.
 
         Each entry is the list of handles tracked by one active ``with``
-        block. The stack is thread-local, so concurrent callers never share
-        scope state.
+        block. The stack lives in the backend's context-local storage (per OS
+        thread for the threading backend, per green thread for a green-thread
+        backend), so concurrent callers never share scope state.
 
         Returns:
-            The current thread's scope stack, created empty on first access.
+            The current context's scope stack, created empty on first access.
         """
         if not hasattr(self._local, "stack"):
             self._local.stack = []
@@ -125,7 +126,7 @@ class Go:
         return handle
 
     def __enter__(self) -> Go:
-        """Open a structured-concurrency scope on the calling thread.
+        """Open a structured-concurrency scope on the calling context.
 
         Returns:
             This launcher, so calls made on it inside the block are tracked.
