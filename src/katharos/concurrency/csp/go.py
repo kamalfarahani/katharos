@@ -35,7 +35,7 @@ class Go:
     Note:
         Like a goroutine, a callable launched here is fire-and-forget: its
         return value is discarded and an exception it raises does not
-        propagate out of the scope. Use a :class:`~katharos.types.Promise` or
+        propagate out of the scope. Use a :class:`~katharos.types.Lazy` or
         a :class:`~katharos.concurrency.csp.Channel` to communicate results or
         failures back to the caller.
 
@@ -106,7 +106,7 @@ class Go:
 
         Args:
             fn: The callable to run concurrently. Its return value is
-                discarded; use a :class:`~katharos.types.Promise` or a
+                discarded; use a :class:`~katharos.types.Lazy` or a
                 :class:`~katharos.concurrency.csp.Channel` to communicate
                 results back.
             *args: Positional arguments forwarded to ``fn``.

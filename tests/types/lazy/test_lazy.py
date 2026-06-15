@@ -5,46 +5,46 @@ from collections.abc import Callable
 import pytest
 
 from katharos.functools import F
-from katharos.types.promise import Promise
+from katharos.types.lazy import Lazy
 
 
-class TestPromiseConstruction:
+class TestLazyConstruction:
     def test_construction_with_fetcher(self):
-        p = Promise(fetcher=lambda: 42)
+        p = Lazy(fetcher=lambda: 42)
 
-        assert isinstance(p, Promise)
+        assert isinstance(p, Lazy)
 
     def test_fetcher_not_called_on_construction(self):
         called = []
-        Promise(fetcher=lambda: called.append(1) or 42)
+        Lazy(fetcher=lambda: called.append(1) or 42)
 
         assert called == []
 
-    def test_pure_returns_promise(self):
-        p = Promise.pure(42)
+    def test_pure_returns_lazy(self):
+        p = Lazy.pure(42)
 
-        assert isinstance(p, Promise)
+        assert isinstance(p, Lazy)
 
-    def test_ret_returns_promise(self):
-        p = Promise.ret(42)
+    def test_ret_returns_lazy(self):
+        p = Lazy.ret(42)
 
-        assert isinstance(p, Promise)
+        assert isinstance(p, Lazy)
 
     def test_pure_and_ret_are_equivalent(self):
-        assert Promise.pure(42).resolve() == Promise.ret(42).resolve()
+        assert Lazy.pure(42).resolve() == Lazy.ret(42).resolve()
 
 
-class TestPromiseResolution:
+class TestLazyResolution:
     def test_resolve_returns_fetcher_value(self):
-        p = Promise(fetcher=lambda: 42)
+        p = Lazy(fetcher=lambda: 42)
 
         assert p.resolve() == 42
 
     def test_resolve_pure(self):
-        assert Promise.pure(99).resolve() == 99
+        assert Lazy.pure(99).resolve() == 99
 
     def test_resolve_ret(self):
-        assert Promise.ret("hello").resolve() == "hello"
+        assert Lazy.ret("hello").resolve() == "hello"
 
     def test_resolve_memoizes_fetcher_result(self):
         counter = [0]
@@ -53,7 +53,7 @@ class TestPromiseResolution:
             counter[0] += 1
             return counter[0]
 
-        p = Promise(fetcher=increment)
+        p = Lazy(fetcher=increment)
 
         assert p.resolve() == 1
         assert p.resolve() == 1
@@ -61,10 +61,10 @@ class TestPromiseResolution:
         assert counter[0] == 1
 
     def test_resolve_with_various_types(self):
-        assert Promise.pure([1, 2, 3]).resolve() == [1, 2, 3]
-        assert Promise.pure({"a": 1}).resolve() == {"a": 1}
-        assert Promise.pure(None).resolve() is None
-        assert Promise.pure(True).resolve() is True
+        assert Lazy.pure([1, 2, 3]).resolve() == [1, 2, 3]
+        assert Lazy.pure({"a": 1}).resolve() == {"a": 1}
+        assert Lazy.pure(None).resolve() is None
+        assert Lazy.pure(True).resolve() is True
 
     def test_resolve_memoizes_across_shared_upstream(self):
         counter = [0]
@@ -73,7 +73,7 @@ class TestPromiseResolution:
             counter[0] += 1
             return counter[0]
 
-        upstream = Promise(fetcher=expensive)
+        upstream = Lazy(fetcher=expensive)
         a = upstream.fmap(lambda x: x + 1)
         b = upstream.fmap(lambda x: x * 10)
 
@@ -85,7 +85,7 @@ class TestPromiseResolution:
         def boom():
             raise ValueError("nope")
 
-        p = Promise(fetcher=boom)
+        p = Lazy(fetcher=boom)
 
         with pytest.raises(ValueError, match="nope"):
             p.resolve()
@@ -97,7 +97,7 @@ class TestPromiseResolution:
             counter[0] += 1
             raise ValueError("nope")
 
-        p = Promise(fetcher=boom)
+        p = Lazy(fetcher=boom)
 
         with pytest.raises(ValueError):
             p.resolve()
@@ -115,7 +115,7 @@ class TestPromiseResolution:
             time.sleep(0.01)
             return counter[0]
 
-        p = Promise(fetcher=slow)
+        p = Lazy(fetcher=slow)
         results: list[int] = []
 
         def worker():
@@ -141,11 +141,11 @@ class TestFunctorLaws:
     """
 
     def test_functor_identity(self):
-        p = Promise.pure(42)
+        p = Lazy.pure(42)
 
         result = p.fmap(F.id)
 
-        assert isinstance(result, Promise)
+        assert isinstance(result, Lazy)
         assert result.resolve() == p.resolve()
 
     def test_functor_composition(self):
@@ -155,7 +155,7 @@ class TestFunctorLaws:
         def g(x: int) -> int:
             return x + 10
 
-        p = Promise.pure(5)
+        p = Lazy.pure(5)
 
         left = p.fmap(lambda x: f(g(x)))
         right = p.fmap(g).fmap(f)
@@ -170,7 +170,7 @@ class TestFunctorLaws:
             called.append(x)
             return x * 2
 
-        p = Promise.pure(5).fmap(f)
+        p = Lazy.pure(5).fmap(f)
 
         assert called == []
         assert p.resolve() == 10
@@ -183,20 +183,20 @@ class TestFunctorLaws:
             calls.append(x)
             return x * 2
 
-        p = Promise.pure(5).fmap(f)
+        p = Lazy.pure(5).fmap(f)
         p.resolve()
         p.resolve()
 
         assert len(calls) == 1
 
     def test_fmap_type_transformation(self):
-        p = Promise.pure(42).fmap(str)
+        p = Lazy.pure(42).fmap(str)
 
         assert p.resolve() == "42"
         assert isinstance(p.resolve(), str)
 
     def test_fmap_chain(self):
-        result = Promise.pure(1).fmap(lambda x: x + 9).fmap(lambda x: x * 3).fmap(str)
+        result = Lazy.pure(1).fmap(lambda x: x + 9).fmap(lambda x: x * 3).fmap(str)
 
         assert result.resolve() == "30"
 
@@ -211,20 +211,20 @@ class TestApplicativeLaws:
     """
 
     def test_applicative_identity(self):
-        p = Promise.pure(42)
-        id_func: Promise[Callable[[int], int]] = Promise.pure(F.id)
+        p = Lazy.pure(42)
+        id_func: Lazy[Callable[[int], int]] = Lazy.pure(F.id)
 
         result = p.ap(id_func)
 
-        assert isinstance(result, Promise)
+        assert isinstance(result, Lazy)
         assert result.resolve() == p.resolve()
 
     def test_applicative_homomorphism(self):
         def f(x: int) -> int:
             return x * 2
 
-        left = Promise.pure(21).ap(Promise.pure(f))
-        right = Promise.pure(f(21))
+        left = Lazy.pure(21).ap(Lazy.pure(f))
+        right = Lazy.pure(f(21))
 
         assert left.resolve() == right.resolve()
         assert left.resolve() == 42
@@ -234,12 +234,12 @@ class TestApplicativeLaws:
             return x * 2
 
         y = 21
-        left = Promise.pure(y).ap(Promise.pure(f))
+        left = Lazy.pure(y).ap(Lazy.pure(f))
 
         def apply_to_y(g: Callable[[int], int]) -> int:
             return g(y)
 
-        right = Promise.pure(f).ap(Promise.pure(apply_to_y))
+        right = Lazy.pure(f).ap(Lazy.pure(apply_to_y))
 
         assert left.resolve() == right.resolve()
         assert left.resolve() == 42
@@ -251,19 +251,19 @@ class TestApplicativeLaws:
         def add_ten(x: int) -> int:
             return x + 10
 
-        u: Promise[Callable[[int], int]] = Promise.pure(mul_two)
-        v: Promise[Callable[[int], int]] = Promise.pure(add_ten)
-        w: Promise[int] = Promise.pure(5)
+        u: Lazy[Callable[[int], int]] = Lazy.pure(mul_two)
+        v: Lazy[Callable[[int], int]] = Lazy.pure(add_ten)
+        w: Lazy[int] = Lazy.pure(5)
 
         left = (w**v) ** u
-        right = w ** (v ** (u ** Promise.pure(F.compose)))
+        right = w ** (v ** (u ** Lazy.pure(F.compose)))
 
         assert left.resolve() == right.resolve()
         assert left.resolve() == 30
 
     def test_ap_applies_function_to_value(self):
-        double = Promise.pure(lambda x: x * 2)
-        value = Promise.pure(21)
+        double = Lazy.pure(lambda x: x * 2)
+        value = Lazy.pure(21)
 
         result = value.ap(double)
 
@@ -281,7 +281,7 @@ class TestApplicativeLaws:
             func_calls.append(x)
             return x + 5
 
-        result = Promise(fetcher=fetcher).ap(Promise.pure(func))
+        result = Lazy(fetcher=fetcher).ap(Lazy.pure(func))
 
         assert fetcher_calls == []
         assert func_calls == []
@@ -302,7 +302,7 @@ class TestApplicativeLaws:
             calls.append(x)
             return x * 10
 
-        result = Promise(fetcher=fetcher).ap(Promise.pure(func))
+        result = Lazy(fetcher=fetcher).ap(Lazy.pure(func))
         result.resolve()
         result.resolve()
 
@@ -318,30 +318,30 @@ class TestMonadLaws:
     """
 
     def test_monad_left_identity(self):
-        def f(x: int) -> Promise[int]:
-            return Promise.pure(x * 2)
+        def f(x: int) -> Lazy[int]:
+            return Lazy.pure(x * 2)
 
-        left = Promise.pure(21).bind(f)
+        left = Lazy.pure(21).bind(f)
         right = f(21)
 
         assert left.resolve() == right.resolve()
         assert left.resolve() == 42
 
     def test_monad_right_identity(self):
-        m = Promise.pure(42)
+        m = Lazy.pure(42)
 
-        result = m.bind(Promise.pure)
+        result = m.bind(Lazy.pure)
 
         assert result.resolve() == m.resolve()
 
     def test_monad_associativity(self):
-        def f(x: int) -> Promise[int]:
-            return Promise.pure(x + 10)
+        def f(x: int) -> Lazy[int]:
+            return Lazy.pure(x + 10)
 
-        def g(x: int) -> Promise[int]:
-            return Promise.pure(x * 2)
+        def g(x: int) -> Lazy[int]:
+            return Lazy.pure(x * 2)
 
-        m = Promise.pure(5)
+        m = Lazy.pure(5)
 
         left = m.bind(f).bind(g)
         right = m.bind(lambda x: f(x).bind(g))
@@ -351,9 +351,9 @@ class TestMonadLaws:
 
     def test_bind_chains_computations(self):
         result = (
-            Promise.pure(3)
-            .bind(lambda x: Promise.pure(x * 10))
-            .bind(lambda x: Promise.pure(x + 2))
+            Lazy.pure(3)
+            .bind(lambda x: Lazy.pure(x * 10))
+            .bind(lambda x: Lazy.pure(x + 2))
         )
 
         assert result.resolve() == 32
@@ -366,11 +366,11 @@ class TestMonadLaws:
             fetcher_calls.append(1)
             return 5
 
-        def f(x: int) -> Promise[int]:
+        def f(x: int) -> Lazy[int]:
             bind_calls.append(x)
-            return Promise.pure(x * 2)
+            return Lazy.pure(x * 2)
 
-        result = Promise(fetcher=fetcher).bind(f)
+        result = Lazy(fetcher=fetcher).bind(f)
 
         assert fetcher_calls == []
         assert bind_calls == []
@@ -387,56 +387,56 @@ class TestMonadLaws:
             counter[0] += 1
             return counter[0]
 
-        def f(x: int) -> Promise[int]:
+        def f(x: int) -> Lazy[int]:
             bind_calls.append(x)
-            return Promise.pure(x * 10)
+            return Lazy.pure(x * 10)
 
-        result = Promise(fetcher=fetcher).bind(f)
+        result = Lazy(fetcher=fetcher).bind(f)
         result.resolve()
         result.resolve()
 
         assert bind_calls == [1]
 
     def test_bind_deep_chain(self):
-        p = Promise.pure(1)
+        p = Lazy.pure(1)
         for i in range(1, 6):
             n = i
-            p = p.bind(lambda x, n=n: Promise.pure(x + n))
+            p = p.bind(lambda x, n=n: Lazy.pure(x + n))
 
         assert p.resolve() == 16
 
 
-class TestPromiseOperators:
+class TestLazyOperators:
     def test_pow_operator_applies_function(self):
-        value = Promise.pure(21)
-        func = Promise.pure(lambda x: x * 2)
+        value = Lazy.pure(21)
+        func = Lazy.pure(lambda x: x * 2)
 
         result = value**func
 
         assert result.resolve() == 42
 
     def test_pow_operator_matches_ap(self):
-        value = Promise.pure(5)
-        func = Promise.pure(lambda x: x + 3)
+        value = Lazy.pure(5)
+        func = Lazy.pure(lambda x: x + 3)
 
         assert (value**func).resolve() == value.ap(func).resolve()
 
     def test_or_operator_binds(self):
-        result = Promise.pure(10) | (lambda x: Promise.pure(x * 3))
+        result = Lazy.pure(10) | (lambda x: Lazy.pure(x * 3))
 
         assert result.resolve() == 30
 
     def test_or_operator_matches_bind(self):
-        def f(x: int) -> Promise[int]:
-            return Promise.pure(x + 7)
+        def f(x: int) -> Lazy[int]:
+            return Lazy.pure(x + 7)
 
-        p = Promise.pure(5)
+        p = Lazy.pure(5)
 
         assert (p | f).resolve() == p.bind(f).resolve()
 
     def test_rshift_operator_sequences(self):
-        first = Promise.pure(1)
-        second = Promise.pure(99)
+        first = Lazy.pure(1)
+        second = Lazy.pure(99)
 
         result = first >> second
 
@@ -449,7 +449,7 @@ class TestPromiseOperators:
             left_calls.append(1)
             return 42
 
-        result = Promise(fetcher=left_fetcher) >> Promise.pure(99)
+        result = Lazy(fetcher=left_fetcher) >> Lazy.pure(99)
 
         assert result.resolve() == 99
 
@@ -460,51 +460,47 @@ class TestPromiseOperators:
             left_calls.append(1)
             return 42
 
-        result = Promise(fetcher=left_fetcher) >> Promise.pure(99)
+        result = Lazy(fetcher=left_fetcher) >> Lazy.pure(99)
         result.resolve()
 
         assert left_calls == [1]
 
     def test_chained_operators(self):
         result = (
-            Promise.pure(2)
-            | (lambda x: Promise.pure(x * 5))
-            | (lambda x: Promise.pure(x - 1))
+            Lazy.pure(2) | (lambda x: Lazy.pure(x * 5)) | (lambda x: Lazy.pure(x - 1))
         )
 
         assert result.resolve() == 9
 
 
-class TestPromiseLaziness:
+class TestLazyLaziness:
     def test_construction_does_not_run_fetcher(self):
         side_effects = []
-        Promise(fetcher=lambda: side_effects.append(1) or 42)
+        Lazy(fetcher=lambda: side_effects.append(1) or 42)
 
         assert side_effects == []
 
     def test_fmap_does_not_run_fetcher(self):
         side_effects = []
-        Promise(fetcher=lambda: side_effects.append(1) or 42).fmap(lambda x: x)
+        Lazy(fetcher=lambda: side_effects.append(1) or 42).fmap(lambda x: x)
 
         assert side_effects == []
 
     def test_bind_does_not_run_fetcher(self):
         side_effects = []
-        Promise(fetcher=lambda: side_effects.append(1) or 42).bind(Promise.pure)
+        Lazy(fetcher=lambda: side_effects.append(1) or 42).bind(Lazy.pure)
 
         assert side_effects == []
 
     def test_ap_does_not_run_fetcher(self):
         side_effects = []
-        Promise(fetcher=lambda: side_effects.append(1) or 42).ap(
-            Promise.pure(lambda x: x)
-        )
+        Lazy(fetcher=lambda: side_effects.append(1) or 42).ap(Lazy.pure(lambda x: x))
 
         assert side_effects == []
 
     def test_rshift_does_not_run_fetcher(self):
         side_effects = []
-        _ = Promise(fetcher=lambda: side_effects.append(1) or 42) >> Promise.pure(99)
+        _ = Lazy(fetcher=lambda: side_effects.append(1) or 42) >> Lazy.pure(99)
 
         assert side_effects == []
 
@@ -516,9 +512,9 @@ class TestPromiseLaziness:
             return value
 
         result = (
-            Promise(fetcher=lambda: step("fetch", 1))
+            Lazy(fetcher=lambda: step("fetch", 1))
             .fmap(lambda x: step("fmap", x + 1))
-            .bind(lambda x: Promise(fetcher=lambda: step("bind", x * 3)))
+            .bind(lambda x: Lazy(fetcher=lambda: step("bind", x * 3)))
         )
 
         assert log == []
@@ -526,11 +522,11 @@ class TestPromiseLaziness:
         assert log == ["fetch", "fmap", "bind"]
 
 
-class TestPromiseRepr:
-    def test_repr_contains_promise(self):
-        p = Promise.pure(42)
+class TestLazyRepr:
+    def test_repr_contains_lazy(self):
+        p = Lazy.pure(42)
 
-        assert repr(p).startswith("Promise(")
+        assert repr(p).startswith("Lazy(")
 
     def test_repr_is_string(self):
-        assert isinstance(repr(Promise.pure(1)), str)
+        assert isinstance(repr(Lazy.pure(1)), str)

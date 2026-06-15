@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, cast
+from typing import Any, Callable, cast  # noqa: F401  # Any used in "Lazy[Any]" base
 
 from katharos.algebra import Applicative, Monad
 from katharos.concurrency.base_threading_backend import BaseThreadingBackend
@@ -8,10 +8,10 @@ from katharos.concurrency.threading_backend import default_backend
 from katharos.types.maybe import Maybe
 
 
-class Promise[A](Monad["Promise[Any]", A]):
+class Lazy[A](Monad["Lazy[Any]", A]):
     """A lazy, synchronous computation monad.
 
-    ``Promise`` wraps a zero-argument callable (the *fetch* function) whose
+    ``Lazy`` wraps a zero-argument callable (the *fetch* function) whose
     return value is produced on demand.  The computation is not run until
     :meth:`resolve` is called, which caches the result so the fetch function
     runs at most once.
@@ -22,19 +22,19 @@ class Promise[A](Monad["Promise[Any]", A]):
     composed without triggering execution.
 
     Examples:
-        >>> p = Promise(fetcher=lambda: 21)
+        >>> p = Lazy(fetcher=lambda: 21)
         >>> p.fmap(lambda x: x * 2).resolve()
         42
 
-        >>> add_one = Promise(fetcher=lambda: lambda x: x + 1)
-        >>> Promise(fetcher=lambda: 10) ** add_one
-        Promise(...)
-        >>> (Promise(fetcher=lambda: 10) ** add_one).resolve()
+        >>> add_one = Lazy(fetcher=lambda: lambda x: x + 1)
+        >>> Lazy(fetcher=lambda: 10) ** add_one
+        Lazy(...)
+        >>> (Lazy(fetcher=lambda: 10) ** add_one).resolve()
         11
 
-        >>> Promise(fetcher=lambda: 3) | (lambda x: Promise(fetcher=lambda: x * 10))
-        Promise(...)
-        >>> (Promise(fetcher=lambda: 3) | (lambda x: Promise(fetcher=lambda: x * 10))).resolve()
+        >>> Lazy(fetcher=lambda: 3) | (lambda x: Lazy(fetcher=lambda: x * 10))
+        Lazy(...)
+        >>> (Lazy(fetcher=lambda: 3) | (lambda x: Lazy(fetcher=lambda: x * 10))).resolve()
         30
 
     Note:
@@ -44,24 +44,24 @@ class Promise[A](Monad["Promise[Any]", A]):
     """
 
     @classmethod
-    def pure[T](cls, x: T) -> Promise[T]:
-        """Wrap a value in an already-resolved Promise.
+    def pure[T](cls, x: T) -> Lazy[T]:
+        """Wrap a value in an already-resolved Lazy.
 
         Args:
             x: The value to wrap.
 
         Returns:
-            A Promise that immediately yields ``x`` when resolved.
+            A Lazy that immediately yields ``x`` when resolved.
 
         Examples:
-            >>> Promise.pure(42).resolve()
+            >>> Lazy.pure(42).resolve()
             42
         """
-        return Promise[T](fetcher=lambda: x)
+        return Lazy[T](fetcher=lambda: x)
 
     @classmethod
-    def ret[T](cls, x: T) -> Promise[T]:
-        """Wrap a value in an already-resolved Promise.
+    def ret[T](cls, x: T) -> Lazy[T]:
+        """Wrap a value in an already-resolved Lazy.
 
         Alias for :meth:`pure`, provided to satisfy the Monad interface.
 
@@ -69,10 +69,10 @@ class Promise[A](Monad["Promise[Any]", A]):
             x: The value to wrap.
 
         Returns:
-            A Promise that immediately yields ``x`` when resolved.
+            A Lazy that immediately yields ``x`` when resolved.
 
         Examples:
-            >>> Promise.ret("hello").resolve()
+            >>> Lazy.ret("hello").resolve()
             'hello'
         """
         return cls.pure(x)
@@ -82,11 +82,11 @@ class Promise[A](Monad["Promise[Any]", A]):
         fetcher: Callable[[], A],
         backend: BaseThreadingBackend | None = None,
     ) -> None:
-        """Initialize a Promise with a fetcher callable.
+        """Initialize a Lazy with a fetcher callable.
 
         Args:
             fetcher: A zero-argument callable whose return value is the
-                result of this Promise.  It is called lazily the first
+                result of this Lazy.  It is called lazily the first
                 time :meth:`resolve` is invoked.
         """
         self._value = Maybe[A].Nothing()
@@ -97,64 +97,64 @@ class Promise[A](Monad["Promise[Any]", A]):
 
     def ap[B](
         self,
-        wrapped_funcs: Applicative[Promise, Callable[[A], B]],
-    ) -> Promise[B]:
-        """Apply a function wrapped in a Promise to this Promise's value.
+        wrapped_funcs: Applicative[Lazy, Callable[[A], B]],
+    ) -> Lazy[B]:
+        """Apply a function wrapped in a Lazy to this Lazy's value.
 
-        Both this Promise and ``wrapped_funcs`` are evaluated lazily; neither
-        is run until the returned Promise is resolved.
+        Both this Lazy and ``wrapped_funcs`` are evaluated lazily; neither
+        is run until the returned Lazy is resolved.
 
         Args:
-            wrapped_funcs: A Promise containing a function ``A -> B`` to apply.
+            wrapped_funcs: A Lazy containing a function ``A -> B`` to apply.
 
         Returns:
-            A new Promise that, when resolved, applies the fetched function
+            A new Lazy that, when resolved, applies the fetched function
             to the fetched value.
 
         Examples:
-            >>> double = Promise(fetcher=lambda: lambda x: x * 2)
-            >>> (Promise(fetcher=lambda: 5) ** double).resolve()
+            >>> double = Lazy(fetcher=lambda: lambda x: x * 2)
+            >>> (Lazy(fetcher=lambda: 5) ** double).resolve()
             10
         """
-        wrapped_funcs = cast(Promise[Callable[[A], B]], wrapped_funcs)
+        wrapped_funcs = cast(Lazy[Callable[[A], B]], wrapped_funcs)
 
-        return Promise(lambda: wrapped_funcs.resolve()(self.resolve()))
+        return Lazy(lambda: wrapped_funcs.resolve()(self.resolve()))
 
-    def bind[B](self, f: Callable[[A], Monad[Promise, B]]) -> Promise[B]:
-        """Chain a function that returns a Promise.
+    def bind[B](self, f: Callable[[A], Monad[Lazy, B]]) -> Lazy[B]:
+        """Chain a function that returns a Lazy.
 
         Args:
             f: A function that takes the resolved value and returns a new
-                ``Promise[B]``.
+                ``Lazy[B]``.
 
         Returns:
-            A new Promise that, when resolved, resolves this Promise and then
-            resolves the Promise returned by ``f``.
+            A new Lazy that, when resolved, resolves this Lazy and then
+            resolves the Lazy returned by ``f``.
 
         Examples:
-            >>> (Promise(fetcher=lambda: 3) | (lambda x: Promise.pure(x + 7))).resolve()
+            >>> (Lazy(fetcher=lambda: 3) | (lambda x: Lazy.pure(x + 7))).resolve()
             10
         """
-        f = cast(Callable[[A], Promise[B]], f)
-        promise_b = Promise(lambda: f(self.resolve()).resolve())
+        f = cast(Callable[[A], Lazy[B]], f)
+        lazy_b = Lazy(lambda: f(self.resolve()).resolve())
 
-        return promise_b
+        return lazy_b
 
-    def fmap[B](self, f: Callable[[A], B]) -> Promise[B]:
+    def fmap[B](self, f: Callable[[A], B]) -> Lazy[B]:
         """Map a pure function over the wrapped value.
 
         Args:
             f: A function to apply to the resolved value.
 
         Returns:
-            A new Promise that applies ``f`` to the result of this Promise
+            A new Lazy that applies ``f`` to the result of this Lazy
             when resolved.
 
         Examples:
-            >>> Promise(fetcher=lambda: 4).fmap(lambda x: x ** 2).resolve()
+            >>> Lazy(fetcher=lambda: 4).fmap(lambda x: x ** 2).resolve()
             16
         """
-        return Promise(lambda: f(self.resolve()))
+        return Lazy(lambda: f(self.resolve()))
 
     def resolve(self) -> A:
         """Execute the fetcher and memoize its result.
@@ -164,7 +164,7 @@ class Promise[A](Monad["Promise[Any]", A]):
         raises, the exception is cached too and re-raised on every
         subsequent call, so failure is also evaluated at most once.
 
-        Evaluation is guarded by a per-Promise lock, so concurrent calls
+        Evaluation is guarded by a per-Lazy lock, so concurrent calls
         from multiple threads still run the fetcher exactly once; the
         losing threads block until the result (or error) is cached.
 
@@ -176,7 +176,7 @@ class Promise[A](Monad["Promise[Any]", A]):
                 failure and re-raised on each subsequent call.
 
         Examples:
-            >>> Promise(fetcher=lambda: 6).resolve()
+            >>> Lazy(fetcher=lambda: 6).resolve()
             6
         """
         with self._lock:
@@ -197,47 +197,47 @@ class Promise[A](Monad["Promise[Any]", A]):
 
     def __pow__[B](
         self,
-        wrapped_funcs: Applicative[Promise, Callable[[A], B]],
-    ) -> Promise[B]:
+        wrapped_funcs: Applicative[Lazy, Callable[[A], B]],
+    ) -> Lazy[B]:
         """Infix operator for applicative application (``**``).
 
         Args:
-            wrapped_funcs: A Promise containing a function to apply.
+            wrapped_funcs: A Lazy containing a function to apply.
 
         Returns:
-            A new Promise containing the result of applying the function.
+            A new Lazy containing the result of applying the function.
         """
         return self.ap(wrapped_funcs)
 
-    def __or__[B](self, f: Callable[[A], Monad[Promise, B]]) -> Promise[B]:
+    def __or__[B](self, f: Callable[[A], Monad[Lazy, B]]) -> Lazy[B]:
         """Infix operator for monadic bind (``|``).
 
         Args:
             f: A function that takes the resolved value and returns a
-                ``Promise[B]``.
+                ``Lazy[B]``.
 
         Returns:
-            The Promise returned by ``f`` after resolving this Promise.
+            The Lazy returned by ``f`` after resolving this Lazy.
         """
         return self.bind(f)
 
-    def __rshift__[B](self, other: Monad[Promise, B]) -> Promise[B]:
+    def __rshift__[B](self, other: Monad[Lazy, B]) -> Lazy[B]:
         """Infix operator for sequencing (``>>``).
 
-        Discards the result of this Promise and returns ``other``.
+        Discards the result of this Lazy and returns ``other``.
 
         Args:
-            other: The Promise to return after this one resolves.
+            other: The Lazy to return after this one resolves.
 
         Returns:
-            ``other``, ignoring the value of this Promise.
+            ``other``, ignoring the value of this Lazy.
         """
         return super().__rshift__(other)  # type: ignore
 
     def __repr__(self) -> str:
-        """Return the string representation of this Promise.
+        """Return the string representation of this Lazy.
 
         Returns:
-            A string of the form ``Promise(<fetcher>)``.
+            A string of the form ``Lazy(<fetcher>)``.
         """
-        return f"Promise({self._fetcher})"
+        return f"Lazy({self._fetcher})"

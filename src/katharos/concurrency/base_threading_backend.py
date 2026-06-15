@@ -110,7 +110,7 @@ class BaseThreadingBackend(ABC):
     """Abstraction over a concurrency implementation.
 
     A backend decouples Katharos' concurrency types (such as
-    :class:`~katharos.types.Promise` and
+    :class:`~katharos.types.Lazy` and
     :class:`~katharos.concurrency.csp.Channel`) from a specific threading
     library. The default backend is built on the standard library
     :mod:`threading` module, but an alternative (for example one backed by

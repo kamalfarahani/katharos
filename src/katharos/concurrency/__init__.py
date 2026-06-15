@@ -1,7 +1,7 @@
 """Concurrency backends and primitives for Katharos.
 
 A :class:`BaseThreadingBackend` abstracts thread spawning and synchronization
-primitives so concurrency types (such as :class:`~katharos.types.Promise` and
+primitives so concurrency types (such as :class:`~katharos.types.Lazy` and
 :class:`~katharos.concurrency.csp.Channel`) are not tied to a specific
 threading library. :class:`ThreadingBackend` is the standard-library default.
 """
