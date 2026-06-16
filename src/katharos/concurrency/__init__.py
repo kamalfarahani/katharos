@@ -12,7 +12,7 @@ from .base_threading_backend import (
     BaseThreadHandle,
     BaseThreadingBackend,
 )
-from .csp import Channel, ChannelClosedError, Go, go
+from .csp import Channel, ChannelClosedError, ChannelTimeoutError, Go, go
 from .threading_backend import ThreadingBackend, ThreadingHandle, default_backend
 
 __all__ = [
@@ -22,6 +22,7 @@ __all__ = [
     "BaseThreadingBackend",
     "Channel",
     "ChannelClosedError",
+    "ChannelTimeoutError",
     "Go",
     "ThreadingBackend",
     "ThreadingHandle",

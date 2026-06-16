@@ -1,15 +1,36 @@
 from __future__ import annotations
 
+import time
 from collections import deque
 from collections.abc import Iterator
 
 from katharos.concurrency.base_threading_backend import BaseThreadingBackend
 from katharos.concurrency.threading_backend import default_backend
-from katharos.types.maybe import Maybe
+from katharos.types.result import Result
 
 
 class ChannelClosedError(Exception):
     """Raised when sending on, or closing, an already-closed channel."""
+
+
+class ChannelTimeoutError(Exception):
+    """Raised when a channel operation times out."""
+
+
+class _Slot[A]:
+    """A single value in transit through a channel.
+
+    Wrapping each value gives an unbuffered :meth:`Channel.send` a stable
+    identity to wait on: the sender blocks until *its own* slot is marked
+    ``taken`` by a receiver, rather than inferring delivery from the shared
+    buffer being empty (which is unsafe when senders contend).
+    """
+
+    __slots__ = ("value", "taken")
+
+    def __init__(self, value: A) -> None:
+        self.value = value
+        self.taken = False
 
 
 class Channel[A]:
@@ -27,20 +48,21 @@ class Channel[A]:
     - **Buffered** (``capacity > 0``): :meth:`send` only blocks once the
       buffer is full, and :meth:`recv` only blocks once it is empty.
 
-    Unlike Go, :meth:`recv` returns a :class:`~katharos.types.Maybe`:
-    ``Just(value)`` while values are available and ``Nothing`` once the
-    channel is closed and drained. This makes "the channel is closed" a
-    type-safe outcome rather than a second return value. Iterating over a
+    Unlike Go, :meth:`recv` returns a :class:`~katharos.types.Result`:
+    ``Success(value)`` while values are available, ``Failure(ChannelClosedError)``
+    once the channel is closed and drained, or ``Failure(ChannelTimeoutError)``
+    if a timeout is specified and expires. This makes "the channel is closed"
+    a type-safe outcome rather than a second return value. Iterating over a
     channel yields its values until it is closed.
 
     Examples:
         >>> ch = Channel[int](capacity=1)
         >>> ch.send(42)
         >>> ch.recv()
-        Just(42)
+        Success(42)
         >>> ch.close()
         >>> ch.recv()
-        Nothing()
+        Failure(ChannelClosedError('recv on closed channel'))
     """
 
     def __init__(
@@ -67,7 +89,7 @@ class Channel[A]:
 
         self._backend = backend or default_backend()
         self._capacity = capacity
-        self._buffer: deque[A] = deque()
+        self._buffer: deque[_Slot[A]] = deque()
         self._closed = False
         self._cond = self._backend.create_condition()
 
@@ -98,50 +120,97 @@ class Channel[A]:
                     self._cond.wait()
                 if self._closed:
                     raise ChannelClosedError("send on closed channel")
-                self._buffer.append(value)
+                self._buffer.append(_Slot(value))
                 self._cond.notify_all()
                 return
 
-            # Unbuffered: hand off one value at a time, then wait for receipt.
-            while self._buffer and not self._closed:
-                self._cond.wait()
-            if self._closed:
-                raise ChannelClosedError("send on closed channel")
-
-            self._buffer.append(value)
+            # Unbuffered: offer the value, then block until *this* slot is
+            # taken by a receiver. Waiting on our own slot's identity (rather
+            # than on the buffer being empty) keeps the hand-off correct when
+            # multiple senders contend -- another sender refilling the buffer
+            # can no longer be mistaken for our value being received.
+            slot = _Slot(value)
+            self._buffer.append(slot)
             self._cond.notify_all()
 
-            while self._buffer and not self._closed:
+            while not slot.taken and not self._closed:
                 self._cond.wait()
-            if self._buffer:
-                # Closed before the value was received; do not deliver it.
-                self._buffer.clear()
+            if not slot.taken:
+                # Closed before a receiver took the value; do not deliver it.
+                try:
+                    self._buffer.remove(slot)
+                except ValueError:
+                    pass
                 raise ChannelClosedError("send on closed channel")
 
-    def recv(self) -> Maybe[A]:
+    def recv(
+        self,
+        timeout: float | None = None,
+    ) -> Result[ChannelClosedError | ChannelTimeoutError, A]:
         """Receive a value, blocking until one is available or the channel closes.
 
+        Args:
+            timeout: Maximum seconds to wait for a value. ``None`` (default)
+                blocks indefinitely. A positive float will return a
+                ``ChannelTimeoutError`` failure if no value arrives in time.
+
         Returns:
-            ``Just(value)`` when a value is received, or ``Nothing`` once the
-            channel is closed and no buffered values remain.
+            ``Success(value)`` when a value is received.
+            ``Failure(ChannelClosedError)`` when the channel is closed and empty.
+            ``Failure(ChannelTimeoutError)`` when the timeout expires.
+
+        Examples:
+            >>> ch = Channel[int](capacity=1)
+            >>> ch.send(42)
+            >>> ch.recv()
+            Success(42)
+
+            >>> ch = Channel[int]()
+            >>> ch.close()
+            >>> ch.recv()
+            Failure(ChannelClosedError('recv on closed channel'))
+
+            Timeout on an empty channel:
+
+            >>> ch = Channel[int]()
+            >>> ch.recv(timeout=0.01)
+            Failure(ChannelTimeoutError('recv timed out after 0.01 seconds'))
         """
+
+        def not_closed_but_has_no_buffer() -> bool:
+            return not self._closed and not self._buffer
+
         with self._cond:
-            while not self._buffer and not self._closed:
-                self._cond.wait()
+            # Track an absolute deadline so a notify-driven wakeup that loses the
+            # value to another receiver does not re-arm the full timeout.
+            deadline = None if timeout is None else time.monotonic() + timeout
+            while not_closed_but_has_no_buffer():
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    return Result[ChannelTimeoutError, A].Failure(
+                        ChannelTimeoutError(f"recv timed out after {timeout} seconds")
+                    )
+                self._cond.wait(remaining)
 
             if not self._buffer:
-                return Maybe.Nothing()
+                return Result[ChannelClosedError, A].Failure(
+                    ChannelClosedError("recv on closed channel")
+                )
 
-            value = self._buffer.popleft()
+            slot = self._buffer.popleft()
+            slot.taken = True
             self._cond.notify_all()
-            return Maybe.Just(value)
+            return Result[ChannelClosedError | ChannelTimeoutError, A].Success(
+                slot.value
+            )
 
     def close(self) -> None:
         """Close the channel.
 
         After closing, :meth:`send` raises :class:`ChannelClosedError` and
-        :meth:`recv` returns the remaining buffered values followed by
-        ``Nothing``. Any blocked senders or receivers are woken.
+        :meth:`recv` returns the remaining buffered values followed by a
+        ``Failure(ChannelClosedError)``. Any blocked senders or receivers
+        are woken.
 
         Raises:
             ChannelClosedError: If the channel is already closed.
@@ -160,7 +229,7 @@ class Channel[A]:
         """
         while True:
             received = self.recv()
-            if received.is_nothing():
+            if received.is_failure():
                 return
             yield received.unwrap()
 

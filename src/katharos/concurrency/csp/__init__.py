@@ -10,12 +10,13 @@ concurrent computations in the CSP tradition:
       channel.
 """
 
-from .channel import Channel, ChannelClosedError
+from .channel import Channel, ChannelClosedError, ChannelTimeoutError
 from .go import Go, go
 
 __all__ = [
     "Channel",
     "ChannelClosedError",
+    "ChannelTimeoutError",
     "Go",
     "go",
 ]

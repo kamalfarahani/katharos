@@ -3,8 +3,8 @@ import time
 
 import pytest
 
-from katharos.concurrency import Channel, ChannelClosedError
-from katharos.types import Maybe
+from katharos.concurrency import Channel, ChannelClosedError, ChannelTimeoutError
+from katharos.types import Result
 
 
 class TestChannelConstruction:
@@ -24,17 +24,19 @@ class TestChannelConstruction:
 
 
 class TestBufferedChannel:
-    def test_recv_returns_just_of_sent_value(self):
+    def test_recv_returns_success_of_sent_value(self):
         ch = Channel[int](capacity=1)
         ch.send(42)
 
-        assert ch.recv() == Maybe.Just(42)
+        result = ch.recv()
+        assert result.is_success()
+        assert result.unwrap() == 42
 
-    def test_recv_returns_maybe(self):
+    def test_recv_returns_result(self):
         ch = Channel[int](capacity=1)
         ch.send(1)
 
-        assert isinstance(ch.recv(), Maybe)
+        assert isinstance(ch.recv(), Result)
 
     def test_preserves_fifo_order(self):
         ch = Channel[int](capacity=3)
@@ -42,16 +44,16 @@ class TestBufferedChannel:
         ch.send(2)
         ch.send(3)
 
-        assert ch.recv() == Maybe.Just(1)
-        assert ch.recv() == Maybe.Just(2)
-        assert ch.recv() == Maybe.Just(3)
+        assert ch.recv().unwrap() == 1
+        assert ch.recv().unwrap() == 2
+        assert ch.recv().unwrap() == 3
 
     def test_send_does_not_block_until_buffer_full(self):
         ch = Channel[int](capacity=2)
         ch.send(1)
         ch.send(2)  # should return without a receiver
 
-        assert ch.recv() == Maybe.Just(1)
+        assert ch.recv().unwrap() == 1
 
     def test_send_blocks_when_buffer_full(self):
         ch = Channel[int](capacity=1)
@@ -66,7 +68,7 @@ class TestBufferedChannel:
         t.start()
 
         assert not unblocked.wait(timeout=0.1)  # blocked, buffer is full
-        assert ch.recv() == Maybe.Just(1)  # free a slot
+        assert ch.recv().unwrap() == 1  # free a slot
         assert unblocked.wait(timeout=1)  # now the send completes
         t.join()
 
@@ -84,13 +86,49 @@ class TestUnbufferedChannel:
         t.start()
 
         assert not unblocked.wait(timeout=0.1)  # no receiver yet, so blocked
-        assert ch.recv() == Maybe.Just(7)
+        assert ch.recv().unwrap() == 7
         assert unblocked.wait(timeout=1)  # rendezvous complete
         t.join()
 
+    def test_received_value_always_unblocks_its_sender(self):
+        # Regression: with two contending senders, an unbuffered send must
+        # return once *its* value is received -- it must not wait on the
+        # buffer being empty, which another sender can refill. Looped because
+        # the offending interleaving is schedule-dependent.
+        for _ in range(50):
+            ch = Channel[int]()
+            completed: list[int] = []
+            lock = threading.Lock()
+
+            def sender(value: int) -> None:
+                ch.send(value)
+                with lock:
+                    completed.append(value)
+
+            threads = [
+                threading.Thread(target=sender, args=(v,), daemon=True)
+                for v in (0, 1)
+            ]
+            for t in threads:
+                t.start()
+
+            time.sleep(0.005)
+            ch.recv().unwrap()  # receive exactly one value
+
+            # The sender of the received value must finish promptly.
+            deadline = time.monotonic() + 1.0
+            while time.monotonic() < deadline:
+                with lock:
+                    if completed:
+                        break
+                time.sleep(0.001)
+
+            with lock:
+                assert completed, "a value was received but no send() completed"
+
     def test_recv_blocks_until_sent(self):
         ch = Channel[int]()
-        received: list[Maybe[int]] = []
+        received: list[Result] = []
 
         def receiver():
             received.append(ch.recv())
@@ -102,25 +140,31 @@ class TestUnbufferedChannel:
         assert received == []  # no value yet
         ch.send(9)
         t.join(timeout=1)
-        assert received == [Maybe.Just(9)]
+        assert len(received) == 1
+        assert received[0].is_success()
+        assert received[0].unwrap() == 9
 
 
 class TestChannelClose:
-    def test_recv_drains_buffer_then_returns_nothing(self):
+    def test_recv_drains_buffer_then_returns_failure(self):
         ch = Channel[int](capacity=2)
         ch.send(1)
         ch.send(2)
         ch.close()
 
-        assert ch.recv() == Maybe.Just(1)
-        assert ch.recv() == Maybe.Just(2)
-        assert ch.recv() == Maybe.Nothing()
+        assert ch.recv().unwrap() == 1
+        assert ch.recv().unwrap() == 2
+        result = ch.recv()
+        assert result.is_failure()
+        assert isinstance(result.error, ChannelClosedError)
 
-    def test_recv_on_closed_empty_returns_nothing(self):
+    def test_recv_on_closed_empty_returns_failure(self):
         ch = Channel[int]()
         ch.close()
 
-        assert ch.recv() == Maybe.Nothing()
+        result = ch.recv()
+        assert result.is_failure()
+        assert isinstance(result.error, ChannelClosedError)
 
     def test_send_on_closed_raises(self):
         ch = Channel[int](capacity=1)
@@ -138,7 +182,7 @@ class TestChannelClose:
 
     def test_blocked_receiver_unblocks_on_close(self):
         ch = Channel[int]()
-        result: list[Maybe[int]] = []
+        result: list[Result] = []
 
         def receiver():
             result.append(ch.recv())
@@ -149,7 +193,9 @@ class TestChannelClose:
         ch.close()
         t.join(timeout=1)
 
-        assert result == [Maybe.Nothing()]
+        assert len(result) == 1
+        assert result[0].is_failure()
+        assert isinstance(result[0].error, ChannelClosedError)
 
 
 class TestChannelIteration:
@@ -175,3 +221,72 @@ class TestChannelIteration:
 
         assert list(ch) == [0, 1, 2, 3, 4]
         t.join()
+
+
+class TestRecvTimeout:
+    def test_recv_times_out_on_empty_channel(self):
+        ch = Channel[int]()
+
+        result = ch.recv(timeout=0.01)
+
+        assert result.is_failure()
+        assert isinstance(result.error, ChannelTimeoutError)
+
+    def test_recv_with_none_timeout_blocks_indefinitely(self):
+        ch = Channel[int]()
+        received: list[Result] = []
+
+        def receiver():
+            received.append(ch.recv(timeout=None))
+
+        t = threading.Thread(target=receiver)
+        t.start()
+
+        time.sleep(0.1)
+        assert received == []  # still blocking
+        ch.send(42)
+        t.join(timeout=1)
+
+        assert len(received) == 1
+        assert received[0].is_success()
+        assert received[0].unwrap() == 42
+
+    def test_recv_returns_value_before_timeout(self):
+        ch = Channel[int]()
+        received: list[Result] = []
+
+        def receiver():
+            received.append(ch.recv(timeout=1.0))
+
+        t = threading.Thread(target=receiver)
+        t.start()
+
+        time.sleep(0.1)
+        ch.send(99)
+        t.join(timeout=1)
+
+        assert len(received) == 1
+        assert received[0].is_success()
+        assert received[0].unwrap() == 99
+
+    def test_recv_with_buffered_channel_returns_immediately(self):
+        ch = Channel[int](capacity=2)
+        ch.send(1)
+        ch.send(2)
+
+        # Buffer has values, should return immediately even with short timeout
+        result = ch.recv(timeout=0.001)
+        assert result.is_success()
+        assert result.unwrap() == 1
+
+        result = ch.recv(timeout=0.001)
+        assert result.is_success()
+        assert result.unwrap() == 2
+
+    def test_recv_timeout_on_empty_buffered_channel(self):
+        ch = Channel[int](capacity=2)
+
+        result = ch.recv(timeout=0.01)
+
+        assert result.is_failure()
+        assert isinstance(result.error, ChannelTimeoutError)
