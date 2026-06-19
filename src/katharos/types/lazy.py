@@ -44,24 +44,24 @@ class Lazy[A](Monad["Lazy[Any]", A]):
     """
 
     @classmethod
-    def pure[T](cls, x: T) -> Lazy[T]:
-        """Wrap a value in an already-resolved Lazy.
+    def pure[T](cls: type[Lazy[T]], x: T) -> Lazy[T]:
+        """Wrap a value in a Lazy.
 
         Args:
             x: The value to wrap.
 
         Returns:
-            A Lazy that immediately yields ``x`` when resolved.
+            A Lazy that yields ``x`` when resolved.
 
         Examples:
             >>> Lazy.pure(42).resolve()
             42
         """
-        return Lazy[T](fetcher=lambda: x)
+        return cls(fetcher=lambda: x)
 
     @classmethod
-    def ret[T](cls, x: T) -> Lazy[T]:
-        """Wrap a value in an already-resolved Lazy.
+    def ret[T](cls: type[Lazy[T]], x: T) -> Lazy[T]:
+        """Wrap a value in a Lazy.
 
         Alias for :meth:`pure`, provided to satisfy the Monad interface.
 
@@ -69,7 +69,7 @@ class Lazy[A](Monad["Lazy[Any]", A]):
             x: The value to wrap.
 
         Returns:
-            A Lazy that immediately yields ``x`` when resolved.
+            A Lazy that yields ``x`` when resolved.
 
         Examples:
             >>> Lazy.ret("hello").resolve()
@@ -118,7 +118,10 @@ class Lazy[A](Monad["Lazy[Any]", A]):
         """
         wrapped_funcs = cast(Lazy[Callable[[A], B]], wrapped_funcs)
 
-        return Lazy(lambda: wrapped_funcs.resolve()(self.resolve()))
+        return Lazy(
+            lambda: wrapped_funcs.resolve()(self.resolve()),
+            backend=self._backend,
+        )
 
     def bind[B](self, f: Callable[[A], Monad[Lazy, B]]) -> Lazy[B]:
         """Chain a function that returns a Lazy.
@@ -136,7 +139,7 @@ class Lazy[A](Monad["Lazy[Any]", A]):
             10
         """
         f = cast(Callable[[A], Lazy[B]], f)
-        lazy_b = Lazy(lambda: f(self.resolve()).resolve())
+        lazy_b = Lazy(lambda: f(self.resolve()).resolve(), backend=self._backend)
 
         return lazy_b
 
@@ -154,7 +157,7 @@ class Lazy[A](Monad["Lazy[Any]", A]):
             >>> Lazy(fetcher=lambda: 4).fmap(lambda x: x ** 2).resolve()
             16
         """
-        return Lazy(lambda: f(self.resolve()))
+        return Lazy(lambda: f(self.resolve()), backend=self._backend)
 
     def resolve(self) -> A:
         """Execute the fetcher and memoize its result.
@@ -167,6 +170,17 @@ class Lazy[A](Monad["Lazy[Any]", A]):
         Evaluation is guarded by a per-Lazy lock, so concurrent calls
         from multiple threads still run the fetcher exactly once; the
         losing threads block until the result (or error) is cached.
+
+        .. warning::
+            The guard lock is not reentrant. A fetcher that calls
+            :meth:`resolve` on the *same* Lazy (directly or indirectly)
+            will deadlock.
+
+            For example, this never completes because the fetcher tries to
+            acquire the same lock already held by the outer ``resolve`` call::
+
+                lazy = Lazy(lambda: lazy.resolve())
+                lazy.resolve()
 
         Returns:
             The resolved value.
