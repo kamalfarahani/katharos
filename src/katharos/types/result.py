@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, Generic, TypeVar, cast, final
 
 from katharos.algebra import Monad
@@ -9,6 +10,11 @@ from katharos.algebra.applicative.applicative import Applicative
 
 E = TypeVar("E", bound=BaseException, covariant=True)
 A = TypeVar("A", covariant=True)
+
+
+@dataclass
+class _ErrorWrapper(Generic[E]):
+    err: E
 
 
 @final
@@ -24,8 +30,12 @@ class Result(
 
     A Result can be in one of two states:
 
-    - **Success**: Contains a value of type ``A`` (non-exception)
+    - **Success**: Contains a value of type ``A`` (which may itself be an exception)
     - **Failure**: Contains an exception of type ``E``
+
+    The success/failure distinction is tracked internally rather than by the
+    type of the wrapped value, so an exception may be carried as a *success*
+    value via :meth:`Success`/:meth:`pure` without being treated as a failure.
 
     **Type Parameters:**
 
@@ -79,10 +89,11 @@ class Result(
             x: The value to wrap.
 
         Returns:
-            Result[E, T]: A Success containing the value.
+            A Success containing the value.
 
-        Raises:
-            TypeError: If the value is an exception.
+        Note:
+            The value may itself be an exception; it is still wrapped as a
+            Success and is *not* treated as a Failure.
 
         Examples:
             >>> Result.pure(42)
@@ -91,14 +102,9 @@ class Result(
             >>> Result.pure("hello")
             Success('hello')
 
-            >>> Result.pure(ValueError("oops"))  # doctest: +SKIP
-            Traceback (most recent call last):
-                ...
-            TypeError: Cannot create a Result with an exception as the value
+            >>> Result.pure(ValueError("oops"))
+            Success(ValueError('oops'))
         """
-        if isinstance(x, BaseException):
-            raise TypeError("Cannot create a Result with an exception as the value")
-
         return Result(x)
 
     @classmethod
@@ -111,10 +117,7 @@ class Result(
             x: The value to wrap.
 
         Returns:
-            Result[E, T]: A Success containing the value.
-
-        Raises:
-            TypeError: If the value is an exception.
+            A Success containing the value.
 
         Examples:
             >>> Result.ret(42)
@@ -130,7 +133,7 @@ class Result(
             x: The value to wrap.
 
         Returns:
-            Result[E, A]: A Success result containing the value.
+            A Success result containing the value.
 
         Examples:
             >>> Result.Success(42)
@@ -149,7 +152,7 @@ class Result(
             e: The exception to wrap.
 
         Returns:
-            Result[E, A]: A Failure result containing the exception.
+            A Failure result containing the exception.
 
         Raises:
             TypeError: If the value is not an exception.
@@ -166,9 +169,9 @@ class Result(
         if not isinstance(e, BaseException):
             raise TypeError("Cannot create a Result with a non-exception as the value")
 
-        return Result(e)
+        return Result(_ErrorWrapper(e))
 
-    def __init__(self, value: A | E) -> None:
+    def __init__(self, value: A | _ErrorWrapper[E]) -> None:
         """Initialize the Result.
 
         Args:
@@ -181,7 +184,7 @@ class Result(
         """Get the success value of the Result.
 
         Returns:
-            A: The success value.
+            The success value.
 
         Raises:
             TypeError: If the Result is a Failure.
@@ -195,8 +198,8 @@ class Result(
                 ...
             TypeError: Cannot get the value of a Failure
         """
-        if isinstance(self._value, BaseException):
-            raise TypeError("Cannot get the value of a Failure") from self._value
+        if isinstance(self._value, _ErrorWrapper):
+            raise TypeError("Cannot get the value of a Failure") from self._value.err
 
         return self._value
 
@@ -205,7 +208,7 @@ class Result(
         """Get the error of the Result.
 
         Returns:
-            E: The exception value.
+            The exception value.
 
         Raises:
             TypeError: If the Result is a Success.
@@ -219,10 +222,10 @@ class Result(
                 ...
             TypeError: Cannot get the error of a Success
         """
-        if not isinstance(self._value, BaseException):
+        if not isinstance(self._value, _ErrorWrapper):
             raise TypeError("Cannot get the error of a Success")
 
-        return cast(E, self._value)
+        return self._value.err
 
     def unwrap(self) -> A:
         """Unwrap the success value, raising an error if this is a Failure.
@@ -233,7 +236,7 @@ class Result(
         This is equivalent to accessing the ``.value`` property directly.
 
         Returns:
-            A: The success value contained in this Result.
+            The success value contained in this Result.
 
         Raises:
             TypeError: If the Result is a Failure, with the original exception
@@ -259,7 +262,7 @@ class Result(
             f: Function to apply to the value.
 
         Returns:
-            Result[E, B]: A new Result containing the mapped value, or the
+            A new Result containing the mapped value, or the
                 original Failure unchanged.
 
         Examples:
@@ -272,23 +275,23 @@ class Result(
             >>> Result.Success("hi").fmap(str.upper)
             Success('HI')
         """
-        if isinstance(self._value, BaseException):
+        if isinstance(self._value, _ErrorWrapper):
             casted_self = cast(Result[E, B], self)
             return casted_self
 
-        return Result(f(self._value))
+        return Result[E, B].pure(f(self._value))
 
     def ap[BE: BaseException, B](
         self,
         wrapped_funcs: Applicative[Result[BE, Any], Callable[[A], B]],
-    ) -> Result[BE, B]:
+    ) -> Result[BE | E, B]:
         """Apply a function wrapped in a Result to this Result.
 
         Args:
             wrapped_funcs: A Result containing the function to apply.
 
         Returns:
-            Result[BE, B]: The result of applying the wrapped function to this
+            The result of applying the wrapped function to this
                 value. The error type ``BE`` comes from ``wrapped_funcs``, not
                 from ``self``. Returns the first encountered Failure if either
                 operand is a Failure.
@@ -306,23 +309,19 @@ class Result(
             Failure(TypeError('bad fn'))
         """
         wrapped_funcs = cast(Result[BE, Callable[[A], B]], wrapped_funcs)
-        if isinstance(self._value, BaseException):
-            result_err = cast(Result[BE, B], self)
-            return result_err
+        if self.is_failure():
+            return Result[E, B].Failure(self.error)
 
-        if isinstance(wrapped_funcs._value, BaseException):
-            result_err = cast(Result[BE, B], wrapped_funcs)
-            return result_err
+        if wrapped_funcs.is_failure():
+            return Result[BE, B].Failure(wrapped_funcs.error)
 
-        casted_self = cast(A, self._value)
-        inner_func = cast(Callable[[A], B], wrapped_funcs._value)
-
-        return Result(inner_func(casted_self))
+        inner_func = wrapped_funcs.unwrap()
+        return Result.pure(inner_func(self.unwrap()))
 
     def bind[BE: BaseException, B](
         self,
         f: Callable[[A], Monad[Result[BE, Any], B]],
-    ) -> Result[BE, B]:
+    ) -> Result[BE | E, B]:
         """Bind a function that returns a Result to this Result.
 
         Args:
@@ -330,7 +329,7 @@ class Result(
                 ``Result[BE, B]``.
 
         Returns:
-            Result[BE, B]: The result of applying ``f`` to the success value.
+            The result of applying ``f`` to the success value.
                 The error type ``BE`` comes from ``f``'s return type, not from
                 ``self``. If ``self`` is a Failure, it is returned unchanged
                 (re-typed as ``Result[BE, B]``).
@@ -346,8 +345,9 @@ class Result(
             Failure(ValueError('err'))
         """
         f = cast(Callable[[A], Result[BE, B]], f)
-        if isinstance(self._value, BaseException):
-            return Result[BE, B](self._value)  # type: ignore
+        if isinstance(self._value, _ErrorWrapper):
+            casted_self = cast(Result[E, B], self)
+            return casted_self
 
         return f(self._value)
 
@@ -355,7 +355,7 @@ class Result(
         """Check if this Result is a Success.
 
         Returns:
-            bool: True if this is a Success, False otherwise.
+            True if this is a Success, False otherwise.
 
         Examples:
             >>> Result.Success(42).is_success()
@@ -364,7 +364,7 @@ class Result(
             >>> Result.Failure(ValueError("err")).is_success()
             False
         """
-        if isinstance(self._value, BaseException):
+        if isinstance(self._value, _ErrorWrapper):
             return False
 
         return True
@@ -373,7 +373,7 @@ class Result(
         """Check if this Result is a Failure.
 
         Returns:
-            bool: True if this is a Failure, False otherwise.
+            True if this is a Failure, False otherwise.
 
         Examples:
             >>> Result.Failure(ValueError("err")).is_failure()
@@ -387,14 +387,14 @@ class Result(
     def __pow__[BE: BaseException, B](
         self,
         wrapped_funcs: Applicative[Result[BE, Any], Callable[[A], B]],
-    ) -> Result[BE, B]:
+    ) -> Result[BE | E, B]:
         """Infix operator for applicative application (``**``).
 
         Args:
             wrapped_funcs: A Result containing the function to apply.
 
         Returns:
-            Result[BE, B]: The result of applying the wrapped function to this
+            The result of applying the wrapped function to this
                 value. The error type ``BE`` comes from ``wrapped_funcs``, not
                 from ``self``. Returns the first encountered Failure if either
                 operand is a Failure.
@@ -411,7 +411,7 @@ class Result(
     def __or__[BE: BaseException, B](
         self,
         f: Callable[[A], Monad[Result[BE, Any], B]],
-    ) -> Result[BE, B]:
+    ) -> Result[BE | E, B]:
         """Infix operator for monadic bind (``|``).
 
         Args:
@@ -419,7 +419,7 @@ class Result(
                 ``Result[BE, B]``.
 
         Returns:
-            Result[BE, B]: The result of applying ``f`` to the success value.
+            The result of applying ``f`` to the success value.
                 The error type ``BE`` comes from ``f``'s return type, not from
                 ``self``. If ``self`` is a Failure, it is returned unchanged
                 (re-typed as ``Result[BE, B]``).
@@ -442,7 +442,7 @@ class Result(
         """Return the string representation of the Result.
 
         Returns:
-            str: ``Success(<value>)`` or ``Failure(<error>)``.
+            ``Success(<value>)`` or ``Failure(<error>)``.
 
         Examples:
             >>> repr(Result.Success(42))
@@ -452,21 +452,26 @@ class Result(
             "Failure(ValueError('err'))"
         """
         if self.is_success():
-            return f"Success({self._value!r})"
+            return f"Success({self.value!r})"
         else:
-            return f"Failure({self._value!r})"
+            return f"Failure({self.error!r})"
 
     def __eq__(self, value: object, /) -> bool:
         """Compare two Result objects for equality.
 
         Two Results are equal if they are both Success with equal values, or
-        both Failure with equal errors. A Result is never equal to a non-Result.
+        both Failure with equal errors. A Success is never equal to a Failure,
+        and a Result is never equal to a non-Result.
+
+        Failures compare by their wrapped exception. Note that exceptions use
+        identity equality by default, so two distinct exceptions with the same
+        message are not considered equal.
 
         Args:
             value: The object to compare with.
 
         Returns:
-            bool: True if the objects are equal, False otherwise.
+            True if the objects are equal, False otherwise.
 
         Examples:
             >>> Result.Success(42) == Result.Success(42)
@@ -479,16 +484,41 @@ class Result(
             >>> Result.Failure(err) == Result.Failure(err)
             True
 
+            >>> Result.Success(42) == Result.Failure(ValueError("err"))
+            False
+
             >>> Result.Success(42) == 42
             False
         """
         if not isinstance(value, Result):
             return False
 
+        if self.is_success() != value.is_success():
+            return False
+
         if self.is_success():
             return self.value == value.value
         else:
             return self.error == value.error
+
+    def __hash__(self) -> int:
+        """Return the hash of the Result.
+
+        The hash is derived from the wrapped value (for a Success) or the
+        wrapped exception (for a Failure). A Result is only hashable when its
+        contents are hashable.
+
+        Returns:
+            The hash of the Result.
+
+        Examples:
+            >>> hash(Result.Success(42)) == hash(Result.Success(42))
+            True
+        """
+        if self.is_success():
+            return hash((True, self.value))
+
+        return hash((False, self.error))
 
     @staticmethod
     def catch[Err: BaseException](ExceptionType: type[Err]):
@@ -540,7 +570,7 @@ class Result(
             >>> divide(10.0, 2.0)
             Success(5.0)
             >>> divide(10.0, 0.0)
-            Failure(ZeroDivisionError('division by zero'))
+            Failure(ZeroDivisionError('float division by zero'))
         """
 
         def decorator[**P, R](func: Callable[P, R]) -> Callable[P, Result[Err, R]]:
