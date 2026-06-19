@@ -4,8 +4,50 @@ from collections.abc import Callable
 
 import pytest
 
+from katharos.concurrency import ThreadingBackend
 from katharos.functools import F
 from katharos.types.lazy import Lazy
+
+
+class RecordingBackend(ThreadingBackend):
+    """A ThreadingBackend that counts the locks it creates."""
+
+    def __init__(self) -> None:
+        self.locks_created = 0
+
+    def create_lock(self):
+        self.locks_created += 1
+        return super().create_lock()
+
+
+class TestLazyBackendPropagation:
+    def test_fmap_uses_source_backend(self):
+        backend = RecordingBackend()
+        Lazy(fetcher=lambda: 1, backend=backend).fmap(lambda x: x + 1)
+
+        assert backend.locks_created == 2
+
+    def test_bind_uses_source_backend(self):
+        backend = RecordingBackend()
+        Lazy(fetcher=lambda: 1, backend=backend).bind(lambda x: Lazy.pure(x))
+
+        assert backend.locks_created == 2
+
+    def test_ap_uses_source_backend(self):
+        backend = RecordingBackend()
+        Lazy(fetcher=lambda: 1, backend=backend).ap(Lazy.pure(lambda x: x + 1))
+
+        assert backend.locks_created == 2
+
+    def test_chain_keeps_propagating_backend(self):
+        backend = RecordingBackend()
+        (
+            Lazy(fetcher=lambda: 1, backend=backend)
+            .fmap(lambda x: x + 1)
+            .bind(lambda x: Lazy.pure(x))
+        )
+
+        assert backend.locks_created == 3
 
 
 class TestLazyConstruction:
