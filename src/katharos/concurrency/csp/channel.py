@@ -55,6 +55,13 @@ class Channel[A]:
     a type-safe outcome rather than a second return value. Iterating over a
     channel yields its values until it is closed.
 
+    Note:
+        Every :meth:`send`, :meth:`recv`, and :meth:`close` wakes *all*
+        waiters (``notify_all``) to keep coordination correct under
+        contention. This is O(number of waiters) per operation, so a single
+        channel shared by a very large number of blocked senders/receivers
+        trades throughput for simplicity.
+
     Examples:
         >>> ch = Channel[int](capacity=1)
         >>> ch.send(42)
