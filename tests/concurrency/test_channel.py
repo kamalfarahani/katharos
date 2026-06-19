@@ -106,8 +106,7 @@ class TestUnbufferedChannel:
                     completed.append(value)
 
             threads = [
-                threading.Thread(target=sender, args=(v,), daemon=True)
-                for v in (0, 1)
+                threading.Thread(target=sender, args=(v,), daemon=True) for v in (0, 1)
             ]
             for t in threads:
                 t.start()
