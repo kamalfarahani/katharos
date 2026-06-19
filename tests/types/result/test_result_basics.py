@@ -22,12 +22,12 @@ class TestResultBasics:
         assert result.is_success()
         assert result.value == 42
 
-    def test_pure_with_exception_raises(self):
-        try:
-            Result.pure(ValueError("error"))
-            assert False, "Should have raised TypeError"
-        except TypeError as e:
-            assert "Cannot create a Result with an exception" in str(e)
+    def test_pure_with_exception_wraps_as_success(self):
+        error = ValueError("error")
+        result = Result.pure(error)
+        assert result.is_success()
+        assert not result.is_failure()
+        assert result.value is error
 
 
 class TestResultTypeTransformations:
