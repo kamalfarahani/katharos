@@ -27,12 +27,12 @@ class Lazy[A](Monad["Lazy[Any]", A]):
         42
 
         >>> add_one = Lazy(fetcher=lambda: lambda x: x + 1)
-        >>> Lazy(fetcher=lambda: 10) ** add_one
+        >>> Lazy(fetcher=lambda: 10) ** add_one  # doctest: +ELLIPSIS
         Lazy(...)
         >>> (Lazy(fetcher=lambda: 10) ** add_one).resolve()
         11
 
-        >>> Lazy(fetcher=lambda: 3) | (lambda x: Lazy(fetcher=lambda: x * 10))
+        >>> Lazy(fetcher=lambda: 3) | (lambda x: Lazy(fetcher=lambda: x * 10))  # doctest: +ELLIPSIS
         Lazy(...)
         >>> (Lazy(fetcher=lambda: 3) | (lambda x: Lazy(fetcher=lambda: x * 10))).resolve()
         30
