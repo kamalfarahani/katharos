@@ -15,23 +15,16 @@ the right order.
 from hypothesis import given
 from hypothesis import strategies as st
 
-from katharos.functools import F
 from katharos.types.side_effect import IO
 from katharos.types.side_effect.function_with_side_effect import (
     FunctionWithSideEffect,
 )
-
-
-def add_one(x: int) -> int:
-    return x + 1
-
-
-def double(x: int) -> int:
-    return x * 2
-
-
-def negate(x: int) -> int:
-    return -x
+from tests.law_helpers import (
+    check_applicative_laws,
+    check_functor_laws,
+    check_monad_laws,
+    unary_int_funcs as funcs,
+)
 
 
 def to_io_plus_one(x: int) -> IO[int]:
@@ -51,68 +44,31 @@ def recording_io(value: int, tag: object, log: list) -> IO[int]:
     return IO(value, FunctionWithSideEffect(f=lambda: log.append(tag)))
 
 
+# Compares two IOs by their wrapped value (IO has no value-based __eq__).
+def value_equal(a: IO, b: IO) -> bool:
+    return a.value == b.value
+
+
 # Strategies --------------------------------------------------------------
 
 # IO[int] values (no side effect).
 ios = st.integers().map(IO)
-# Pure unary functions int -> int, sampled from a fixed pool.
-funcs = st.sampled_from([add_one, double, negate, lambda x: x, lambda x: x * x])
 # Kleisli arrows int -> IO[int], sampled from a fixed pool.
 kleislis = st.sampled_from([to_io_plus_one, to_io_double, to_io_square])
 # IO wrapping a sampled function.
 io_funcs = funcs.map(IO)
 
 
-class TestFunctorLaws:
-    @given(ios)
-    def test_identity(self, io: IO[int]):
-        assert io.fmap(F.id).value == io.value
-
-    @given(ios, funcs, funcs)
-    def test_composition(self, io: IO[int], f, g):
-        left = io.fmap(lambda x: g(f(x)))
-        right = io.fmap(f).fmap(g)
-        assert left.value == right.value
+def test_functor_laws():
+    check_functor_laws(ios, eq=value_equal)
 
 
-class TestApplicativeLaws:
-    @given(ios)
-    def test_identity(self, v: IO[int]):
-        assert v.ap(IO.pure(F.id)).value == v.value
-
-    @given(st.integers(), funcs)
-    def test_homomorphism(self, x: int, f):
-        left = IO.pure(x).ap(IO.pure(f))
-        right = IO.pure(f(x))
-        assert left.value == right.value
-
-    @given(st.integers(), io_funcs)
-    def test_interchange(self, y: int, u: IO):
-        left = IO.pure(y).ap(u)
-        right = u.ap(IO.pure(lambda g: g(y)))
-        assert left.value == right.value
-
-    @given(io_funcs, io_funcs, ios)
-    def test_composition(self, u: IO, v: IO, w: IO):
-        left = w.ap(v).ap(u)
-        right = w.ap(v.ap(u.ap(IO.pure(F.compose))))
-        assert left.value == right.value
+def test_applicative_laws():
+    check_applicative_laws(ios, io_funcs, IO.pure, eq=value_equal)
 
 
-class TestMonadLaws:
-    @given(st.integers(), kleislis)
-    def test_left_identity(self, a: int, f):
-        assert IO.pure(a).bind(f).value == f(a).value
-
-    @given(ios)
-    def test_right_identity(self, io: IO[int]):
-        assert io.bind(IO.pure).value == io.value
-
-    @given(ios, kleislis, kleislis)
-    def test_associativity(self, io: IO[int], f, g):
-        left = io.bind(f).bind(g)
-        right = io.bind(lambda x: f(x).bind(g))
-        assert left.value == right.value
+def test_monad_laws():
+    check_monad_laws(ios, kleislis, IO.pure, eq=value_equal)
 
 
 class TestLaziness:

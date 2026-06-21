@@ -14,20 +14,14 @@ forms a cartesian product, which the composition law nests.
 from hypothesis import given
 from hypothesis import strategies as st
 
-from katharos.functools import F
 from katharos.types.list.immutable_list import ImmutableList
-
-
-def add_one(x: int) -> int:
-    return x + 1
-
-
-def double(x: int) -> int:
-    return x * 2
-
-
-def negate(x: int) -> int:
-    return -x
+from tests.law_helpers import (
+    check_applicative_laws,
+    check_functor_laws,
+    check_monad_laws,
+    check_monoid_laws,
+    unary_int_funcs as funcs,
+)
 
 
 def duplicate(x: int) -> ImmutableList[int]:
@@ -48,8 +42,6 @@ def range_to(x: int) -> ImmutableList[int]:
 _ints = st.integers(min_value=-1000, max_value=1000)
 # ImmutableList[int] values with bounded size (ap is a cartesian product).
 ilists = st.lists(_ints, max_size=4).map(ImmutableList)
-# Pure unary functions int -> int, sampled from a fixed pool.
-funcs = st.sampled_from([add_one, double, negate, lambda x: x, lambda x: x * x])
 # Kleisli arrows int -> ImmutableList[int], sampled from a fixed pool.
 kleislis = st.sampled_from(
     [duplicate, drop, range_to, lambda x: ImmutableList([x + 1])]
@@ -58,74 +50,25 @@ kleislis = st.sampled_from(
 ilist_funcs = st.lists(funcs, max_size=3).map(ImmutableList)
 
 
-class TestFunctorLaws:
-    @given(ilists)
-    def test_identity(self, xs: ImmutableList[int]):
-        assert xs.fmap(F.id) == xs
-
-    @given(ilists, funcs, funcs)
-    def test_composition(self, xs: ImmutableList[int], f, g):
-        assert xs.fmap(lambda x: g(f(x))) == xs.fmap(f).fmap(g)
+def test_functor_laws():
+    check_functor_laws(ilists)
 
 
-class TestApplicativeLaws:
-    @given(ilists)
-    def test_identity(self, v: ImmutableList[int]):
-        assert v.ap(ImmutableList.pure(F.id)) == v
-
-    @given(st.integers(), funcs)
-    def test_homomorphism(self, x: int, f):
-        left = ImmutableList.pure(x).ap(ImmutableList.pure(f))
-        right = ImmutableList.pure(f(x))
-        assert left == right
-
-    @given(st.integers(), ilist_funcs)
-    def test_interchange(self, y: int, u: ImmutableList):
-        left = ImmutableList.pure(y).ap(u)
-        right = u.ap(ImmutableList.pure(lambda g: g(y)))
-        assert left == right
-
-    @given(ilist_funcs, ilist_funcs, ilists)
-    def test_composition(self, u: ImmutableList, v: ImmutableList, w: ImmutableList):
-        left = w.ap(v).ap(u)
-        right = w.ap(v.ap(u.ap(ImmutableList.pure(F.compose))))
-        assert left == right
+def test_applicative_laws():
+    check_applicative_laws(ilists, ilist_funcs, ImmutableList.pure)
 
 
-class TestMonadLaws:
-    @given(st.integers(), kleislis)
-    def test_left_identity(self, a: int, f):
-        assert ImmutableList.pure(a).bind(f) == f(a)
-
-    @given(ilists)
-    def test_right_identity(self, xs: ImmutableList[int]):
-        assert xs.bind(ImmutableList.pure) == xs
-
-    @given(ilists, kleislis, kleislis)
-    def test_associativity(self, xs: ImmutableList[int], f, g):
-        left = xs.bind(f).bind(g)
-        right = xs.bind(lambda x: f(x).bind(g))
-        assert left == right
+def test_monad_laws():
+    check_monad_laws(ilists, kleislis, ImmutableList.pure)
 
 
-class TestMonoidLaws:
-    @given(ilists)
-    def test_left_identity(self, xs: ImmutableList[int]):
-        assert ImmutableList.identity().op(xs) == xs
+def test_monoid_laws():
+    check_monoid_laws(ilists, ImmutableList.identity)
 
-    @given(ilists)
-    def test_right_identity(self, xs: ImmutableList[int]):
-        assert xs.op(ImmutableList.identity()) == xs
 
-    @given(ilists, ilists, ilists)
-    def test_associativity(
-        self, xs: ImmutableList[int], ys: ImmutableList[int], zs: ImmutableList[int]
-    ):
-        assert (xs.op(ys)).op(zs) == xs.op(ys.op(zs))
-
-    @given(ilists, ilists)
-    def test_op_concatenates(self, xs: ImmutableList[int], ys: ImmutableList[int]):
-        assert list(xs.op(ys)) == list(xs) + list(ys)
+@given(ilists, ilists)
+def test_op_concatenates(xs: ImmutableList[int], ys: ImmutableList[int]):
+    assert list(xs.op(ys)) == list(xs) + list(ys)
 
 
 class TestStructuralProperties:

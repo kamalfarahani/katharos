@@ -18,6 +18,17 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from katharos.types.monoid import Product
+from tests.law_helpers import check_monoid_laws
+
+
+# Comparators on the wrapped ``._value`` (Product has no value-based __eq__).
+def exact_eq(a, b) -> bool:
+    return a._value == b._value
+
+
+def approx_eq(a, b) -> bool:
+    return a._value == pytest.approx(b._value)
+
 
 # Strategies --------------------------------------------------------------
 
@@ -37,74 +48,31 @@ decimals = st.decimals(
 complexes = st.complex_numbers(allow_nan=False, allow_infinity=False, max_magnitude=100)
 
 
-class TestProductIntLaws:
-    @given(ints)
-    def test_left_identity(self, x: int):
-        assert Product[int].identity().op(Product(x))._value == x
-
-    @given(ints)
-    def test_right_identity(self, x: int):
-        assert Product(x).op(Product[int].identity())._value == x
-
-    @given(ints, ints, ints)
-    def test_associativity(self, a: int, b: int, c: int):
-        left = Product(a).op(Product(b)).op(Product(c))
-        right = Product(a).op(Product(b).op(Product(c)))
-        assert left._value == right._value
-
-    @given(ints, ints)
-    def test_op_multiplies(self, a: int, b: int):
-        assert Product(a).op(Product(b))._value == a * b
+def test_int_monoid_laws():
+    check_monoid_laws(ints.map(Product), lambda: Product[int].identity(), eq=exact_eq)
 
 
-class TestProductFloatLaws:
-    @given(floats)
-    def test_left_identity(self, x: float):
-        assert Product[float].identity().op(Product(x))._value == x
-
-    @given(floats)
-    def test_right_identity(self, x: float):
-        assert Product(x).op(Product[float].identity())._value == x
-
-    @given(floats, floats, floats)
-    def test_associativity(self, a: float, b: float, c: float):
-        left = Product(a).op(Product(b)).op(Product(c))
-        right = Product(a).op(Product(b).op(Product(c)))
-        assert left._value == pytest.approx(right._value)
+def test_float_monoid_laws():
+    check_monoid_laws(
+        floats.map(Product), lambda: Product[float].identity(), eq=approx_eq
+    )
 
 
-class TestProductComplexLaws:
-    @given(complexes)
-    def test_left_identity(self, x: complex):
-        assert Product[complex].identity().op(Product(x))._value == x
-
-    @given(complexes)
-    def test_right_identity(self, x: complex):
-        assert Product(x).op(Product[complex].identity())._value == x
-
-    @given(complexes, complexes, complexes)
-    def test_associativity(self, a: complex, b: complex, c: complex):
-        left = Product(a).op(Product(b)).op(Product(c))
-        right = Product(a).op(Product(b).op(Product(c)))
-        assert left._value == pytest.approx(right._value)
+def test_complex_monoid_laws():
+    check_monoid_laws(
+        complexes.map(Product), lambda: Product[complex].identity(), eq=approx_eq
+    )
 
 
-class TestProductDecimalLaws:
-    @given(decimals)
-    def test_left_identity(self, x: decimal.Decimal):
-        assert Product[decimal.Decimal].identity().op(Product(x))._value == x
+def test_decimal_monoid_laws():
+    check_monoid_laws(
+        decimals.map(Product), lambda: Product[decimal.Decimal].identity(), eq=exact_eq
+    )
 
-    @given(decimals)
-    def test_right_identity(self, x: decimal.Decimal):
-        assert Product(x).op(Product[decimal.Decimal].identity())._value == x
 
-    @given(decimals, decimals, decimals)
-    def test_associativity(
-        self, a: decimal.Decimal, b: decimal.Decimal, c: decimal.Decimal
-    ):
-        left = Product(a).op(Product(b)).op(Product(c))
-        right = Product(a).op(Product(b).op(Product(c)))
-        assert left._value == right._value
+@given(ints, ints)
+def test_op_multiplies(a: int, b: int):
+    assert Product(a).op(Product(b))._value == a * b
 
 
 class TestProductStructural:

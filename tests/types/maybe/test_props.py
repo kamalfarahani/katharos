@@ -9,20 +9,13 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from katharos.functools import F
 from katharos.types.maybe import Maybe
-
-
-def add_one(x: int) -> int:
-    return x + 1
-
-
-def double(x: int) -> int:
-    return x * 2
-
-
-def negate(x: int) -> int:
-    return -x
+from tests.law_helpers import (
+    check_applicative_laws,
+    check_functor_laws,
+    check_monad_laws,
+    unary_int_funcs as funcs,
+)
 
 
 def safe_reciprocal(x: int) -> Maybe[float]:
@@ -40,8 +33,6 @@ maybes = st.one_of(
     st.integers().map(Maybe.Just),
     st.just(Maybe.Nothing()),
 )
-# Pure unary functions int -> int, sampled from a fixed pool.
-funcs = st.sampled_from([add_one, double, negate, lambda x: x, lambda x: x * x])
 # Kleisli arrows int -> Maybe[int], sampled from a fixed pool.
 kleislis = st.sampled_from(
     [safe_reciprocal, only_positive, lambda x: Maybe.Just(x + 1)]
@@ -53,52 +44,16 @@ maybe_funcs = st.one_of(
 )
 
 
-class TestFunctorLaws:
-    @given(maybes)
-    def test_identity(self, m: Maybe[int]):
-        assert m.fmap(F.id) == m
-
-    @given(maybes, funcs, funcs)
-    def test_composition(self, m: Maybe[int], f, g):
-        assert m.fmap(lambda x: g(f(x))) == m.fmap(f).fmap(g)
+def test_functor_laws():
+    check_functor_laws(maybes)
 
 
-class TestApplicativeLaws:
-    @given(maybes)
-    def test_identity(self, v: Maybe[int]):
-        assert v.ap(Maybe.pure(F.id)) == v
-
-    @given(st.integers(), funcs)
-    def test_homomorphism(self, x: int, f):
-        assert Maybe.pure(x).ap(Maybe.pure(f)) == Maybe.pure(f(x))
-
-    @given(st.integers(), maybe_funcs)
-    def test_interchange(self, y: int, u: Maybe):
-        left = Maybe.pure(y).ap(u)
-        right = u.ap(Maybe.pure(lambda g: g(y)))
-        assert left == right
-
-    @given(maybe_funcs, maybe_funcs, maybes)
-    def test_composition(self, u: Maybe, v: Maybe, w: Maybe[int]):
-        left = w.ap(v).ap(u)
-        right = w.ap(v.ap(u.ap(Maybe.pure(F.compose))))
-        assert left == right
+def test_applicative_laws():
+    check_applicative_laws(maybes, maybe_funcs, Maybe.pure)
 
 
-class TestMonadLaws:
-    @given(st.integers(), kleislis)
-    def test_left_identity(self, a: int, f):
-        assert Maybe.pure(a).bind(f) == f(a)
-
-    @given(maybes)
-    def test_right_identity(self, m: Maybe[int]):
-        assert m.bind(Maybe.pure) == m
-
-    @given(maybes, kleislis, kleislis)
-    def test_associativity(self, m: Maybe[int], f, g):
-        left = m.bind(f).bind(g)
-        right = m.bind(lambda x: f(x).bind(g))
-        assert left == right
+def test_monad_laws():
+    check_monad_laws(maybes, kleislis, Maybe.pure)
 
 
 class TestStructuralProperties:

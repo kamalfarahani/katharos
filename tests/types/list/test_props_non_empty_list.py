@@ -17,20 +17,14 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from katharos.functools import F
 from katharos.types.list.non_empty_list import NonEmptyList
-
-
-def add_one(x: int) -> int:
-    return x + 1
-
-
-def double(x: int) -> int:
-    return x * 2
-
-
-def negate(x: int) -> int:
-    return -x
+from tests.law_helpers import (
+    check_applicative_laws,
+    check_functor_laws,
+    check_monad_laws,
+    check_semigroup_laws,
+    unary_int_funcs as funcs,
+)
 
 
 def duplicate(x: int) -> NonEmptyList[int]:
@@ -55,8 +49,6 @@ _ints = st.integers(min_value=-1000, max_value=1000)
 # NonEmptyList[int] values (always at least one element), bounded size
 # because ap is a cartesian product.
 nels = st.lists(_ints, min_size=1, max_size=4).map(_nel)
-# Pure unary functions int -> int, sampled from a fixed pool.
-funcs = st.sampled_from([add_one, double, negate, lambda x: x, lambda x: x * x])
 # Kleisli arrows int -> NonEmptyList[int], sampled from a fixed pool.
 kleislis = st.sampled_from([duplicate, singleton_plus_one, fan_out])
 # NonEmptyList of functions, bounded size.
@@ -65,66 +57,26 @@ nel_funcs = st.lists(funcs, min_size=1, max_size=3).map(
 )
 
 
-class TestFunctorLaws:
-    @given(nels)
-    def test_identity(self, xs: NonEmptyList[int]):
-        assert xs.fmap(F.id) == xs
-
-    @given(nels, funcs, funcs)
-    def test_composition(self, xs: NonEmptyList[int], f, g):
-        assert xs.fmap(lambda x: g(f(x))) == xs.fmap(f).fmap(g)
+def test_functor_laws():
+    check_functor_laws(nels)
 
 
-class TestApplicativeLaws:
-    @given(nels)
-    def test_identity(self, v: NonEmptyList[int]):
-        assert v.ap(NonEmptyList.pure(F.id)) == v
-
-    @given(st.integers(), funcs)
-    def test_homomorphism(self, x: int, f):
-        left = NonEmptyList.pure(x).ap(NonEmptyList.pure(f))
-        right = NonEmptyList.pure(f(x))
-        assert left == right
-
-    @given(st.integers(), nel_funcs)
-    def test_interchange(self, y: int, u: NonEmptyList):
-        left = NonEmptyList.pure(y).ap(u)
-        right = u.ap(NonEmptyList.pure(lambda g: g(y)))
-        assert left == right
-
-    @given(nel_funcs, nel_funcs, nels)
-    def test_composition(self, u: NonEmptyList, v: NonEmptyList, w: NonEmptyList):
-        left = w.ap(v).ap(u)
-        right = w.ap(v.ap(u.ap(NonEmptyList.pure(F.compose))))
-        assert left == right
+def test_applicative_laws():
+    check_applicative_laws(nels, nel_funcs, NonEmptyList.pure)
 
 
-class TestMonadLaws:
-    @given(st.integers(), kleislis)
-    def test_left_identity(self, a: int, f):
-        assert NonEmptyList.pure(a).bind(f) == f(a)
-
-    @given(nels)
-    def test_right_identity(self, xs: NonEmptyList[int]):
-        assert xs.bind(NonEmptyList.pure) == xs
-
-    @given(nels, kleislis, kleislis)
-    def test_associativity(self, xs: NonEmptyList[int], f, g):
-        left = xs.bind(f).bind(g)
-        right = xs.bind(lambda x: f(x).bind(g))
-        assert left == right
+def test_monad_laws():
+    check_monad_laws(nels, kleislis, NonEmptyList.pure)
 
 
-class TestSemigroupLaws:
-    @given(nels, nels, nels)
-    def test_associativity(
-        self, xs: NonEmptyList[int], ys: NonEmptyList[int], zs: NonEmptyList[int]
-    ):
-        assert (xs.op(ys)).op(zs) == xs.op(ys.op(zs))
+def test_semigroup_laws():
+    # NonEmptyList is a Semigroup but not a Monoid (no empty list as identity).
+    check_semigroup_laws(nels)
 
-    @given(nels, nels)
-    def test_op_concatenates(self, xs: NonEmptyList[int], ys: NonEmptyList[int]):
-        assert list(xs.op(ys)) == list(xs) + list(ys)
+
+@given(nels, nels)
+def test_op_concatenates(xs: NonEmptyList[int], ys: NonEmptyList[int]):
+    assert list(xs.op(ys)) == list(xs) + list(ys)
 
 
 class TestStructuralProperties:

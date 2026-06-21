@@ -5,31 +5,23 @@ invariants of :class:`Lazy` hold across a wide range of generated inputs,
 complementing the worked-example tests in ``test_lazy.py``.
 
 Note on equality: :class:`Lazy` has no value-based ``__eq__`` (two Lazies
-compare by identity), so the algebraic laws cannot be checked on the Lazy
-objects directly. Instead every law compares the *resolved* values of the
-two sides. The strategies below therefore generate zero-argument *thunks*
-(``() -> Lazy[int]``) rather than shared Lazy instances, so each side of a
-law builds a fresh computation chain that is safe to resolve independently.
+compare by identity), so the algebraic laws are checked through a custom
+comparator that resolves both sides (``lambda a, b: a.resolve() == b.resolve()``).
+Because :meth:`Lazy.resolve` memoizes, resolving the same Lazy more than once is
+idempotent, so a single Lazy instance can safely back both sides of a law.
 """
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from katharos.functools import F
 from katharos.types.lazy import Lazy
-
-
-def add_one(x: int) -> int:
-    return x + 1
-
-
-def double(x: int) -> int:
-    return x * 2
-
-
-def negate(x: int) -> int:
-    return -x
+from tests.law_helpers import (
+    check_applicative_laws,
+    check_functor_laws,
+    check_monad_laws,
+    unary_int_funcs as funcs,
+)
 
 
 def to_lazy_plus_one(x: int) -> Lazy[int]:
@@ -44,70 +36,31 @@ def to_lazy_square(x: int) -> Lazy[int]:
     return Lazy(fetcher=lambda: x * x)
 
 
+# Comparator that drives both sides to a concrete value.
+def resolves_equal(a: Lazy, b: Lazy) -> bool:
+    return a.resolve() == b.resolve()
+
+
 # Strategies --------------------------------------------------------------
 
-# Zero-argument thunks that each build a fresh Lazy[int]. Using thunks (not
-# shared Lazy instances) keeps every law's two sides independent, since a
-# resolved Lazy memoizes and cannot be re-driven from scratch.
-lazy_thunks = st.integers().map(lambda n: lambda: Lazy(fetcher=lambda: n))
-# Pure unary functions int -> int, sampled from a fixed pool.
-funcs = st.sampled_from([add_one, double, negate, lambda x: x, lambda x: x * x])
+# Lazy[int] values, each wrapping a fresh fetcher.
+lazies = st.integers().map(lambda n: Lazy(fetcher=lambda: n))
 # Kleisli arrows int -> Lazy[int], sampled from a fixed pool.
 kleislis = st.sampled_from([to_lazy_plus_one, to_lazy_double, to_lazy_square])
-# Thunks building a fresh Lazy[Callable] wrapping a sampled function.
-lazy_func_thunks = funcs.map(lambda f: lambda: Lazy(fetcher=lambda: f))
+# Lazy[Callable] values wrapping a sampled function.
+lazy_funcs = funcs.map(lambda f: Lazy(fetcher=lambda: f))
 
 
-class TestFunctorLaws:
-    @given(lazy_thunks)
-    def test_identity(self, mk):
-        assert mk().fmap(F.id).resolve() == mk().resolve()
-
-    @given(lazy_thunks, funcs, funcs)
-    def test_composition(self, mk, f, g):
-        left = mk().fmap(lambda x: g(f(x))).resolve()
-        right = mk().fmap(f).fmap(g).resolve()
-        assert left == right
+def test_functor_laws():
+    check_functor_laws(lazies, eq=resolves_equal)
 
 
-class TestApplicativeLaws:
-    @given(lazy_thunks)
-    def test_identity(self, mk):
-        assert mk().ap(Lazy.pure(F.id)).resolve() == mk().resolve()
-
-    @given(st.integers(), funcs)
-    def test_homomorphism(self, x: int, f):
-        left = Lazy.pure(x).ap(Lazy.pure(f)).resolve()
-        right = Lazy.pure(f(x)).resolve()
-        assert left == right
-
-    @given(st.integers(), lazy_func_thunks)
-    def test_interchange(self, y: int, mku):
-        left = Lazy.pure(y).ap(mku()).resolve()
-        right = mku().ap(Lazy.pure(lambda g: g(y))).resolve()
-        assert left == right
-
-    @given(lazy_func_thunks, lazy_func_thunks, lazy_thunks)
-    def test_composition(self, mku, mkv, mkw):
-        left = mkw().ap(mkv()).ap(mku()).resolve()
-        right = mkw().ap(mkv().ap(mku().ap(Lazy.pure(F.compose)))).resolve()
-        assert left == right
+def test_applicative_laws():
+    check_applicative_laws(lazies, lazy_funcs, Lazy.pure, eq=resolves_equal)
 
 
-class TestMonadLaws:
-    @given(st.integers(), kleislis)
-    def test_left_identity(self, a: int, f):
-        assert Lazy.pure(a).bind(f).resolve() == f(a).resolve()
-
-    @given(lazy_thunks)
-    def test_right_identity(self, mk):
-        assert mk().bind(Lazy.pure).resolve() == mk().resolve()
-
-    @given(lazy_thunks, kleislis, kleislis)
-    def test_associativity(self, mk, f, g):
-        left = mk().bind(f).bind(g).resolve()
-        right = mk().bind(lambda x: f(x).bind(g)).resolve()
-        assert left == right
+def test_monad_laws():
+    check_monad_laws(lazies, kleislis, Lazy.pure, eq=resolves_equal)
 
 
 class TestLaziness:
@@ -124,12 +77,12 @@ class TestLaziness:
         lazy.resolve()
         assert len(calls) == 1
 
-    @given(lazy_thunks, funcs, kleislis)
-    def test_composition_does_not_run_fetcher(self, mk, f, k):
+    @given(lazies, funcs, kleislis)
+    def test_composition_does_not_run_fetcher(self, lazy, f, k):
         calls = []
         base = Lazy(fetcher=lambda: (calls.append(None), 0)[1])
         # Building a whole chain triggers no evaluation.
-        _ = base.fmap(f).bind(k).ap(mk().fmap(lambda _: f))
+        _ = base.fmap(f).bind(k).ap(lazy.fmap(lambda _: f))
         assert calls == []
 
 
@@ -171,18 +124,18 @@ class TestMemoization:
 
 
 class TestOperatorEquivalence:
-    @given(lazy_thunks, kleislis)
-    def test_pipe_equals_bind(self, mk, f):
-        assert (mk() | f).resolve() == mk().bind(f).resolve()
+    @given(lazies, kleislis)
+    def test_pipe_equals_bind(self, lazy, f):
+        assert (lazy | f).resolve() == lazy.bind(f).resolve()
 
-    @given(lazy_thunks, lazy_func_thunks)
-    def test_pow_equals_ap(self, mk, mkf):
-        assert (mk() ** mkf()).resolve() == mk().ap(mkf()).resolve()
+    @given(lazies, lazy_funcs)
+    def test_pow_equals_ap(self, lazy, wf):
+        assert (lazy**wf).resolve() == lazy.ap(wf).resolve()
 
-    @given(lazy_thunks, lazy_thunks)
-    def test_rshift_discards_left(self, mk, mkother):
+    @given(lazies, lazies)
+    def test_rshift_discards_left(self, lazy, other):
         # `a >> b` sequences and yields b's value, ignoring a's.
-        assert (mk() >> mkother()).resolve() == mkother().resolve()
+        assert (lazy >> other).resolve() == other.resolve()
 
 
 class TestPureAndRet:

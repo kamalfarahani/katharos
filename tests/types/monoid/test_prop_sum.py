@@ -18,6 +18,17 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from katharos.types.monoid import Sum
+from tests.law_helpers import check_monoid_laws
+
+
+# Comparators on the wrapped ``._value`` (Sum has no value-based __eq__).
+def exact_eq(a, b) -> bool:
+    return a._value == b._value
+
+
+def approx_eq(a, b) -> bool:
+    return a._value == pytest.approx(b._value)
+
 
 # Strategies --------------------------------------------------------------
 
@@ -36,74 +47,27 @@ decimals = st.decimals(
 complexes = st.complex_numbers(allow_nan=False, allow_infinity=False, max_magnitude=1e3)
 
 
-class TestSumIntLaws:
-    @given(ints)
-    def test_left_identity(self, x: int):
-        assert Sum[int].identity().op(Sum(x))._value == x
-
-    @given(ints)
-    def test_right_identity(self, x: int):
-        assert Sum(x).op(Sum[int].identity())._value == x
-
-    @given(ints, ints, ints)
-    def test_associativity(self, a: int, b: int, c: int):
-        left = Sum(a).op(Sum(b)).op(Sum(c))
-        right = Sum(a).op(Sum(b).op(Sum(c)))
-        assert left._value == right._value
-
-    @given(ints, ints)
-    def test_op_adds(self, a: int, b: int):
-        assert Sum(a).op(Sum(b))._value == a + b
+def test_int_monoid_laws():
+    check_monoid_laws(ints.map(Sum), lambda: Sum[int].identity(), eq=exact_eq)
 
 
-class TestSumFloatLaws:
-    @given(floats)
-    def test_left_identity(self, x: float):
-        assert Sum[float].identity().op(Sum(x))._value == x
-
-    @given(floats)
-    def test_right_identity(self, x: float):
-        assert Sum(x).op(Sum[float].identity())._value == x
-
-    @given(floats, floats, floats)
-    def test_associativity(self, a: float, b: float, c: float):
-        left = Sum(a).op(Sum(b)).op(Sum(c))
-        right = Sum(a).op(Sum(b).op(Sum(c)))
-        assert left._value == pytest.approx(right._value)
+def test_float_monoid_laws():
+    check_monoid_laws(floats.map(Sum), lambda: Sum[float].identity(), eq=approx_eq)
 
 
-class TestSumComplexLaws:
-    @given(complexes)
-    def test_left_identity(self, x: complex):
-        assert Sum[complex].identity().op(Sum(x))._value == x
-
-    @given(complexes)
-    def test_right_identity(self, x: complex):
-        assert Sum(x).op(Sum[complex].identity())._value == x
-
-    @given(complexes, complexes, complexes)
-    def test_associativity(self, a: complex, b: complex, c: complex):
-        left = Sum(a).op(Sum(b)).op(Sum(c))
-        right = Sum(a).op(Sum(b).op(Sum(c)))
-        assert left._value == pytest.approx(right._value)
+def test_complex_monoid_laws():
+    check_monoid_laws(complexes.map(Sum), lambda: Sum[complex].identity(), eq=approx_eq)
 
 
-class TestSumDecimalLaws:
-    @given(decimals)
-    def test_left_identity(self, x: decimal.Decimal):
-        assert Sum[decimal.Decimal].identity().op(Sum(x))._value == x
+def test_decimal_monoid_laws():
+    check_monoid_laws(
+        decimals.map(Sum), lambda: Sum[decimal.Decimal].identity(), eq=exact_eq
+    )
 
-    @given(decimals)
-    def test_right_identity(self, x: decimal.Decimal):
-        assert Sum(x).op(Sum[decimal.Decimal].identity())._value == x
 
-    @given(decimals, decimals, decimals)
-    def test_associativity(
-        self, a: decimal.Decimal, b: decimal.Decimal, c: decimal.Decimal
-    ):
-        left = Sum(a).op(Sum(b)).op(Sum(c))
-        right = Sum(a).op(Sum(b).op(Sum(c)))
-        assert left._value == right._value
+@given(ints, ints)
+def test_op_adds(a: int, b: int):
+    assert Sum(a).op(Sum(b))._value == a + b
 
 
 class TestSumStructural:
