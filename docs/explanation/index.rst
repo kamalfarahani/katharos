@@ -10,6 +10,7 @@ specific task.
    :maxdepth: 1
 
    why-fp-in-python
+   error-handling-and-tracebacks
    semigroups-monoids-mathematics
    category-theory-primer
    functors-mathematics

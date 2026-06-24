@@ -8,6 +8,7 @@ These guides solve specific tasks you'll encounter when using Katharos. Each gui
 
    null-values-with-maybe
    error-handling
+   catch-exceptions
    chain-operations
    do-notation
    refactor-to-do
