@@ -105,6 +105,28 @@ parse_int("42").fmap(lambda n: n * 2) # Success(84)
 parse_int("??").fmap(lambda n: n * 2)  # Failure(...)
 ```
 
+**Skip the boilerplate with `Result.catch`:**
+
+`Result.catch` turns a function that raises into one that returns a `Result` — no
+manual `try/except`. Only the declared exception type becomes a `Failure`; the
+caught exception keeps its traceback, so you can still find the line that failed.
+
+```python
+import traceback
+from katharos.types import Result
+
+@Result.catch(ValueError)
+def parse_int(s: str) -> int:
+    return int(s)
+
+parse_int("42")    # Success(42)
+parse_int("??")    # Failure(ValueError("invalid literal for int() with base 10: '??'"))
+
+failure = parse_int("??")
+if failure.is_failure():
+    traceback.print_exception(failure.error)  # full traceback, pointing at the failing line
+```
+
 **Combine values with the Semigroup operator:**
 
 ```python
