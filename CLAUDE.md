@@ -54,10 +54,10 @@ Each type implements the appropriate algebra interfaces:
 | `Result[E, A]` | Monad | `Success(value)` / `Failure(exc)` |
 | `ImmutableList[T]` | Monad + Monoid | wraps a Python list, immutable |
 | `NonEmptyList[T]` | Monad + Semigroup | guaranteed non-empty, has `.head` and `.tail` |
-| `IO[A]` | Monad | lazy side-effect wrapper; call `.execute()` to run |
+| `IO[A]` | Monad | lazy side-effect wrapper; call `.execute()` to run; wraps a `FunctionWithSideEffect` |
 | `Lazy[A]` | Monad | lazy, memoized synchronous computation; call `.resolve()` to run (`src/katharos/types/lazy.py`) |
 | `MonoidMaybe` | Monoid | Maybe with a monoid instance |
-| `Sum`, `Product` | Monoid | numeric monoids |
+| `Sum`, `Product` | Monoid | numeric monoids; constrained by the `AdditiveMonoid`/`MultiplicativeMonoid` structural protocols (`src/katharos/types/monoid/`) |
 
 `Maybe` and `Result` are `@final` — do not subclass. Use `is_just()`/`is_nothing()` and `is_success()`/`is_failure()` for state checks rather than type checks.
 
@@ -65,7 +65,7 @@ Each type implements the appropriate algebra interfaces:
 
 ### Layer 3: Utilities
 
-- **`src/katharos/functools/f.py`** — `F` static namespace: `compose`, `id`, `foldr`, `foldl`, `sigma` (fold a `NonEmptyList[Semigroup]`), `curry`
+- **`src/katharos/functools/f.py`** — `F` static namespace: `compose`, `id`, `foldr`, `foldl`, `sigma` (fold a `NonEmptyList[Semigroup]`), `curry`, `lift_a2`/`lift_a3` (lift a binary/ternary function into an `Applicative` context)
 - **`src/katharos/syntax_sugar/do.py`** — `do` decorator for Haskell-style do-notation:
   ```python
   @do(Maybe)
@@ -74,7 +74,7 @@ Each type implements the appropriate algebra interfaces:
       y: int = yield Maybe.Just(4)
       return x + y
   ```
-  Each `yield` unwraps the monadic value (short-circuits on `Nothing`/`Failure`). The plain `return` is automatically lifted via `Maybe.ret()`.
+  Each `yield` unwraps the monadic value (short-circuits on `Nothing`/`Failure`). The plain `return` is automatically lifted via `Maybe.ret()`. The `DoBlock[M, R]` return-type alias (`Generator[M, Any, R]`) is exported alongside `do`.
 
 ### Concurrency (`src/katharos/concurrency/`)
 
@@ -83,7 +83,7 @@ Concurrency types are decoupled from any specific threading library by a backend
 CSP-style primitives live in `concurrency/csp/`:
 
 - **`go`** (module-level `Go` instance) — launches `go(fn, *args, **kwargs)` concurrently, returning a thread handle (fire-and-forget; return value discarded, exceptions don't propagate out). Used as a context manager (`with go:`), it becomes a structured-concurrency scope that joins all work spawned inside it on exit. Scopes are tracked per execution context via the backend's context-local storage, so the shared `go` instance nests correctly.
-- **`Channel[A]`** — Go-style thread-safe channel. `capacity=0` (default) is unbuffered (synchronous rendezvous); `capacity>0` buffers. `recv(timeout=None)` returns a `Result`: `Success(value)`, `Failure(ChannelClosedError)` when closed and drained, or `Failure(ChannelTimeoutError)` on timeout. `send` raises `ChannelClosedError` on a closed channel; iterating yields values until closed. Every op uses `notify_all` (O(waiters)) for correctness under contention.
+- **`Channel[A]`** — Go-style thread-safe channel. `capacity=0` (default) is unbuffered (synchronous rendezvous); `capacity>0` buffers. `recv(timeout=None)` returns a `Result`: `Success(value)`, `Failure(ChannelClosedError)` when closed and drained, or `Failure(ChannelTimeoutError)` on timeout. `send` raises `ChannelClosedError` on a closed channel; iterating yields values until closed. Every op uses `notify_all` (O(waiters)) for correctness under contention. `ChannelClosedError` and `ChannelTimeoutError` are exported from `katharos.concurrency`.
 
 ### Operator summary
 
@@ -96,7 +96,7 @@ CSP-style primitives live in `concurrency/csp/`:
 
 ### Test layout
 
-Tests mirror `src/` under `tests/types/` and `tests/functools/` etc. Coverage is measured on the `katharos` package.
+Tests mirror `src/` under `tests/types/` and `tests/functools/` etc. Coverage is measured on the `katharos` package. Property-based tests use Hypothesis; shared algebra-law checkers (functor/applicative/monad/monoid laws) are factored out for reuse across types.
 
 ### Docstring conventions
 
