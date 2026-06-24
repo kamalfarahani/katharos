@@ -207,7 +207,77 @@ You should see:
    User created: bob@example.com
    Registration failed: Invalid email format
 
+Step 7: Lift a Throwing Function with Result.catch
+---------------------------------------------------
+
+So far every validation we wrote returns a ``Result`` by hand. But a lot of real
+code — including the standard library — signals failure by *raising* an
+exception. Suppose registration also accepts an age, supplied as a string from a
+web form, that we need to parse with ``int()``. Calling ``int("abc")`` raises a
+``ValueError``.
+
+Rather than wrap that call in a ``try/except`` ourselves, we can use
+``Result.catch``. It is a decorator that converts a function raising a given
+exception type into one that returns a ``Result``. Add this to ``registration.py``:
+
+.. code-block:: python
+
+   @Result.catch(ValueError)
+   def parse_age(raw: str) -> int:
+       return int(raw)
+
+   print(parse_age("30"))
+   print(parse_age("not a number"))
+
+Run the file:
+
+.. code-block:: bash
+
+   python registration.py
+
+You should see:
+
+.. code-block:: text
+
+   Success(30)
+   Failure(ValueError("invalid literal for int() with base 10: 'not a number'"))
+
+The decorated ``parse_age`` returns an ordinary ``Result``, so it drops straight
+into the same pipeline as our hand-written validations. Only ``ValueError`` is
+turned into a ``Failure`` — any other exception would propagate normally. Replace
+the two ``print`` lines to chain the parsed age into a range check:
+
+.. code-block:: python
+
+   def check_age_range(age: int) -> Result[Exception, int]:
+       if 0 <= age <= 150:
+           return Result[Exception, int].Success(age)
+       return Result[Exception, int].Failure(ValueError("Age out of range"))
+
+   print(parse_age("30") | check_age_range)
+   print(parse_age("999") | check_age_range)
+   print(parse_age("abc") | check_age_range)
+
+Run the file:
+
+.. code-block:: bash
+
+   python registration.py
+
+You should see:
+
+.. code-block:: text
+
+   Success(30)
+   Failure(ValueError('Age out of range'))
+   Failure(ValueError("invalid literal for int() with base 10: 'abc'"))
+
+``Result.catch`` is the bridge between exception-raising code and the
+``Result``-based pipelines you have been building — without a single
+``try/except``. For more patterns, including how to recover the exact line that
+caused a failure, see :doc:`../how-to/catch-exceptions`.
+
 What We Built
 -------------
 
-We built a complete user registration system that validates email format, password length, and password strength, chains validations with ``|``, and uses ``@do`` to combine multiple results into a single function. Every possible error is captured in the ``Result`` type and never thrown as an exception.
+We built a complete user registration system that validates email format, password length, and password strength, chains validations with ``|``, and uses ``@do`` to combine multiple results into a single function. We also used ``Result.catch`` to lift an exception-throwing function into the same pipeline. Every possible error is captured in the ``Result`` type and never thrown as an exception.
