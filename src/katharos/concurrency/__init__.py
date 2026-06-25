@@ -12,7 +12,6 @@ from .base_threading_backend import (
     BaseThreadHandle,
     BaseThreadingBackend,
 )
-from .csp import CSP, Channel, ChannelClosedError, ChannelTimeoutError, Go, csp, go
 from .threading_backend import ThreadingBackend, ThreadingHandle, default_backend
 
 __all__ = [
@@ -20,14 +19,7 @@ __all__ = [
     "AbstractLock",
     "BaseThreadHandle",
     "BaseThreadingBackend",
-    "CSP",
-    "Channel",
-    "ChannelClosedError",
-    "ChannelTimeoutError",
-    "Go",
     "ThreadingBackend",
     "ThreadingHandle",
     "default_backend",
-    "go",
-    "csp",
 ]

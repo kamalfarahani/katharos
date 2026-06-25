@@ -5,7 +5,6 @@ from collections import deque
 from collections.abc import Iterator
 
 from katharos.concurrency.base_threading_backend import BaseThreadingBackend
-from katharos.concurrency.threading_backend import default_backend
 from katharos.types.result import Result
 
 
@@ -63,7 +62,8 @@ class Channel[A]:
         trades throughput for simplicity.
 
     Examples:
-        >>> ch = Channel[int](capacity=1)
+        >>> from katharos.concurrency.threading_backend import ThreadingBackend
+        >>> ch = Channel[int](capacity=1, backend=ThreadingBackend())
         >>> ch.send(42)
         >>> ch.recv()
         Success(42)
@@ -76,7 +76,7 @@ class Channel[A]:
         self,
         capacity: int = 0,
         *,
-        backend: BaseThreadingBackend | None = None,
+        backend: BaseThreadingBackend,
     ) -> None:
         """Initialize a channel.
 
@@ -85,8 +85,7 @@ class Channel[A]:
                 unbuffered, so each send blocks for a matching receive.
                 A positive value buffers that many pending values.
             backend: The threading backend whose condition variable
-                coordinates senders and receivers. Defaults to the shared
-                :func:`~katharos.concurrency.threading_backend.default_backend`.
+                coordinates senders and receivers.
 
         Raises:
             ValueError: If ``capacity`` is negative.
@@ -94,7 +93,7 @@ class Channel[A]:
         if capacity < 0:
             raise ValueError("capacity must be non-negative")
 
-        self._backend = backend or default_backend()
+        self._backend = backend
         self._capacity = capacity
         self._buffer: deque[_Slot[A]] = deque()
         self._closed = False
@@ -167,19 +166,20 @@ class Channel[A]:
             ``Failure(ChannelTimeoutError)`` when the timeout expires.
 
         Examples:
-            >>> ch = Channel[int](capacity=1)
+            >>> from katharos.concurrency.threading_backend import ThreadingBackend
+            >>> ch = Channel[int](capacity=1, backend=ThreadingBackend())
             >>> ch.send(42)
             >>> ch.recv()
             Success(42)
 
-            >>> ch = Channel[int]()
+            >>> ch = Channel[int](backend=ThreadingBackend())
             >>> ch.close()
             >>> ch.recv()
             Failure(ChannelClosedError('recv on closed channel'))
 
             Timeout on an empty channel:
 
-            >>> ch = Channel[int]()
+            >>> ch = Channel[int](backend=ThreadingBackend())
             >>> ch.recv(timeout=0.01)
             Failure(ChannelTimeoutError('recv timed out after 0.01 seconds'))
         """

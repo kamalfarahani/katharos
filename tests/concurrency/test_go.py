@@ -9,10 +9,13 @@ from katharos.concurrency import (
     AbstractLock,
     BaseThreadHandle,
     BaseThreadingBackend,
-    Go,
-    go,
 )
+from katharos.concurrency.csp import Go, csp
 from katharos.concurrency.threading_backend import ThreadingBackend, default_backend
+
+# The default runtime's launcher, bound to the default backend, stands in for
+# the shared launcher these tests exercise.
+go = csp.go
 
 
 class RecordingBackend(BaseThreadingBackend):
@@ -106,7 +109,7 @@ class TestGoScope:
         assert finished.is_set()
 
     def test_calls_outside_scope_are_not_tracked(self):
-        launch = Go()
+        launch = Go(default_backend())
         handle = launch(lambda: None)
         handle.join()
 
