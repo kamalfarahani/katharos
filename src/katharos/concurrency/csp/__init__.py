@@ -3,7 +3,7 @@
 This module provides Go-style concurrency primitives for coordinating
 concurrent computations in the CSP tradition:
 
-    - :class:`CSP`: a runtime that binds channels and goroutines to a single
+    - :class:`CSPRuntime`: a runtime that binds channels and goroutines to a single
       threading backend; the :data:`csp` instance is the default runtime.
     - :class:`Go`: launch a callable concurrently, mirroring Go's ``go func()``.
     - :class:`Channel`: a Go-style, thread-safe channel for communicating
@@ -13,11 +13,11 @@ concurrent computations in the CSP tradition:
 """
 
 from .channel import Channel, ChannelClosedError, ChannelTimeoutError
-from .csp import CSP, csp
+from .csp import CSPRuntime, csp
 from .go import Go
 
 __all__ = [
-    "CSP",
+    "CSPRuntime",
     "Channel",
     "ChannelClosedError",
     "ChannelTimeoutError",

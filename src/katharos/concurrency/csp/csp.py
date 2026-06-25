@@ -7,10 +7,10 @@ from .channel import Channel
 from .go import Go
 
 
-class CSP:
+class CSPRuntime:
     """A CSP runtime that binds channels and goroutines to one backend.
 
-    ``CSP`` bundles Katharos' Communicating Sequential Processes primitives --
+    ``CSPRuntime`` bundles Katharos' Communicating Sequential Processes primitives --
     :class:`~katharos.concurrency.csp.Channel` and
     :class:`~katharos.concurrency.csp.Go` -- around a single
     :class:`~katharos.concurrency.BaseThreadingBackend`. Channels created via
@@ -30,7 +30,7 @@ class CSP:
 
     Examples:
         >>> from katharos.concurrency.threading_backend import ThreadingBackend
-        >>> csp = CSP(ThreadingBackend())
+        >>> csp = CSPRuntime(ThreadingBackend())
         >>> ch = csp.Channel[int](capacity=1)
         >>> _ = csp.go(ch.send, 42)
         >>> ch.recv()
@@ -74,5 +74,5 @@ class CSP:
         return self._backend
 
 
-csp = CSP()
+csp = CSPRuntime()
 """The default CSP runtime, bound to the default threading backend."""

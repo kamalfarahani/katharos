@@ -27,7 +27,7 @@ class Go:
     instance is safe to share across contexts. Calls made outside any ``with``
     block are pure fire-and-forget and are not tracked.
 
-    You normally reach a launcher through a :class:`~katharos.concurrency.csp.CSP`
+    You normally reach a launcher through a :class:`~katharos.concurrency.csp.CSPRuntime`
     runtime (the :data:`~katharos.concurrency.csp.csp` default exposes one as
     ``csp.go``); construct your own ``Go`` only to pin a specific backend.
 
