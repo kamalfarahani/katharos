@@ -11,6 +11,7 @@ specific task.
 
    why-fp-in-python
    error-handling-and-tracebacks
+   concurrency-csp
    semigroups-monoids-mathematics
    category-theory-primer
    functors-mathematics
