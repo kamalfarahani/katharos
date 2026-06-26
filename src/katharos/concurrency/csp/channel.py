@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from typing import cast
 
 from katharos.concurrency.base_threading_backend import BaseThreadingBackend
 from katharos.types.result import Result
@@ -14,6 +15,10 @@ class ChannelClosedError(Exception):
 
 class ChannelTimeoutError(Exception):
     """Raised when a channel operation times out."""
+
+
+class NoValueInBufferError(Exception):
+    """Raised when trying to receive from an empty buffer."""
 
 
 class _Slot[A]:
@@ -98,6 +103,7 @@ class Channel[A]:
         self._buffer: deque[_Slot[A]] = deque()
         self._closed = False
         self._cond = self._backend.create_condition()
+        self._observers: list[Callable[[], None]] = []
 
     @property
     def capacity(self) -> int:
@@ -127,7 +133,7 @@ class Channel[A]:
                 if self._closed:
                     raise ChannelClosedError("send on closed channel")
                 self._buffer.append(_Slot(value))
-                self._cond.notify_all()
+                self._wake()
                 return
 
             # Unbuffered: offer the value, then block until *this* slot is
@@ -137,7 +143,7 @@ class Channel[A]:
             # can no longer be mistaken for our value being received.
             slot = _Slot(value)
             self._buffer.append(slot)
-            self._cond.notify_all()
+            self._wake()
 
             while not slot.taken and not self._closed:
                 self._cond.wait()
@@ -199,17 +205,97 @@ class Channel[A]:
                     )
                 self._cond.wait(remaining)
 
-            if not self._buffer:
-                return Result[ChannelClosedError, A].Failure(
-                    ChannelClosedError("recv on closed channel")
-                )
+            # The loop only exits with a value buffered or the channel closed,
+            # so _consume_locked never reports an empty buffer here.
+            consumed = self._consume_locked()
+            consumed = cast(Result[ChannelClosedError, A], consumed)
+            return consumed
 
+    def register_observer(self, callback: Callable[[], None]) -> None:
+        """Register a callback notified when this channel changes state.
+
+        Used by :func:`~katharos.concurrency.csp.select` to learn when a value
+        becomes available (or the channel closes) without polling. The callback
+        is invoked while this channel's internal lock is held, so it must do no
+        more than set a flag and signal its own condition; it must never call
+        back into this channel (doing so would deadlock the non-reentrant lock).
+
+        Args:
+            callback: A zero-argument callable invoked on each state change.
+        """
+        with self._cond:
+            self._observers.append(callback)
+
+    def unregister_observer(self, callback: Callable[[], None]) -> None:
+        """Remove a callback previously registered with :meth:`register_observer`.
+
+        Removing a callback that is not registered is a no-op.
+
+        Args:
+            callback: The callback to remove.
+        """
+        with self._cond:
+            try:
+                self._observers.remove(callback)
+            except ValueError:
+                pass
+
+    def _wake(self) -> None:
+        """Wake this channel's own waiters and any registered observers.
+
+        Must be called while holding ``self._cond``; it does not re-acquire the
+        lock. Observers are invoked in registration order (see
+        :meth:`register_observer` for the callback contract).
+        """
+        self._cond.notify_all()
+        for observer in self._observers:
+            observer()
+
+    def _consume_locked(
+        self,
+    ) -> Result[ChannelClosedError | NoValueInBufferError, A]:
+        """Take the next ready outcome without blocking, assuming the lock is held.
+
+        The buffer is checked before the closed flag so a closed-but-not-drained
+        channel still yields its remaining values as ``Success`` before reporting
+        closure.
+
+        Returns:
+            ``Success(value)`` if a value is buffered, ``Failure(ChannelClosedError)``
+            if the channel is closed and drained, or ``Failure(NoValueInBufferError)``
+            if the channel is open but empty (nothing ready).
+        """
+        if self._buffer:
             slot = self._buffer.popleft()
             slot.taken = True
-            self._cond.notify_all()
-            return Result[ChannelClosedError | ChannelTimeoutError, A].Success(
+            self._wake()
+            return Result[ChannelClosedError | NoValueInBufferError, A].Success(
                 slot.value
             )
+        if self._closed:
+            return Result[ChannelClosedError, A].Failure(
+                ChannelClosedError("recv on closed channel")
+            )
+
+        return Result[NoValueInBufferError, A].Failure(
+            NoValueInBufferError("recv on channel with no buffered values")
+        )
+
+    def _try_recv(
+        self,
+    ) -> Result[ChannelClosedError | NoValueInBufferError, A]:
+        """Non-blocking :meth:`recv`: return the ready outcome without blocking.
+
+        Acquires the channel lock briefly; unlike :meth:`recv` it never blocks.
+        Used by :func:`~katharos.concurrency.csp.select` to poll readiness.
+
+        Returns:
+            ``Success(value)`` if a value is available, ``Failure(ChannelClosedError)``
+            if closed and drained, or ``Failure(NoValueInBufferError)`` if the
+            channel is open but empty.
+        """
+        with self._cond:
+            return self._consume_locked()
 
     def close(self) -> None:
         """Close the channel.
@@ -226,7 +312,7 @@ class Channel[A]:
             if self._closed:
                 raise ChannelClosedError("close of closed channel")
             self._closed = True
-            self._cond.notify_all()
+            self._wake()
 
     def __iter__(self) -> Iterator[A]:
         """Iterate over received values until the channel is closed and drained.

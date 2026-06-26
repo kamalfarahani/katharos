@@ -10,11 +10,15 @@ concurrent computations in the CSP tradition:
       values between threads (paired with :class:`Go`).
     - :class:`ChannelClosedError`: raised on sending to or closing a closed
       channel.
+    - :func:`select` / :func:`recv`: wait on whichever of several channels
+      becomes ready first, mirroring Go's ``select``; :class:`SelectResult`
+      describes the outcome.
 """
 
 from .channel import Channel, ChannelClosedError, ChannelTimeoutError
 from .csp import CSPRuntime, csp
 from .go import Go
+from .select import SelectResult, recv, select
 
 __all__ = [
     "CSPRuntime",
@@ -22,5 +26,8 @@ __all__ = [
     "ChannelClosedError",
     "ChannelTimeoutError",
     "Go",
+    "SelectResult",
     "csp",
+    "recv",
+    "select",
 ]
