@@ -7,6 +7,39 @@ license = "MIT"
 authors = [
     { name = "Kamal", email = "kamal.farahani90@gmail.com" }
 ]
+keywords = [
+    "functional-programming",
+    "functional",
+    "monad",
+    "monads",
+    "functor",
+    "applicative",
+    "semigroup",
+    "monoid",
+    "maybe",
+    "result",
+    "either",
+    "option",
+    "io",
+    "do-notation",
+    "immutable",
+    "type-safe",
+    "concurrency",
+    "csp",
+    "channels",
+    "message-passing",
+    "structured-concurrency",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
 requires-python = ">=3.13"
 dependencies = []
 
