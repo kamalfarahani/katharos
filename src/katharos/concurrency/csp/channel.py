@@ -110,6 +110,11 @@ class Channel[A]:
         """The channel's buffer capacity (``0`` for an unbuffered channel)."""
         return self._capacity
 
+    @property
+    def backend(self) -> BaseThreadingBackend:
+        """The threading backend coordinating this channel's senders and receivers."""
+        return self._backend
+
     def send(self, value: A) -> None:
         """Send a value into the channel, blocking as needed.
 

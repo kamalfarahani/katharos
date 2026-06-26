@@ -220,14 +220,19 @@ def select[A](
     if default:
         return SelectResult(is_default=True)
 
-    selector = _Selector(cases[0].channel._backend)
-    for case in cases:
-        case.channel.register_observer(selector.signal)
+    selector = _Selector(cases[0].channel.backend)
     try:
+        # Register inside the try so a failure partway through still hits the
+        # finally and unregisters whatever was registered (no leaked observers).
+        for case in cases:
+            case.channel.register_observer(selector.signal)
+
         deadline = None if timeout is None else time.monotonic() + timeout
         while True:
             # The poll is authoritative: a value that lands as wait_ready times
-            # out is still caught here on the next iteration.
+            # out is still caught here on the next iteration. Polling always
+            # restarts at index 0, so cases have fixed argument-order priority
+            # (a continuously-ready early case can starve later ones).
             for index, case in enumerate(cases):
                 ready = case.poll()
                 if _is_not_no_value_result(ready):
@@ -245,6 +250,8 @@ def select[A](
             else:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
+                    # A value landing in this window is reported as a timeout but
+                    # stays buffered for the next recv; never silently dropped.
                     return SelectResult(is_timeout=True)
 
             selector.wait_ready(remaining)
