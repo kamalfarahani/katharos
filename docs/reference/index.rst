@@ -15,6 +15,7 @@ Modules
    api/types
    api/functools
    api/syntax_sugar
+   api/concurrency
 
 Additional Reference
 --------------------
@@ -51,3 +52,11 @@ Utilities
 
 - :class:`katharos.functools.F`
 - :class:`katharos.syntax_sugar.do`
+
+Concurrency
+~~~~~~~~~~~
+
+- :class:`katharos.concurrency.csp.Channel`
+- :class:`katharos.concurrency.csp.Go`
+- :func:`katharos.concurrency.csp.select`
+- :class:`katharos.concurrency.BaseThreadingBackend`

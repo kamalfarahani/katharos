@@ -5,7 +5,7 @@
 <h1 align="center">Katharos</h1>
 
 <p align="center">
-  A functional programming library for Python. Katharos brings algebraic abstractions — <code>Functor</code>, <code>Applicative</code>, <code>Monad</code>, <code>Semigroup</code>, <code>Monoid</code> — together with concrete types like <code>Maybe</code>, <code>Result</code>, <code>ImmutableList</code>, and <code>IO</code>, so you can model effects, errors, and data transformations as composable, type-safe pipelines.
+  A functional programming and concurrency library for Python. Katharos pairs algebraic abstractions (<code>Functor</code>, <code>Applicative</code>, <code>Monad</code>, <code>Semigroup</code>, <code>Monoid</code>) and concrete types like <code>Maybe</code>, <code>Result</code>, <code>ImmutableList</code>, and <code>IO</code> with message-passing concurrency built on the same functional core. The two halves share one idea: model errors, effects, and concurrent communication as <strong>composable, type-safe values</strong>. A concurrent hand-off returns a <code>Result</code>, so "the channel closed" is something you handle, not an exception you catch.
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@ uv add katharos
 
 ## What it looks like
 
-**Before** — scattered `None` checks and exception handling:
+**Before:** scattered `None` checks and exception handling:
 
 ```python
 user = find_user(user_id)
@@ -43,7 +43,7 @@ if account is None:
 return account.discount
 ```
 
-**After** — `do`-notation that short-circuits cleanly on `Nothing`:
+**After:** `do`-notation that short-circuits cleanly on `Nothing`:
 
 ```python
 from katharos.types import Maybe
@@ -56,7 +56,7 @@ def lookup_discount(user_id: int) -> DoBlock[Maybe, float]:
     return account.discount   # Just(0.15) or Nothing()
 ```
 
-**Before** — nested try/except to propagate errors:
+**Before:** nested try/except to propagate errors:
 
 ```python
 def process(raw: str) -> int:
@@ -70,7 +70,7 @@ def process(raw: str) -> int:
         raise RuntimeError("bad value") from e
 ```
 
-**After** — errors as values, chained with `|`:
+**After:** errors as values, chained with `|`:
 
 ```python
 from katharos.types import Result
@@ -107,7 +107,7 @@ parse_int("??").fmap(lambda n: n * 2)  # Failure(...)
 
 **Skip the boilerplate with `Result.catch`:**
 
-`Result.catch` turns a function that raises into one that returns a `Result` — no
+`Result.catch` turns a function that raises into one that returns a `Result`, with no
 manual `try/except`. Only the declared exception type becomes a `Failure`; the
 caught exception keeps its traceback, so you can still find the line that failed.
 
@@ -137,7 +137,7 @@ ImmutableList([1, 2]) @ ImmutableList([3, 4])  # ImmutableList([1, 2, 3, 4])
 
 ## Do-notation
 
-`do`-notation works with any monad — `Maybe`, `Result`, `IO`, `ImmutableList` and your custom monads. Each `yield` unwraps the monadic value:
+`do`-notation works with any monad: `Maybe`, `Result`, `IO`, `ImmutableList` and your custom monads. Each `yield` unwraps the monadic value:
 
 ```python
 from katharos.syntax_sugar import do, DoBlock
@@ -156,6 +156,35 @@ def do_block() -> DoBlock[Result, int]:
 print(do_block())  # Success(8)
 ```
 
+## Concurrency
+
+Katharos provides **message-passing concurrency** that builds on the same functional core, with room for more than one concurrency model. The first model available is **Go-style CSP**: launch work concurrently with `go` (like Go's `go f(x)`), communicate over typed `Channel`s, and (crucially) receive values as a `Result`, so a closed or timed-out channel is a value you pattern-match, not an exception you wrap in `try`:
+
+```python
+from katharos.concurrency.csp import csp
+
+ch = csp.Channel[int](capacity=1)
+
+csp.go(ch.send, 42)     # run work concurrently, like Go's `go f(x)`
+
+ch.recv()               # Success(42)
+
+ch.close()
+ch.recv()               # Failure(ChannelClosedError(...)): closure is a value, not a raise
+```
+
+Used as a context manager, `go` becomes a **structured-concurrency scope** that joins everything spawned inside it before the block exits:
+
+```python
+from katharos.concurrency.csp import csp
+
+with csp.go:                 # scope waits for all work launched inside
+    csp.go(worker, 1)
+    csp.go(worker, 2)
+# both workers have finished here
+```
+
+Every concurrency model is bound to a swappable `BaseThreadingBackend` (standard threads by default), and the `csp` runtime supplies it automatically, so you can retarget work onto a different backend in one place. Additional models (such as an actor model) are planned, built on the same backend abstraction and the same `Result`-valued, composable style.
 
 ## Documentation
 

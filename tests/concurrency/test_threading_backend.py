@@ -6,11 +6,11 @@ from katharos.concurrency import (
     AbstractLock,
     BaseThreadHandle,
     BaseThreadingBackend,
-    Channel,
     ThreadingBackend,
     ThreadingHandle,
     default_backend,
 )
+from katharos.concurrency.csp import Channel
 
 
 class TestThreadingBackend:

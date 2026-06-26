@@ -7,7 +7,6 @@ from katharos.concurrency.base_threading_backend import (
     BaseThreadHandle,
     BaseThreadingBackend,
 )
-from katharos.concurrency.threading_backend import default_backend
 
 
 class Go:
@@ -24,13 +23,13 @@ class Go:
     scope*: every call made inside the ``with`` block is tracked, and leaving
     the block blocks until all of that work has finished (similar to a
     ``sync.WaitGroup``). Scopes are tracked per execution context (via the
-    backend's context-local storage) and nest correctly, so the module-level
-    :data:`go` instance is safe to share. Calls made outside any ``with``
+    backend's context-local storage) and nest correctly, so a single ``Go``
+    instance is safe to share across contexts. Calls made outside any ``with``
     block are pure fire-and-forget and are not tracked.
 
-    The module-level :data:`go` instance is bound to the default backend and
-    is the one you normally use; construct your own ``Go`` only to pin a
-    specific backend.
+    You normally reach a launcher through a :class:`~katharos.concurrency.csp.CSPRuntime`
+    runtime (the :data:`~katharos.concurrency.csp.csp` default exposes one as
+    ``csp.go``); construct your own ``Go`` only to pin a specific backend.
 
     Note:
         Like a goroutine, a callable launched here is fire-and-forget: its
@@ -41,6 +40,8 @@ class Go:
 
     Examples:
         >>> import threading
+        >>> from katharos.concurrency.threading_backend import ThreadingBackend
+        >>> go = Go(ThreadingBackend())
         >>> done = threading.Event()
         >>> handle = go(done.set)
         >>> handle.join()
@@ -67,15 +68,13 @@ class Go:
         [1, 2]
     """
 
-    def __init__(self, backend: BaseThreadingBackend | None = None) -> None:
+    def __init__(self, backend: BaseThreadingBackend) -> None:
         """Initialize a launcher bound to a backend.
 
         Args:
-            backend: The threading backend used to spawn work. Defaults to the
-                shared
-                :func:`~katharos.concurrency.threading_backend.default_backend`.
+            backend: The threading backend used to spawn work.
         """
-        self._backend = backend or default_backend()
+        self._backend = backend
         self._local = self._backend.create_local()
 
     def _scope_stack(self) -> list[list[BaseThreadHandle]]:
@@ -154,7 +153,3 @@ class Go:
         """
         for handle in self._scope_stack().pop():
             handle.join()
-
-
-go = Go()
-"""The default goroutine launcher, bound to the default threading backend."""
