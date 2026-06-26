@@ -20,6 +20,7 @@ Available Tutorials
    immutable-lists
    io
    functools
+   csp
 
 Covered topics
 --------------
@@ -31,6 +32,7 @@ These tutorials cover:
 - Graceful error handling using the Result type
 - Composing operations with Functors and Monads
 - Working effectively with immutable data structures
+- Coordinating concurrent work with channels and goroutines
 
 Prerequisites
 -------------
