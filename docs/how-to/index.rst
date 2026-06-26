@@ -15,3 +15,4 @@ These guides solve specific tasks you'll encounter when using Katharos. Each gui
    custom-semigroups
    custom-monad
    side-effects
+   concurrency_csp
