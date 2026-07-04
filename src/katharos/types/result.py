@@ -3,7 +3,8 @@ from __future__ import annotations
 import functools
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar, cast, final
+from typing import Any, Generic, Never, TypeVar, cast, final, overload
+from warnings import deprecated
 
 from katharos.algebra import Monad
 from katharos.algebra.applicative.applicative import Applicative
@@ -80,6 +81,9 @@ class Result(
 
         - ``|`` (pipe): Monadic bind operation.
         - ``**`` (power): Applicative application.
+
+        Truthiness reflects the state: a Success is always truthy (even
+        ``Success(0)``), a Failure is falsy.
     """
 
     @classmethod
@@ -91,6 +95,10 @@ class Result(
 
         Returns:
             A Success containing the value.
+
+        Raises:
+            TypeError: If the value is an internal error wrapper, which would
+                masquerade as a Failure.
 
         Note:
             The value may itself be an exception; it is still wrapped as a
@@ -106,6 +114,9 @@ class Result(
             >>> Result.pure(ValueError("oops"))
             Success(ValueError('oops'))
         """
+        if isinstance(x, _ErrorWrapper):
+            raise TypeError("Value cannot be an internal error wrapper")
+
         return Result(x)
 
     @classmethod
@@ -126,8 +137,23 @@ class Result(
         """
         return cls.pure(x)
 
-    @staticmethod
-    def Success(x: A) -> Result[E, A]:  # type: ignore
+    # Overload 1 only matches unspecialized access (``Result.Success(x)``):
+    # a subscripted ``Result[E, T].Success`` is never assignable to
+    # ``type[Result[Never, Never]]``, so it falls through to overload 2,
+    # which binds both type parameters from the class subscript instead
+    # of the argument.
+    @overload
+    @classmethod
+    def Success[S](cls: type[Result[Never, Never]], x: S) -> Result[Never, S]: ...
+
+    @overload
+    @classmethod
+    def Success[Err: BaseException, T](
+        cls: type[Result[Err, T]], x: T
+    ) -> Result[Err, T]: ...
+
+    @classmethod
+    def Success(cls: type[Result[Any, Any]], x: Any) -> Result[Any, Any]:
         """Create a Success result.
 
         Args:
@@ -145,8 +171,32 @@ class Result(
         """
         return Result.pure(x)
 
-    @staticmethod
-    def Failure(e: E) -> Result[E, A]:  # type: ignore
+    # Same overload scheme as :meth:`Success`, plus a deprecated trap
+    # overload in the middle: a bare ``Result.Failure(non_exception)``
+    # fails overload 1 on the BaseException bound, but would otherwise
+    # leak into the final overload (an unspecialized ``cls`` types as
+    # ``type[Result[Unknown, Unknown]]``, so ``Err`` never gets bound-
+    # checked there). The trap catches it first and surfaces a
+    # type-checker diagnostic; it is never selected for valid calls.
+    @overload
+    @classmethod
+    def Failure[Err: BaseException](
+        cls: type[Result[Never, Never]], e: Err
+    ) -> Result[Err, Never]: ...
+
+    @classmethod
+    @overload
+    @deprecated("Result.Failure() requires a BaseException instance")
+    def Failure(cls: type[Result[Never, Never]], e: Any) -> Result[Never, Never]: ...
+
+    @overload
+    @classmethod
+    def Failure[Err: BaseException, T](
+        cls: type[Result[Err, T]], e: Err
+    ) -> Result[Err, T]: ...
+
+    @classmethod
+    def Failure(cls: type[Result[Any, Any]], e: Any) -> Result[Any, Any]:
         """Create a Failure result.
 
         Args:
@@ -312,10 +362,10 @@ class Result(
         """
         wrapped_funcs = cast(Result[BE, Callable[[A], B]], wrapped_funcs)
         if self.is_failure():
-            return Result[E, B].Failure(self.error)
+            return cast(Result[E, B], self)
 
         if wrapped_funcs.is_failure():
-            return Result[BE, B].Failure(wrapped_funcs.error)
+            return cast(Result[BE, B], wrapped_funcs)
 
         inner_func = wrapped_funcs.unwrap()
         return Result.pure(inner_func(self.unwrap()))
@@ -493,7 +543,7 @@ class Result(
             False
         """
         if not isinstance(value, Result):
-            return False
+            return NotImplemented
 
         if self.is_success() != value.is_success():
             return False
@@ -502,6 +552,23 @@ class Result(
             return self.value == value.value
         else:
             return self.error == value.error
+
+    def __bool__(self) -> bool:
+        """Return the truthiness of this Result.
+
+        Truthiness reflects the state, not the wrapped value: a Success is
+        always truthy, even ``Success(0)`` or ``Success(None)``.
+
+        Returns:
+            True if this is a Success, False if it is a Failure.
+
+        Examples:
+            >>> bool(Result.Success(0))
+            True
+            >>> bool(Result.Failure(ValueError("err")))
+            False
+        """
+        return self.is_success()
 
     def __hash__(self) -> int:
         """Return the hash of the Result.

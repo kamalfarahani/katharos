@@ -179,3 +179,44 @@ class TestAccessors:
     def test_failure_requires_exception(self):
         with pytest.raises(TypeError, match="non-exception"):
             Result.Failure(42)  # type: ignore[arg-type]
+
+
+class TestTruthiness:
+    def test_success_is_truthy(self):
+        assert bool(Result.Success(1))
+
+    def test_success_of_falsy_value_is_truthy(self):
+        assert bool(Result.Success(0))
+        assert bool(Result.Success(""))
+        assert bool(Result.Success(None))
+
+    def test_failure_is_falsy(self):
+        assert not bool(Result.Failure(_DIV_ERR))
+
+
+class TestForeignEquality:
+    def test_non_result_comparison_is_unequal(self):
+        assert Result.Success(1) != 1
+        assert Result.Failure(_DIV_ERR) != _DIV_ERR
+
+    def test_reflected_equality_is_delegated(self):
+        class AlwaysEqual:
+            def __eq__(self, other: object) -> bool:
+                return True
+
+        assert Result.Success(1) == AlwaysEqual()
+        assert AlwaysEqual() == Result.Success(1)
+
+
+class TestSuccessInvariant:
+    def test_pure_rejects_error_wrapper(self):
+        from katharos.types.result import _ErrorWrapper
+
+        with pytest.raises(TypeError, match="internal error wrapper"):
+            Result.pure(_ErrorWrapper(_DIV_ERR))
+
+    def test_success_rejects_error_wrapper(self):
+        from katharos.types.result import _ErrorWrapper
+
+        with pytest.raises(TypeError, match="internal error wrapper"):
+            Result.Success(_ErrorWrapper(_DIV_ERR))
