@@ -19,6 +19,19 @@ class _ErrorWrapper(Generic[E]):
     err: E
 
 
+class _FailureRequiresBaseException:
+    """Type-level error marker for :meth:`Result.Failure`.
+
+    A bare ``Result.Failure(x)`` with a non-:class:`BaseException` ``x``
+    resolves to this type instead of a :class:`Result`. Because it has no
+    :class:`Result` surface, any subsequent use (binding, assignment to a
+    ``Result`` annotation, …) fails to type-check, and the class name surfaces
+    the reason. It is never instantiated at runtime.
+    """
+
+    __slots__ = ()
+
+
 @final
 class Result(
     Generic[E, A],
@@ -171,23 +184,36 @@ class Result(
         """
         return Result.pure(x)
 
-    # Same overload scheme as :meth:`Success`, plus a deprecated trap
-    # overload in the middle: a bare ``Result.Failure(non_exception)``
-    # fails overload 1 on the BaseException bound, but would otherwise
-    # leak into the final overload (an unspecialized ``cls`` types as
-    # ``type[Result[Unknown, Unknown]]``, so ``Err`` never gets bound-
-    # checked there). The trap catches it first and surfaces a
-    # type-checker diagnostic; it is never selected for valid calls.
+    # Same overload scheme as :meth:`Success`, plus a trap overload in the
+    # middle: a bare ``Result.Failure(non_exception)`` fails overload 1 on the
+    # BaseException bound, but would otherwise leak into the final overload (an
+    # unspecialized ``cls`` types as ``type[Result[Unknown, Unknown]]``, so
+    # ``Err`` never gets bound-checked there). The trap catches it first and
+    # warns via two layers:
+    #
+    # 1. ``@deprecated`` surfaces the message at the *call site* itself
+    #    (wherever ``reportDeprecated`` is enabled, and always as a strike-
+    #    through in Pylance).
+    # 2. The :class:`_FailureRequiresBaseException` return has no ``Result``
+    #    surface, so any *use* of the result also fails to type-check with the
+    #    class name as the reason. This layer fires even in pyright's standard
+    #    mode, where ``reportDeprecated`` is off.
+    #
+    # The trap is never selected for valid calls. The bound overload's return
+    # is deliberately incompatible with the trap's, hence the
+    # ``reportOverlappingOverload`` suppression.
     @overload
     @classmethod
-    def Failure[Err: BaseException](
+    def Failure[Err: BaseException](  # pyright: ignore[reportOverlappingOverload]
         cls: type[Result[Never, Never]], e: Err
     ) -> Result[Err, Never]: ...
 
-    @classmethod
     @overload
+    @classmethod
     @deprecated("Result.Failure() requires a BaseException instance")
-    def Failure(cls: type[Result[Never, Never]], e: Any) -> Result[Never, Never]: ...
+    def Failure(
+        cls: type[Result[Never, Never]], e: Any
+    ) -> _FailureRequiresBaseException: ...
 
     @overload
     @classmethod
@@ -196,7 +222,7 @@ class Result(
     ) -> Result[Err, T]: ...
 
     @classmethod
-    def Failure(cls: type[Result[Any, Any]], e: Any) -> Result[Any, Any]:
+    def Failure(cls: type[Result[Any, Any]], e: Any) -> Any:
         """Create a Failure result.
 
         Args:

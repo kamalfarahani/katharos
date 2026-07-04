@@ -51,6 +51,11 @@ build-backend = "uv_build"
 pythonpath = ["."]
 testpaths = ["tests"]
 
+[tool.pyright]
+# Surface @deprecated call-site warnings (e.g. the Result.Failure() trap for
+# non-BaseException arguments); off in pyright's default standard mode.
+reportDeprecated = "warning"
+
 [dependency-groups]
 dev = [
     "ipython>=9.8.0",
