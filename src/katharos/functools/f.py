@@ -209,7 +209,7 @@ class F:
             >>> curried_add(x=1)(x=2, y=2, z=3)
             Traceback (most recent call last):
                 ...
-            TypeError: add() got multiple values for keyword argument 'x'
+            TypeError: f.add() got multiple values for keyword argument 'x'
         """
         sig = inspect.signature(f)
         num_params = len(sig.parameters)
