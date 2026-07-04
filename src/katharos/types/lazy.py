@@ -88,6 +88,9 @@ class Lazy[A](Monad["Lazy[Any]", A]):
             fetcher: A zero-argument callable whose return value is the
                 result of this Lazy.  It is called lazily the first
                 time :meth:`resolve` is invoked.
+            backend: The threading backend whose lock guards
+                :meth:`resolve`. Defaults to the shared
+                :func:`~katharos.concurrency.threading_backend.default_backend`.
         """
         self._value = Maybe[A].Nothing()
         self._error = Maybe[BaseException].Nothing()
