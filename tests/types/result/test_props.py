@@ -15,6 +15,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from katharos.types import UnwrapError
 from katharos.types.result import Result
 from tests.law_helpers import (
     check_applicative_laws,
@@ -164,15 +165,15 @@ class TestEqualityAndHash:
 
 class TestAccessors:
     def test_value_on_failure_raises(self):
-        with pytest.raises(TypeError, match="Cannot get the value of a Failure"):
+        with pytest.raises(UnwrapError, match="Cannot get the value of a Failure"):
             _ = Result.Failure(_DIV_ERR).value
 
     def test_unwrap_on_failure_raises(self):
-        with pytest.raises(TypeError):
+        with pytest.raises(UnwrapError):
             Result.Failure(_DIV_ERR).unwrap()
 
     def test_error_on_success_raises(self):
-        with pytest.raises(TypeError, match="Cannot get the error of a Success"):
+        with pytest.raises(UnwrapError, match="Cannot get the error of a Success"):
             _ = Result.Success(1).error
 
     def test_failure_requires_exception(self):

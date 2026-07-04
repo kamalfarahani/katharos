@@ -7,6 +7,7 @@ from typing import Any, Generic, TypeVar, cast, final
 
 from katharos.algebra import Monad
 from katharos.algebra.applicative.applicative import Applicative
+from katharos.types.errors import UnwrapError
 
 E = TypeVar("E", bound=BaseException, covariant=True)
 A = TypeVar("A", covariant=True)
@@ -187,7 +188,7 @@ class Result(
             The success value.
 
         Raises:
-            TypeError: If the Result is a Failure.
+            UnwrapError: If the Result is a Failure.
 
         Examples:
             >>> Result.Success(42).value
@@ -196,10 +197,10 @@ class Result(
             >>> Result.Failure(ValueError("err")).value  # doctest: +SKIP
             Traceback (most recent call last):
                 ...
-            TypeError: Cannot get the value of a Failure
+            UnwrapError: Cannot get the value of a Failure
         """
         if isinstance(self._value, _ErrorWrapper):
-            raise TypeError("Cannot get the value of a Failure") from self._value.err
+            raise UnwrapError("Cannot get the value of a Failure") from self._value.err
 
         return self._value
 
@@ -211,7 +212,7 @@ class Result(
             The exception value.
 
         Raises:
-            TypeError: If the Result is a Success.
+            UnwrapError: If the Result is a Success.
 
         Examples:
             >>> Result.Failure(ValueError("err")).error
@@ -220,10 +221,10 @@ class Result(
             >>> Result.Success(42).error  # doctest: +SKIP
             Traceback (most recent call last):
                 ...
-            TypeError: Cannot get the error of a Success
+            UnwrapError: Cannot get the error of a Success
         """
         if not isinstance(self._value, _ErrorWrapper):
-            raise TypeError("Cannot get the error of a Success")
+            raise UnwrapError("Cannot get the error of a Success")
 
         return self._value.err
 
@@ -231,7 +232,8 @@ class Result(
         """Unwrap the success value, raising an error if this is a Failure.
 
         This method extracts the success value from a Success Result. If the Result
-        is a Failure, it raises a TypeError with the original exception as the cause.
+        is a Failure, it raises an UnwrapError with the original exception as the
+        cause.
 
         This is equivalent to accessing the ``.value`` property directly.
 
@@ -239,7 +241,7 @@ class Result(
             The success value contained in this Result.
 
         Raises:
-            TypeError: If the Result is a Failure, with the original exception
+            UnwrapError: If the Result is a Failure, with the original exception
                 as the cause chain.
 
         Examples:
@@ -251,7 +253,7 @@ class Result(
             >>> failure.unwrap()  # doctest: +SKIP
             Traceback (most recent call last):
                 ...
-            TypeError: Cannot get the value of a Failure
+            UnwrapError: Cannot get the value of a Failure
         """
         return self.value
 

@@ -9,6 +9,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from katharos.types import UnwrapError
 from katharos.types.maybe import Maybe
 from tests.law_helpers import (
     check_applicative_laws,
@@ -118,5 +119,5 @@ class TestEqualityAndHash:
 
 class TestUnwrap:
     def test_unwrap_nothing_raises(self):
-        with pytest.raises(ValueError, match="Cannot unwrap a Nothing"):
+        with pytest.raises(UnwrapError, match="Cannot unwrap a Nothing"):
             Maybe.Nothing().unwrap()

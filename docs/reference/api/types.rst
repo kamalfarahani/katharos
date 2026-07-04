@@ -56,3 +56,10 @@ IO
    :undoc-members:
    :show-inheritance:
    :special-members: __init__, __or__
+
+UnwrapError
+-----------
+
+.. autoclass:: katharos.types.UnwrapError
+   :members:
+   :show-inheritance:
