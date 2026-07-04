@@ -191,7 +191,10 @@ class Result(
 
     @overload
     @classmethod
-    @deprecated("Result.Failure() requires a BaseException instance")
+    @deprecated(
+        "Result.Failure() requires a BaseException instance you provided a non-exception value."
+        " This will raise a TypeError at runtime.",
+    )
     def Failure(cls: type[Result[Never, Never]], e: object) -> Never: ...
 
     @overload
