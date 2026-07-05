@@ -21,7 +21,7 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
         Returns:
             A MonoidMaybe wrapping Nothing, which acts as the identity.
         """
-        return MonoidMaybe(maybe=Maybe[A]())
+        return MonoidMaybe(maybe=Maybe[A].Nothing())
 
     def __init__(self, maybe: Maybe[A]) -> None:
         """Initialize the MonoidMaybe with a Maybe value.
@@ -59,3 +59,11 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
                 x_1 = self.maybe.unwrap()
                 x_2 = other.maybe.unwrap()
                 return MonoidMaybe(maybe=Maybe.Just(value=x_1 @ x_2))
+
+    def __repr__(self) -> str:
+        """Return the string representation of this MonoidMaybe.
+
+        Returns:
+            ``MonoidMaybe(<maybe>)`` with the wrapped Maybe.
+        """
+        return f"MonoidMaybe({self._maybe!r})"
