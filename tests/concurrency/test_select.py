@@ -10,6 +10,8 @@ from katharos.concurrency.csp import (
     recv,
     select,
 )
+from katharos.concurrency.csp.select import _Selector
+from katharos.concurrency.threading_backend import ThreadingBackend
 
 # The default runtime's channel supplies the backend automatically.
 Channel = csp.Channel
@@ -179,6 +181,31 @@ class TestSelectValidation:
 
     def test_no_cases_with_timeout_times_out(self):
         assert select(timeout=0.01).is_timeout
+
+
+class TestSelectorSignalConsumption:
+    """A signal must be consumed exactly once, whichever wait path sees it."""
+
+    def test_pending_signal_is_consumed(self):
+        selector = _Selector(ThreadingBackend())
+        selector.signal()
+
+        assert selector.wait_ready(timeout=None) is True
+        # The signal was consumed; a follow-up wait must block (times out).
+        assert selector.wait_ready(timeout=0.01) is False
+
+    def test_signal_during_wait_is_consumed(self):
+        selector = _Selector(ThreadingBackend())
+
+        def delayed_signal():
+            time.sleep(0.02)
+            selector.signal()
+
+        go(delayed_signal)
+
+        assert selector.wait_ready(timeout=1.0) is True
+        # The signal delivered during the wait must not linger for the next one.
+        assert selector.wait_ready(timeout=0.01) is False
 
 
 class TestSelectRepr:
