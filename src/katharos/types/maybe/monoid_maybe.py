@@ -69,14 +69,6 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
         """
         return hash(self._maybe)
 
-    def __repr__(self) -> str:
-        """Return the string representation of this MonoidMaybe.
-
-        Returns:
-            ``MonoidMaybe(<maybe>)`` with the wrapped Maybe's representation.
-        """
-        return f"MonoidMaybe({self._maybe!r})"
-
     def op(self, other: MonoidMaybe[A]) -> MonoidMaybe[A]:
         """Combine this MonoidMaybe with another using the semigroup operation.
 
