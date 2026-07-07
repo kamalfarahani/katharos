@@ -12,6 +12,14 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
     Lifts a semigroup ``A`` into an optional context: two ``Just`` values are
     combined using their semigroup ``@`` operation; ``Nothing`` acts as the
     identity element, leaving the other operand unchanged.
+
+    Examples:
+        >>> from katharos.types.list import NonEmptyList
+        >>> MonoidMaybe(Maybe.Just(NonEmptyList(1, [2]))) @ MonoidMaybe(Maybe.Just(NonEmptyList(3, [4])))
+        MonoidMaybe(Just(NonEmptyList([1, 2, 3, 4])))
+
+        >>> MonoidMaybe(Maybe.Just(NonEmptyList(1, [2]))) @ MonoidMaybe(Maybe.Nothing())
+        MonoidMaybe(Just(NonEmptyList([1, 2])))
     """
 
     @classmethod
@@ -21,7 +29,7 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
         Returns:
             A MonoidMaybe wrapping Nothing, which acts as the identity.
         """
-        return MonoidMaybe(maybe=Maybe[A]())
+        return MonoidMaybe(maybe=Maybe[A].Nothing())
 
     def __init__(self, maybe: Maybe[A]) -> None:
         """Initialize the MonoidMaybe with a Maybe value.
@@ -39,6 +47,35 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
             The Maybe value held by this MonoidMaybe.
         """
         return self._maybe
+
+    def __eq__(self, other: object) -> bool:
+        """Check equality with another MonoidMaybe.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            True if ``other`` is a MonoidMaybe wrapping an equal Maybe.
+        """
+        if not isinstance(other, MonoidMaybe):
+            return False
+        return self._maybe == other._maybe
+
+    def __hash__(self) -> int:
+        """Return a hash of this MonoidMaybe.
+
+        Returns:
+            Hash of the wrapped Maybe value.
+        """
+        return hash(self._maybe)
+
+    def __repr__(self) -> str:
+        """Return the string representation of this MonoidMaybe.
+
+        Returns:
+            ``MonoidMaybe(<maybe>)`` with the wrapped Maybe's representation.
+        """
+        return f"MonoidMaybe({self._maybe!r})"
 
     def op(self, other: MonoidMaybe[A]) -> MonoidMaybe[A]:
         """Combine this MonoidMaybe with another using the semigroup operation.
@@ -59,3 +96,11 @@ class MonoidMaybe[A: Semigroup](Monoid["MonoidMaybe[A]"]):
                 x_1 = self.maybe.unwrap()
                 x_2 = other.maybe.unwrap()
                 return MonoidMaybe(maybe=Maybe.Just(value=x_1 @ x_2))
+
+    def __repr__(self) -> str:
+        """Return the string representation of this MonoidMaybe.
+
+        Returns:
+            ``MonoidMaybe(<maybe>)`` with the wrapped Maybe.
+        """
+        return f"MonoidMaybe({self._maybe!r})"

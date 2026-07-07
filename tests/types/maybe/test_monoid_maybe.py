@@ -140,3 +140,14 @@ def test_nothing_with_nothing_returns_nothing():
     result = a @ b
 
     assert result.maybe == Maybe.Nothing()
+
+
+def test_repr_with_just():
+    nel = NonEmptyList(1, [2, 3])
+    a = MonoidMaybe(Maybe.Just(nel))
+    assert repr(a) == f"MonoidMaybe(Just({nel!r}))"
+
+
+def test_repr_with_nothing():
+    a = MonoidMaybe(Maybe.Nothing())
+    assert repr(a) == "MonoidMaybe(Nothing())"

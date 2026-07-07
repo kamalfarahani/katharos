@@ -2,6 +2,7 @@ import inspect
 from collections.abc import Callable, Iterable
 from functools import wraps
 from operator import matmul
+from typing import Any, overload
 
 from katharos.algebra import Applicative, Semigroup
 from katharos.types.list import NonEmptyList
@@ -137,19 +138,47 @@ class F:
             xs.tail,
         )
 
+    @overload
     @staticmethod
-    def curry(f: Callable) -> Callable:
+    def curry[A, R](f: Callable[[A], R]) -> Callable[[A], R]: ...
+
+    @overload
+    @staticmethod
+    def curry[A, B, R](f: Callable[[A, B], R]) -> Callable[[A], Callable[[B], R]]: ...
+
+    @overload
+    @staticmethod
+    def curry[A, B, C, R](
+        f: Callable[[A, B, C], R],
+    ) -> Callable[[A], Callable[[B], Callable[[C], R]]]: ...
+
+    @overload
+    @staticmethod
+    def curry(f: Callable[..., Any]) -> Callable[..., Any]: ...
+
+    @staticmethod
+    def curry(f: Callable[..., Any]) -> Callable[..., Any]:
         """Transform a multi-argument function into a curried version.
 
         Currying converts a function that takes multiple arguments into a sequence
         of functions, each taking a single argument. Supports both positional and
-        keyword arguments.
+        keyword arguments, and several arguments may be supplied in one step.
+
+        The original function is invoked as soon as every parameter without a
+        default is bound.  Consequently, parameters with defaults (as well as
+        ``*args``/``**kwargs``) can only be overridden in the step that
+        completes the call — not in a later step, because there is no later
+        step.
 
         Args:
             f: A function to curry.
 
         Returns:
             A curried version of the function.
+
+        Raises:
+            TypeError: If an argument does not match the function's signature,
+                or a keyword argument is supplied more than once.
 
         Examples:
             >>> def add(x: int, y: int, z: int) -> int:
@@ -164,10 +193,26 @@ class F:
             6
             >>> curried_add(1, y=2)(z=3)
             6
+
+            Parameters with defaults need not be supplied; the call fires once
+            all required parameters are bound:
+
+            >>> def greet(name: str, greeting: str = "hi") -> str:
+            ...     return f"{greeting} {name}"
+            >>> F.curry(greet)("bob")
+            'hi bob'
+            >>> F.curry(greet)("bob", greeting="hello")
+            'hello bob'
+
+            Supplying the same keyword twice is an error, as in a plain call:
+
+            >>> curried_add(x=1)(x=2, y=2, z=3)
+            Traceback (most recent call last):
+                ...
+            TypeError: f.add() got multiple values for keyword argument 'x'
         """
         sig = inspect.signature(f)
-        params = list(sig.parameters.values())
-        num_params = len(params)
+        num_params = len(sig.parameters)
 
         if num_params == 0:
             return f
@@ -177,14 +222,12 @@ class F:
             bound_args = sig.bind_partial(*args, **kwargs)
             bound_args.apply_defaults()
 
-            total_bound = len(bound_args.arguments)
-
-            if total_bound >= num_params:
+            if len(bound_args.arguments) >= num_params:
                 return f(*args, **kwargs)
 
+            @wraps(f)
             def partial(*more_args, **more_kwargs):
-                combined_kwargs = {**kwargs, **more_kwargs}
-                return curried(*(args + more_args), **combined_kwargs)
+                return curried(*args, *more_args, **kwargs, **more_kwargs)
 
             return partial
 

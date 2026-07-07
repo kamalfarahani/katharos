@@ -280,3 +280,59 @@ class TestEdgeCases:
         assert result.is_just()
         assert isinstance(result.unwrap(), float)
         assert abs(result.unwrap() - 1.8708287) < 0.0001
+
+
+class TestTruthiness:
+    def test_just_is_truthy(self):
+        assert bool(Maybe.Just(5))
+
+    def test_just_of_falsy_value_is_truthy(self):
+        assert bool(Maybe.Just(0))
+        assert bool(Maybe.Just(""))
+        assert bool(Maybe.Just(None))
+
+    def test_nothing_is_falsy(self):
+        assert not bool(Maybe.Nothing())
+
+
+class TestEquality:
+    def test_non_maybe_comparison_is_unequal(self):
+        assert Maybe.Just(1) != 1
+        assert Maybe.Nothing() != None  # noqa: E711
+
+    def test_reflected_equality_is_delegated(self):
+        class AlwaysEqual:
+            def __eq__(self, other: object) -> bool:
+                return True
+
+        assert Maybe.Just(1) == AlwaysEqual()
+        assert AlwaysEqual() == Maybe.Just(1)
+
+
+class TestUnwrapOr:
+    def test_just_returns_value(self):
+        assert Maybe.Just(5).unwrap_or(0) == 5
+
+    def test_nothing_returns_default(self):
+        assert Maybe.Nothing().unwrap_or(0) == 0
+
+    def test_default_may_differ_in_type(self):
+        assert Maybe.Nothing().unwrap_or("fallback") == "fallback"
+
+
+class TestOptionalConversion:
+    def test_from_optional_value(self):
+        assert Maybe.from_optional(5) == Maybe.Just(5)
+
+    def test_from_optional_none(self):
+        assert Maybe.from_optional(None) == Maybe.Nothing()
+
+    def test_to_optional_just(self):
+        assert Maybe.Just(5).to_optional() == 5
+
+    def test_to_optional_nothing(self):
+        assert Maybe.Nothing().to_optional() is None
+
+    def test_round_trip(self):
+        assert Maybe.from_optional(Maybe.Just(7).to_optional()) == Maybe.Just(7)
+        assert Maybe.from_optional(Maybe.Nothing().to_optional()) == Maybe.Nothing()

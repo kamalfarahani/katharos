@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, TypeVar, cast, final
+from typing import Any, Never, TypeVar, cast, final, overload
 
 from katharos.algebra.applicative.applicative import Applicative
 from katharos.algebra.monad import Monad
+from katharos.types.errors import UnwrapError
 
 A = TypeVar("A", covariant=True)
 
@@ -17,7 +18,7 @@ class _Nothing:
 
     def __eq__(self, value: object, /) -> bool:
         if not isinstance(value, _Nothing):
-            return False
+            return NotImplemented
         return True
 
     def __repr__(self) -> str:
@@ -67,7 +68,9 @@ class Maybe(Monad["Maybe[Any]", A]):
 
     Note:
         This class is ``@final`` and cannot be subclassed. Supports the ``|``
-        (bind) and ``**`` (applicative apply) operators.
+        (bind) and ``**`` (applicative apply) operators. Truthiness reflects
+        the state: a Just is always truthy (even ``Just(0)``), Nothing is
+        falsy.
     """
 
     @classmethod
@@ -96,8 +99,21 @@ class Maybe(Monad["Maybe[Any]", A]):
         """
         return cls.pure(x)
 
-    @staticmethod
-    def Just(value: A) -> Maybe[A]:  # type: ignore
+    # Overload 1 only matches unspecialized access (``Maybe.Just(x)``):
+    # a subscripted ``Maybe[T].Just`` is never assignable to
+    # ``type[Maybe[Never]]``, so it falls through to overload 2, which
+    # binds the element type from the class subscript instead of the
+    # argument.
+    @overload
+    @classmethod
+    def Just[S](cls: type[Maybe[Never]], value: S) -> Maybe[S]: ...
+
+    @overload
+    @classmethod
+    def Just[T](cls: type[Maybe[T]], value: T) -> Maybe[T]: ...
+
+    @classmethod
+    def Just(cls: type[Maybe[Any]], value: Any) -> Maybe[Any]:
         """Create a Maybe containing a value.
 
         Args:
@@ -114,9 +130,12 @@ class Maybe(Monad["Maybe[Any]", A]):
 
         return Maybe(value=value)
 
-    @staticmethod
-    def Nothing() -> Maybe[A]:
+    @classmethod
+    def Nothing[T](cls: type[Maybe[T]]) -> Maybe[T]:
         """Create an empty Maybe.
+
+        Subscript the class to fix the element type, e.g.
+        ``Maybe[int].Nothing()``.
 
         Returns:
             An empty Maybe with no value.
@@ -138,10 +157,75 @@ class Maybe(Monad["Maybe[Any]", A]):
             The value contained in this Maybe.
 
         Raises:
-            ValueError: If this Maybe is Nothing.
+            UnwrapError: If this Maybe is Nothing.
         """
         if is_nothing(self._value):
-            raise ValueError("Cannot unwrap a Nothing")
+            raise UnwrapError("Cannot unwrap a Nothing")
+
+        return cast(A, self._value)
+
+    def unwrap_or[B](self, default: B) -> A | B:
+        """Extract the wrapped value, or return a default if Nothing.
+
+        Args:
+            default: The value to return when this Maybe is Nothing.
+
+        Returns:
+            The wrapped value, or ``default`` if this Maybe is Nothing.
+
+        Examples:
+            >>> Maybe.Just(5).unwrap_or(0)
+            5
+            >>> Maybe.Nothing().unwrap_or(0)
+            0
+        """
+        if is_nothing(self._value):
+            return default
+
+        return cast(A, self._value)
+
+    @staticmethod
+    def from_optional[T](value: T | None) -> Maybe[T]:
+        """Convert an optional value into a Maybe.
+
+        ``None`` maps to Nothing; any other value is wrapped in a Just.
+        Note that this means a ``Just(None)`` cannot be produced with this
+        constructor — use :meth:`Just` directly for that.
+
+        Args:
+            value: The optional value to convert.
+
+        Returns:
+            A Just containing the value, or Nothing if the value is ``None``.
+
+        Examples:
+            >>> Maybe.from_optional(5)
+            Just(5)
+            >>> Maybe.from_optional(None)
+            Nothing()
+        """
+        if value is None:
+            return Maybe.Nothing()
+
+        return Maybe.Just(value)
+
+    def to_optional(self) -> A | None:
+        """Convert this Maybe into an optional value.
+
+        The inverse of :meth:`from_optional`. Note that ``Just(None)`` and
+        Nothing both map to ``None``.
+
+        Returns:
+            The wrapped value, or ``None`` if this Maybe is Nothing.
+
+        Examples:
+            >>> Maybe.Just(5).to_optional()
+            5
+            >>> Maybe.Nothing().to_optional() is None
+            True
+        """
+        if is_nothing(self._value):
+            return None
 
         return cast(A, self._value)
 
@@ -155,9 +239,9 @@ class Maybe(Monad["Maybe[Any]", A]):
             A Maybe containing the mapped value, or Nothing if this is Nothing.
         """
         if is_nothing(self._value):
-            return Maybe[B]()
+            return Maybe.Nothing()
 
-        return Maybe[B](f(self.unwrap()))
+        return Maybe.Just(f(self.unwrap()))
 
     def ap[B](
         self,
@@ -250,9 +334,26 @@ class Maybe(Monad["Maybe[Any]", A]):
             True if both are the same state and hold equal values.
         """
         if not isinstance(other, Maybe):
-            return False
+            return NotImplemented
 
         return self._value == other._value
+
+    def __bool__(self) -> bool:
+        """Return the truthiness of this Maybe.
+
+        Truthiness reflects the state, not the wrapped value: a Just is
+        always truthy, even ``Just(0)`` or ``Just(None)``.
+
+        Returns:
+            True if this is a Just, False if it is Nothing.
+
+        Examples:
+            >>> bool(Maybe.Just(0))
+            True
+            >>> bool(Maybe.Nothing())
+            False
+        """
+        return self.is_just()
 
     def __repr__(self) -> str:
         """Return the string representation of this Maybe.
