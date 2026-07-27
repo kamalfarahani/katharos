@@ -25,6 +25,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx_copybutton",
     "sphinx_autodoc_typehints",
+    "sphinxcontrib.mermaid",
     "myst_parser",
 ]
 

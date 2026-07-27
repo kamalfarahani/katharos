@@ -3,25 +3,29 @@ Type Hierarchy Reference
 
 Katharos organises its types into two independent abstract hierarchies defined in ``katharos.algebra``.
 
-.. code-block:: none
+.. mermaid::
 
-    Combining             Computational
-    ---------             -------------
-    Semigroup[S]          Functor[F, A]
-         |                     |
-    Monoid[M]            Applicative[App, A]
-                               |
-                          Monad[Mon, A]
+    flowchart TD
+        semigroup["Semigroup[S]"] --> monoid["Monoid[M]"]
+        functor["Functor[F, A]"] --> applicative["Applicative[App, A]"]
+        applicative --> monad["Monad[Mon, A]"]
 
-    Concrete types
-    Maybe[A]         -> Monad
-    Result[E, A]     -> Monad
-    IO[A]            -> Monad
-    ImmutableList[T] -> Monad + Monoid
-    NonEmptyList[T]  -> Monad + Semigroup
-    MonoidMaybe[A]   -> Monoid
-    Sum              -> Monoid
-    Product          -> Monoid
+        monad -.-> maybe["Maybe[A]"]
+        monad -.-> result["Result[E, A]"]
+        monad -.-> io["IO[A]"]
+        monad -.-> immutableList["ImmutableList[T]"]
+        monad -.-> nonEmptyList["NonEmptyList[T]"]
+
+        monoid -.-> immutableList
+        monoid -.-> monoidMaybe["MonoidMaybe[A]"]
+        monoid -.-> sum[Sum]
+        monoid -.-> product[Product]
+        semigroup -.-> nonEmptyList
+
+        classDef abstract fill:#C2E5FF,stroke:#3DADFF
+        classDef concrete fill:#CDF4D3,stroke:#66D575
+        class semigroup,monoid,functor,applicative,monad abstract
+        class maybe,result,io,immutableList,nonEmptyList,monoidMaybe,sum,product concrete
 
 ----
 
