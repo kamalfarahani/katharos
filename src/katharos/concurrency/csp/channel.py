@@ -310,6 +310,15 @@ class Channel[A]:
         ``Failure(ChannelClosedError)``. Any blocked senders or receivers
         are woken.
 
+        Note:
+            Closing an unbuffered channel while a sender is parked on an
+            offered value races with any concurrent :meth:`recv`: that
+            in-flight value is either handed to the receiver (the send then
+            returns normally) or dropped (the send raises
+            :class:`ChannelClosedError`), depending on which side next
+            acquires the lock. As in Go, do not ``close`` a channel
+            concurrently with a send you expect to complete.
+
         Raises:
             ChannelClosedError: If the channel is already closed.
         """

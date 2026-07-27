@@ -145,10 +145,11 @@ class _Selector:
             ``True`` if a signal was pending or arrived, ``False`` on timeout.
         """
         with self._cond:
-            if self._signaled:
-                self._signaled = False
-                return True
-            return self._cond.wait(timeout)
+            if not self._signaled:
+                self._cond.wait(timeout)
+            signaled = self._signaled
+            self._signaled = False
+            return signaled
 
 
 def select[A](
