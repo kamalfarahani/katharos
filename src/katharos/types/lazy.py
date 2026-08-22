@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable, cast  # noqa: F401  # Any used in "Lazy[Any]" base
+from collections.abc import Callable
+from typing import Any, cast  # noqa: F401  # Any used in "Lazy[Any]" base
 
 from katharos.algebra import Applicative, Monad
 from katharos.concurrency.base_threading_backend import BaseThreadingBackend
