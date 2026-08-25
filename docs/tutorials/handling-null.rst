@@ -6,8 +6,6 @@ missing users without returning ``None``. You will create ``Just`` and
 ``Nothing`` values, convert an optional Python value into a ``Maybe``, and
 provide a safe fallback for display.
 
-**Time:** About 10 minutes
-
 Prerequisites
 -------------
 
