@@ -1,7 +1,7 @@
 How to Use Do-Notation
 ======================
 
-This guide shows you how to use the ``@do`` decorator to combine several monadic values in a readable, imperative style — without writing nested lambda chains.
+This guide shows you how to use the ``@do`` decorator to combine several monadic values in a readable, imperative style - without writing nested lambda chains.
 
 Prerequisites
 -------------
@@ -27,9 +27,9 @@ A do-block is a generator function decorated with ``@do(M)``. Each ``yield`` ext
 
    block()  # Just(15)
 
-- ``@do(Maybe)`` — declares which monad the block works with. Every ``yield`` must produce a value of that monad type.
-- ``DoBlock[Maybe, int]`` — the return type annotation for the generator. The first argument is the monad type; the second is the plain return type. The decorator lifts it into the monad.
-- ``x: int = yield Maybe[int].Just(10)`` — extracts the wrapped value and binds it to ``x``. Annotate the type inline because Python's ``Generator`` cannot infer per-yield types automatically.
+- ``@do(Maybe)`` - declares which monad the block works with. Every ``yield`` must produce a value of that monad type.
+- ``DoBlock[Maybe, int]`` - the return type annotation for the generator. The first argument is the monad type; the second is the plain return type. The decorator lifts it into the monad.
+- ``x: int = yield Maybe[int].Just(10)`` - extracts the wrapped value and binds it to ``x``. Annotate the type inline because Python's ``Generator`` cannot infer per-yield types automatically.
 
 Short-circuit behaviour
 -----------------------
@@ -49,7 +49,7 @@ When any ``yield`` step holds a ``Nothing()`` or ``Failure``, the entire block s
 Using a bound value in a subsequent yield
 -----------------------------------------
 
-Because ``yield`` returns the real unwrapped value — not a placeholder — you can use it immediately in the next line, including passing it to another monadic function:
+Because ``yield`` returns the real unwrapped value - not a placeholder - you can use it immediately in the next line, including passing it to another monadic function:
 
 .. code-block:: python
 
@@ -65,7 +65,7 @@ Because ``yield`` returns the real unwrapped value — not a placeholder — you
    @do(Maybe)
    def block() -> DoBlock[Maybe, str]:
        role:   str = yield lookup("alice")
-       result: str = yield greet(role)   # role is "admin" here — greet returns Maybe
+       result: str = yield greet(role)   # role is "admin" here - greet returns Maybe
        return result
 
    block()  # Just('Hello, Admin!')

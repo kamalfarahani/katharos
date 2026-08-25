@@ -26,14 +26,14 @@ Katharos defines three abstract base classes, each extending the previous:
 
 Subclassing ``Monad`` requires implementing all four abstract methods: ``fmap``, ``pure``, ``ap``, and ``bind``.
 
-The inherited concrete methods (``ret``, ``then``, ``|``, ``>>``) work at runtime — but due to Python's lack of higher-kinded types, **their return types will be inferred as the abstract base type**, not your concrete type. You must override them with correct return-type annotations to make downstream code type-check properly. This is covered in Step 4.
+The inherited concrete methods (``ret``, ``then``, ``|``, ``>>``) work at runtime - but due to Python's lack of higher-kinded types, **their return types will be inferred as the abstract base type**, not your concrete type. You must override them with correct return-type annotations to make downstream code type-check properly. This is covered in Step 4.
 
 The example type: Validated
 ----------------------------
 
 We will build ``Validated[A]``, a container that holds either a valid value or a list of error strings. Unlike ``Result``, which stops at the first failure, ``Validated`` can accumulate errors via ``ap``.
 
-Declare the class using Python's generic syntax. The type parameter workaround ``"Validated[Any]"`` is required because Python has no higher-kinded types — the base class slot for the container type must be filled with a concrete type string:
+Declare the class using Python's generic syntax. The type parameter workaround ``"Validated[Any]"`` is required because Python has no higher-kinded types - the base class slot for the container type must be filled with a concrete type string:
 
 .. code-block:: python
 
@@ -70,10 +70,10 @@ Declare the class using Python's generic syntax. The type parameter workaround `
                return f"Valid({self._value!r})"
            return f"Invalid({self._errors!r})"
 
-Step 1 — Implement fmap (Functor)
+Step 1 - Implement fmap (Functor)
 ----------------------------------
 
-Annotate the return type explicitly as ``"Validated[B]"``. Without this, the type checker infers ``Functor[Validated[Any], B]`` — technically correct in the abstract but useless to callers.
+Annotate the return type explicitly as ``"Validated[B]"``. Without this, the type checker infers ``Functor[Validated[Any], B]`` - technically correct in the abstract but useless to callers.
 
 After the ``is_valid()`` guard, add ``assert self._value is not None`` so the type checker knows the value is safe to access (the guard narrows the logic but not the type):
 
@@ -101,10 +101,10 @@ Verify the two functor laws:
    add1   = lambda x: x + 1
    assert v.fmap(F.compose(add1)(double)) == v.fmap(double).fmap(add1)
 
-Step 2 — Implement pure and ap (Applicative)
+Step 2 - Implement pure and ap (Applicative)
 ---------------------------------------------
 
-**pure**: wrap a plain value into the minimal valid context. Annotate the return as ``"Validated[T]"`` — without it the type checker infers ``Applicative[Validated[Any], T]``:
+**pure**: wrap a plain value into the minimal valid context. Annotate the return as ``"Validated[T]"`` - without it the type checker infers ``Applicative[Validated[Any], T]``:
 
 .. code-block:: python
 
@@ -133,7 +133,7 @@ Step 2 — Implement pure and ap (Applicative)
        assert wrapped_funcs._value is not None # type checker narrowing
        return Validated[B].Valid(wrapped_funcs._value(self._value))
 
-The ``cast`` does not change the runtime value — it only tells the type checker to treat ``wrapped_funcs`` as ``Validated[Callable[[A], B]]`` from that line onwards, enabling access to ``._value`` and ``._errors``.
+The ``cast`` does not change the runtime value - it only tells the type checker to treat ``wrapped_funcs`` as ``Validated[Callable[[A], B]]`` from that line onwards, enabling access to ``._value`` and ``._errors``.
 
 Verify the homomorphism law:
 
@@ -143,10 +143,10 @@ Verify the homomorphism law:
    x = 10
    assert Validated.pure(f(x)) == Validated.pure(x) ** Validated.pure(f)
 
-Step 3 — Implement bind and ret (Monad)
+Step 3 - Implement bind and ret (Monad)
 -----------------------------------------
 
-**bind**: same pattern as ``ap`` — abstract type in the signature, ``cast`` inside the body, then ``assert`` before access:
+**bind**: same pattern as ``ap`` - abstract type in the signature, ``cast`` inside the body, then ``assert`` before access:
 
 .. code-block:: python
 
@@ -185,10 +185,10 @@ Verify the monad laws:
    # Associativity: m.bind(f).bind(g) == m.bind(lambda x: f(x).bind(g))
    assert v.bind(f).bind(g) == v.bind(lambda x: f(x).bind(g))
 
-Step 4 — Override inherited operators for correct return types
+Step 4 - Override inherited operators for correct return types
 ---------------------------------------------------------------
 
-``Monad`` and ``Applicative`` provide ``then``, ``__or__``, ``__rshift__``, and ``__pow__`` — they work at runtime without overriding. But their return types are the abstract base types (``Monad[Validated[Any], B]``, ``Applicative[Validated[Any], B]``), not ``Validated[B]``.
+``Monad`` and ``Applicative`` provide ``then``, ``__or__``, ``__rshift__``, and ``__pow__`` - they work at runtime without overriding. But their return types are the abstract base types (``Monad[Validated[Any], B]``, ``Applicative[Validated[Any], B]``), not ``Validated[B]``.
 
 Override each one to annotate the concrete return type. The bodies are one-liners that delegate back to the methods you already implemented:
 
@@ -365,7 +365,7 @@ All operators and do-notation work without any extra implementation:
    # Short-circuit on invalid
    @do(Validated)
    def block_invalid() -> DoBlock[Validated, dict]:
-       name: str = yield validate_name("")   # Invalid — block short-circuits here
+       name: str = yield validate_name("")   # Invalid - block short-circuits here
        age:  int = yield validate_age(30)
        return {"name": name, "age": age}
 

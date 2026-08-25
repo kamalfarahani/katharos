@@ -141,7 +141,7 @@ You should see:
 
 Notice two things:
 
-- ``pipeline.value`` is ``20`` — the value from the *second* ``IO``. The ``>>`` operator keeps the value of the right-hand side and discards the value of the left-hand side.
+- ``pipeline.value`` is ``20`` - the value from the *second* ``IO``. The ``>>`` operator keeps the value of the right-hand side and discards the value of the left-hand side.
 - Both side effects ran in order when ``execute()`` was called, even though step1's value was discarded.
 
 Step 5: Build a Complete Audit Pipeline

@@ -5,7 +5,7 @@ Katharos exposes algebraic operations as Python operators. This page documents e
 
 ----
 
-``fmap`` — Functor map
+``fmap`` - Functor map
 -----------------------
 
 **Syntax:** ``functor.fmap(f)``
@@ -23,7 +23,7 @@ Applies *f* to the value inside the functor. Returns a new functor of the same s
 
 ----
 
-``**`` — Applicative apply
+``**`` - Applicative apply
 ---------------------------
 
 **Syntax:** ``value ** wrapped_func``
@@ -43,7 +43,7 @@ Applies the function inside *wrapped_func* to the value inside *value*.
 
 ----
 
-``|`` — Monadic bind
+``|`` - Monadic bind
 ---------------------
 
 **Syntax:** ``monad | f``
@@ -51,7 +51,7 @@ Applies the function inside *wrapped_func* to the value inside *value*.
 **Delegates to:** ``Monad.bind``
 
 Passes the unwrapped value to *f* and returns the resulting monad.
-Short-circuits on ``Nothing`` or ``Failure`` — *f* is not called.
+Short-circuits on ``Nothing`` or ``Failure`` - *f* is not called.
 
 .. code-block:: python
 
@@ -68,7 +68,7 @@ Short-circuits on ``Nothing`` or ``Failure`` — *f* is not called.
 
 ----
 
-``>>`` — Sequence
+``>>`` - Sequence
 ------------------
 
 **Syntax:** ``monad1 >> monad2``
@@ -86,7 +86,7 @@ Sequences two monadic actions. The value of *monad1* is discarded; the result is
 
 ----
 
-``@`` — Semigroup combine
+``@`` - Semigroup combine
 --------------------------
 
 **Syntax:** ``a @ b``

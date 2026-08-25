@@ -1,7 +1,7 @@
 How to Handle Errors Without Exceptions
 ========================================
 
-This guide covers practical patterns for using ``Result`` and ``Maybe`` to represent and propagate errors without raising exceptions — including wrapping existing exception-throwing code, recovering from failures, and converting between the two types.
+This guide covers practical patterns for using ``Result`` and ``Maybe`` to represent and propagate errors without raising exceptions - including wrapping existing exception-throwing code, recovering from failures, and converting between the two types.
 
 Prerequisites
 -------------
@@ -32,7 +32,7 @@ Convert an exception-throwing call into a ``Result`` using a try/except at the b
        except json.JSONDecodeError as e:
            return Result.Failure(e)
 
-Chain these with ``|`` — a failure at any step short-circuits the rest:
+Chain these with ``|`` - a failure at any step short-circuits the rest:
 
 .. code-block:: python
 
@@ -86,7 +86,7 @@ To attempt a fallback when a ``Result`` fails, branch on ``.is_failure()``:
            return default
        return result.value
 
-For a monadic fallback — where the recovery itself may also fail — use a plain conditional rather than chaining ``|``, since ``|`` only runs when the preceding step succeeded:
+For a monadic fallback - where the recovery itself may also fail - use a plain conditional rather than chaining ``|``, since ``|`` only runs when the preceding step succeeded:
 
 .. code-block:: python
 
@@ -102,7 +102,7 @@ Using do-notation to flatten multi-step pipelines
 When several ``Result``-returning steps depend on one another, the ``@do`` decorator
 lets you write them as a plain sequence of bindings instead of a ``|`` chain.
 Each ``yield`` unwraps the value on success; the first ``Failure`` short-circuits
-the entire block and is returned immediately — no subsequent steps run.
+the entire block and is returned immediately - no subsequent steps run.
 
 Rewriting the config pipeline with do-notation:
 
@@ -146,7 +146,7 @@ steps:
        return host, port
 
    load_host_and_port("config.json")
-   # Success(('localhost', '8080'))  — or Failure at whichever step first fails
+   # Success(('localhost', '8080'))  - or Failure at whichever step first fails
 
 Converting between Maybe and Result
 --------------------------------------

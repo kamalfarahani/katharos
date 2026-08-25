@@ -5,7 +5,7 @@ In this tutorial, we will build a user registration system that handles errors f
 
 .. note::
 
-   Always supply both type arguments when constructing a ``Result`` value — use ``Result[Exception, str].Success("ok")`` and ``Result[Exception, str].Failure(err)``, not ``Result.Success("ok")``. The two type parameters are the error type and the success type; providing them lets your type checker verify each step of the pipeline.
+   Always supply both type arguments when constructing a ``Result`` value - use ``Result[Exception, str].Success("ok")`` and ``Result[Exception, str].Failure(err)``, not ``Result.Success("ok")``. The two type parameters are the error type and the success type; providing them lets your type checker verify each step of the pipeline.
 
 Prerequisites
 -------------
@@ -44,7 +44,7 @@ You should see:
    Success(secret123)
    Failure(ValueError('Password too short'))
 
-Notice how the ``Result`` wraps a valid password in ``Success`` and captures an error in ``Failure`` — no exception is raised.
+Notice how the ``Result`` wraps a valid password in ``Success`` and captures an error in ``Failure`` - no exception is raised.
 
 Step 2: Add Email Validation
 -----------------------------
@@ -167,7 +167,7 @@ You should see:
    Failure(ValueError('Invalid email format'))
    Failure(ValueError('Password too short'))
 
-Notice that the block stops at the first ``Failure`` and returns it immediately, without running the remaining ``yield`` steps. Also notice that ``validated_email`` and ``validated_password`` are real ``str`` values inside the block — they can be used directly in the ``return`` expression without any placeholder workaround.
+Notice that the block stops at the first ``Failure`` and returns it immediately, without running the remaining ``yield`` steps. Also notice that ``validated_email`` and ``validated_password`` are real ``str`` values inside the block - they can be used directly in the ``return`` expression without any placeholder workaround.
 
 Step 6: Extract Values from Results
 ------------------------------------
@@ -211,7 +211,7 @@ Step 7: Lift a Throwing Function with Result.catch
 ---------------------------------------------------
 
 So far every validation we wrote returns a ``Result`` by hand. But a lot of real
-code — including the standard library — signals failure by *raising* an
+code - including the standard library - signals failure by *raising* an
 exception. Suppose registration also accepts an age, supplied as a string from a
 web form, that we need to parse with ``int()``. Calling ``int("abc")`` raises a
 ``ValueError``.
@@ -244,7 +244,7 @@ You should see:
 
 The decorated ``parse_age`` returns an ordinary ``Result``, so it drops straight
 into the same pipeline as our hand-written validations. Only ``ValueError`` is
-turned into a ``Failure`` — any other exception would propagate normally. Replace
+turned into a ``Failure`` - any other exception would propagate normally. Replace
 the two ``print`` lines to chain the parsed age into a range check:
 
 .. code-block:: python
@@ -273,7 +273,7 @@ You should see:
    Failure(ValueError("invalid literal for int() with base 10: 'abc'"))
 
 ``Result.catch`` is the bridge between exception-raising code and the
-``Result``-based pipelines you have been building — without a single
+``Result``-based pipelines you have been building - without a single
 ``try/except``. For more patterns, including how to recover the exact line that
 caused a failure, see :doc:`../how-to/catch-exceptions`.
 

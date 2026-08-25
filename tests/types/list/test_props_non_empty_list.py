@@ -5,7 +5,7 @@ invariants of :class:`NonEmptyList` hold across a wide range of generated
 inputs, complementing the worked-example tests in ``test_non_empty_list.py``.
 
 :class:`NonEmptyList` is a :class:`~katharos.algebra.Monad` and a
-:class:`~katharos.algebra.semigroup.Semigroup` but *not* a Monoid — there is
+:class:`~katharos.algebra.semigroup.Semigroup` but *not* a Monoid - there is
 no empty list to serve as identity, so the monoid identity laws are absent.
 It has a value-based ``__eq__`` (equal elements in the same order), so laws
 are asserted directly on the lists. Every generated list has at least one

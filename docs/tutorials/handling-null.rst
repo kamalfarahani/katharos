@@ -5,7 +5,7 @@ In this tutorial, we will build a program that safely looks up users and their f
 
 .. note::
 
-   Always supply a type argument when constructing a ``Maybe`` value — use ``Maybe[str].Just("hello")`` and ``Maybe[str].Nothing()``, not ``Maybe.Just("hello")`` or ``Maybe.Nothing()``. The type argument lets your type checker (e.g. Pyright or mypy) infer the element type of the container and catch errors at development time.
+   Always supply a type argument when constructing a ``Maybe`` value - use ``Maybe[str].Just("hello")`` and ``Maybe[str].Nothing()``, not ``Maybe.Just("hello")`` or ``Maybe.Nothing()``. The type argument lets your type checker (e.g. Pyright or mypy) infer the element type of the container and catch errors at development time.
 
 Prerequisites
 -------------

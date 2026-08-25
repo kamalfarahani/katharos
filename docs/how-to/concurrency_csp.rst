@@ -330,6 +330,6 @@ To create a single channel against an explicit backend, pass ``backend=`` to
 See also
 --------
 
-- :doc:`../tutorials/csp` — a guided, end-to-end build of a worker pool
-- :doc:`../reference/api/concurrency` — full API for channels, goroutines, ``select``,
+- :doc:`../tutorials/csp` - a guided, end-to-end build of a worker pool
+- :doc:`../reference/api/concurrency` - full API for channels, goroutines, ``select``,
   and the backend abstractions

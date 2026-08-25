@@ -19,9 +19,9 @@ class NonEmptyList(
     """An immutable list guaranteed to contain at least one element.
 
     ``NonEmptyList`` provides the same functional interface as
-    :class:`~katharos.types.list.ImmutableList` — including
+    :class:`~katharos.types.list.ImmutableList` - including
     :class:`~katharos.algebra.Monad` and
-    :class:`~katharos.algebra.semigroup.Semigroup` — without a
+    :class:`~katharos.algebra.semigroup.Semigroup` - without a
     :class:`~katharos.algebra.Monoid` instance (no empty list is representable).
 
     Access the first element with :attr:`head` and the remaining elements

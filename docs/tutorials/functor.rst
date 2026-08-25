@@ -39,7 +39,7 @@ You should see:
    Just(50)
    Nothing()
 
-Notice that the value was doubled in the first case. In the second case the function was not called at all — there was no value to transform.
+Notice that the value was doubled in the first case. In the second case the function was not called at all - there was no value to transform.
 
 Step 2: Process User Ages
 --------------------------
@@ -196,7 +196,7 @@ Run the file. The final lines of the output should be:
    Born in 1991
    User not found
 
-Notice that the missing user (ID 999) produced the fallback string ``"User not found"`` — the ``Maybe`` propagated through the whole pipeline and was only converted to a plain value at the very end.
+Notice that the missing user (ID 999) produced the fallback string ``"User not found"`` - the ``Maybe`` propagated through the whole pipeline and was only converted to a plain value at the very end.
 
 What We Built
 -------------

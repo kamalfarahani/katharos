@@ -615,7 +615,7 @@ class Result(
             ``Callable[P, Result[Err, R]]``.
 
         Examples:
-            Basic usage — catch a ``ValueError``:
+            Basic usage - catch a ``ValueError``:
 
             >>> @Result.catch(ValueError)
             ... def parse_int(s: str) -> int:

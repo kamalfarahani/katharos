@@ -39,7 +39,7 @@ Katharos is a functional programming library structured in three layers, plus a 
 
 ### Layer 1: Algebraic abstractions (`src/katharos/algebra/`)
 
-Abstract base classes only — no concrete logic. Two independent hierarchies:
+Abstract base classes only - no concrete logic. Two independent hierarchies:
 
 - **Combining**: `Semigroup` (associative `op`, exposed as `@`) → `Monoid` (adds `identity()` classmethod)
 - **Computational context**: `Functor` (`fmap`) → `Applicative` (`pure`, `ap`, exposed as `**`) → `Monad` (`bind`, exposed as `|`; `then`/`>>` for sequencing)
@@ -59,14 +59,14 @@ Each type implements the appropriate algebra interfaces:
 | `MonoidMaybe` | Monoid | Maybe with a monoid instance |
 | `Sum`, `Product` | Monoid | numeric monoids; constrained by the `AdditiveMonoid`/`MultiplicativeMonoid` structural protocols (`src/katharos/types/monoid/`) |
 
-`Maybe` and `Result` are `@final` — do not subclass. Use `is_just()`/`is_nothing()` and `is_success()`/`is_failure()` for state checks rather than type checks.
+`Maybe` and `Result` are `@final` - do not subclass. Use `is_just()`/`is_nothing()` and `is_success()`/`is_failure()` for state checks rather than type checks.
 
-`Result`'s success/failure state is tracked internally, not inferred from the wrapped value's type — so an exception can be carried as a *success* value via `Success`/`pure` without being treated as a `Failure`. `Lazy` runs its fetcher at most once: `.resolve()` memoizes the value (and memoizes a raised exception, re-raising it on every later call); the guard lock is not reentrant, so a fetcher that resolves the same `Lazy` deadlocks.
+`Result`'s success/failure state is tracked internally, not inferred from the wrapped value's type - so an exception can be carried as a *success* value via `Success`/`pure` without being treated as a `Failure`. `Lazy` runs its fetcher at most once: `.resolve()` memoizes the value (and memoizes a raised exception, re-raising it on every later call); the guard lock is not reentrant, so a fetcher that resolves the same `Lazy` deadlocks.
 
 ### Layer 3: Utilities
 
-- **`src/katharos/functools/f.py`** — `F` static namespace: `compose`, `id`, `foldr`, `foldl`, `sigma` (fold a `NonEmptyList[Semigroup]`), `curry`, `lift_a2`/`lift_a3` (lift a binary/ternary function into an `Applicative` context)
-- **`src/katharos/syntax_sugar/do.py`** — `do` decorator for Haskell-style do-notation:
+- **`src/katharos/functools/f.py`** - `F` static namespace: `compose`, `id`, `foldr`, `foldl`, `sigma` (fold a `NonEmptyList[Semigroup]`), `curry`, `lift_a2`/`lift_a3` (lift a binary/ternary function into an `Applicative` context)
+- **`src/katharos/syntax_sugar/do.py`** - `do` decorator for Haskell-style do-notation:
   ```python
   @do(Maybe)
   def computation() -> DoBlock[Maybe, int]:
@@ -82,8 +82,8 @@ Concurrency types are decoupled from any specific threading library by a backend
 
 CSP-style primitives live in `concurrency/csp/`:
 
-- **`Go`** / **`csp.go`** — a `Go` instance launches `go(fn, *args, **kwargs)` concurrently, returning a thread handle (fire-and-forget; return value discarded, exceptions don't propagate out). Used as a context manager (`with go:`), it becomes a structured-concurrency scope that joins all work spawned inside it on exit. Scopes are tracked per execution context via the backend's context-local storage, so a shared `Go` instance nests correctly. `Go` requires a backend; the usual entry point is the default `csp` runtime's `csp.go` (a `Go` bound to `default_backend()`), or construct your own `Go(backend)` to pin a specific backend.
-- **`Channel[A]`** — Go-style thread-safe channel. `capacity=0` (default) is unbuffered (synchronous rendezvous); `capacity>0` buffers. `recv(timeout=None)` returns a `Result`: `Success(value)`, `Failure(ChannelClosedError)` when closed and drained, or `Failure(ChannelTimeoutError)` on timeout. `send` raises `ChannelClosedError` on a closed channel; iterating yields values until closed. Every op uses `notify_all` (O(waiters)) for correctness under contention. The CSP primitives (`Channel`, `Go`, `CSP`, `csp`, `ChannelClosedError`, `ChannelTimeoutError`) are exported from `katharos.concurrency.csp` — the top-level `katharos.concurrency` package exposes only the backend abstractions, not the CSP layer.
+- **`Go`** / **`csp.go`** - a `Go` instance launches `go(fn, *args, **kwargs)` concurrently, returning a thread handle (fire-and-forget; return value discarded, exceptions don't propagate out). Used as a context manager (`with go:`), it becomes a structured-concurrency scope that joins all work spawned inside it on exit. Scopes are tracked per execution context via the backend's context-local storage, so a shared `Go` instance nests correctly. `Go` requires a backend; the usual entry point is the default `csp` runtime's `csp.go` (a `Go` bound to `default_backend()`), or construct your own `Go(backend)` to pin a specific backend.
+- **`Channel[A]`** - Go-style thread-safe channel. `capacity=0` (default) is unbuffered (synchronous rendezvous); `capacity>0` buffers. `recv(timeout=None)` returns a `Result`: `Success(value)`, `Failure(ChannelClosedError)` when closed and drained, or `Failure(ChannelTimeoutError)` on timeout. `send` raises `ChannelClosedError` on a closed channel; iterating yields values until closed. Every op uses `notify_all` (O(waiters)) for correctness under contention. The CSP primitives (`Channel`, `Go`, `CSP`, `csp`, `ChannelClosedError`, `ChannelTimeoutError`) are exported from `katharos.concurrency.csp` - the top-level `katharos.concurrency` package exposes only the backend abstractions, not the CSP layer.
 
 ### Operator summary
 
@@ -104,4 +104,4 @@ Docstrings are Google-style, rendered by Sphinx (`sphinx.ext.napoleon`).
 
 - **Do not put types in `Returns:` (or `Args:`) entries.** The code is fully annotated and `autodoc_typehints = "description"` pulls types from the signatures, so a docstring type is redundant and can silently drift. Write `Returns:` as a plain description (`A new Result containing the mapped value.`), not `Result[E, B]: ...`.
 - Use Sphinx cross-reference roles for code references: `:meth:`, `:class:`, etc.
-- `Examples:` blocks are runnable doctests — they must pass (`uv run python -m doctest <file>`), and exception output must match the real message (e.g. `'float division by zero'`).
+- `Examples:` blocks are runnable doctests - they must pass (`uv run python -m doctest <file>`), and exception output must match the real message (e.g. `'float division by zero'`).

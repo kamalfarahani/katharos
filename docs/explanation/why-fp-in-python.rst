@@ -2,7 +2,7 @@ Why Functional Programming in Python?
 =====================================
 
 Python is a multiparadigm language. You can write it imperatively, in an
-object-oriented style, or functionally — and most real codebases mix all
+object-oriented style, or functionally - and most real codebases mix all
 three. So why would you reach for a library like Katharos at all? What
 problems does it actually solve?
 
@@ -47,8 +47,8 @@ fails::
        ...
 
 Does this raise ``FileNotFoundError``? ``PermissionError``? ``ValueError``?
-``json.JSONDecodeError``? You have to read the implementation — or discover
-it at runtime — to find out. Callers routinely forget to handle failures,
+``json.JSONDecodeError``? You have to read the implementation - or discover
+it at runtime - to find out. Callers routinely forget to handle failures,
 not out of carelessness, but because the signature gave them no reason to
 think a failure was possible.
 
@@ -61,7 +61,7 @@ distinguish a function that transforms a string from one that writes to
 disk.
 
 This makes functions hard to test in isolation, hard to reason about, and
-hard to compose — because you cannot call a function without potentially
+hard to compose - because you cannot call a function without potentially
 triggering some externally observable action.
 
 The Functional Approach
@@ -82,7 +82,7 @@ acknowledge that the value might not be there::
        ...
 
 Now the return type says, unambiguously: *this might not have a value*. You
-cannot use the result as a plain string — you must either unwrap it
+cannot use the result as a plain string - you must either unwrap it
 explicitly (checking ``is_just()`` first), transform it with ``fmap``, or
 chain it with ``|``. The type checker enforces this. A missing value cannot
 propagate silently through the codebase, because the type carries the
@@ -101,13 +101,13 @@ type::
 The caller cannot ignore the error case. They either handle it, propagate
 it with ``|``, or consciously call ``.unwrap()`` and accept the risk. More
 importantly, this composes: a pipeline of ``Result``-returning functions
-chains with ``|``, and the first failure short-circuits the rest — no
+chains with ``|``, and the first failure short-circuits the rest - no
 ``try/except`` needed at each step, no missed error handling.
 
 **IO makes side effects explicit**
 
 ``IO[A]`` wraps a computation that produces a value *and* has a side
-effect. The side effect does not happen when you build the ``IO`` value —
+effect. The side effect does not happen when you build the ``IO`` value -
 it only happens when you call ``.execute()``::
 
    from katharos.types import IO
@@ -147,7 +147,7 @@ more to write than ``"hello"``. For simple scripts or one-off code, this
 overhead is not worth it.
 
 **Python was not designed for this.** Haskell, Elm, and Rust have deep
-language-level support for these patterns — pattern matching, algebraic
+language-level support for these patterns - pattern matching, algebraic
 data types, exhaustiveness checking. Python's equivalent features are more
 recent (structural pattern matching arrived in 3.10) and less ergonomic.
 You are working slightly against the grain of the language.
@@ -164,7 +164,7 @@ Katharos makes the most sense when:
 
 - Functions in your domain regularly produce values that may or may not
   exist, and the missing case has to be handled everywhere it propagates.
-- Errors in your system are expected, varied, and composable — not just
+- Errors in your system are expected, varied, and composable - not just
   exceptional crashes.
 - You want to push side effects to the edges of your application and keep
   the core logic pure and testable.
@@ -178,8 +178,8 @@ justified. Use the right tool for the context.
 Further Reading
 ---------------
 
-- :doc:`../tutorials/handling-null` — build a program using ``Maybe``
+- :doc:`../tutorials/handling-null` - build a program using ``Maybe``
   without writing a single ``None`` check
-- :doc:`../tutorials/error-handling` — see ``Result`` handle cascading
+- :doc:`../tutorials/error-handling` - see ``Result`` handle cascading
   failures in a validation pipeline
-- :doc:`../tutorials/io` — defer and sequence side effects with ``IO``
+- :doc:`../tutorials/io` - defer and sequence side effects with ``IO``

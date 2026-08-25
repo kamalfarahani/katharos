@@ -13,7 +13,7 @@ block. Typing the generator's ``YieldType`` as ``M`` lets the type checker
 verify that every ``yield`` produces a value of the expected monad, catching
 mistakes such as yielding a ``Result`` inside a ``@do(Maybe)`` block.
 
-The unwrapped value sent back into each ``yield`` is typed as ``Any`` —
+The unwrapped value sent back into each ``yield`` is typed as ``Any`` -
 Python's ``Generator`` has a single ``SendType`` for the whole function, so
 per-yield type inference across different inner types is not expressible
 without a type-checker plugin. Annotate individual yield results inline when

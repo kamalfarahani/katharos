@@ -1,7 +1,7 @@
 [project]
 name = "katharos"
 version = "1.4.1"
-description = "A functional programming and concurrency library for Python: algebraic abstractions (Semigroups, Monoids, Functors, Applicatives, Monads), immutable data types, and message-passing concurrency (Go-style CSP today, more models planned) — all designed as composable, type-safe values."
+description = "A functional programming and concurrency library for Python: algebraic abstractions (Semigroups, Monoids, Functors, Applicatives, Monads), immutable data types, and message-passing concurrency (Go-style CSP today, more models planned) - all designed as composable, type-safe values."
 readme = "README.md"
 license = "MIT"
 authors = [

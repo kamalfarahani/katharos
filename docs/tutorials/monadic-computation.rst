@@ -1,7 +1,7 @@
 Demonstrating Monadic Computations Using Maybe Monad
 =====================================================
 
-In this tutorial, we will build a small safe calculation pipeline that chains operations which can fail, using the bind operator (``|``). Along the way, we will encounter ``safe_sqrt``, ``safe_reciprocal``, and ``Maybe[float].ret`` — and see how the chain short-circuits cleanly when any step fails.
+In this tutorial, we will build a small safe calculation pipeline that chains operations which can fail, using the bind operator (``|``). Along the way, we will encounter ``safe_sqrt``, ``safe_reciprocal``, and ``Maybe[float].ret`` - and see how the chain short-circuits cleanly when any step fails.
 
 Prerequisites
 -------------

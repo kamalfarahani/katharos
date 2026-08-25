@@ -3,7 +3,7 @@ The Mathematics of Functors
 
 When you call ``fmap`` in Katharos, you are doing something that has a
 precise mathematical meaning. The ``Functor`` class is not a convention
-or a design pattern — it is a direct translation of a concept from
+or a design pattern - it is a direct translation of a concept from
 *category theory* called a *functor*. Understanding where functors
 come from clarifies why the API looks the way it does, why the laws
 are stated the way they are, and why the same ``fmap`` can work on
@@ -11,7 +11,7 @@ are stated the way they are, and why the same ``fmap`` can work on
 them being related by inheritance.
 
 This explanation assumes the vocabulary of
-:doc:`category-theory-primer` — categories, objects, morphisms,
+:doc:`category-theory-primer` - categories, objects, morphisms,
 identity, composition, and the "Py" category of Python types. If those
 words are unfamiliar, read that primer first.
 
@@ -45,13 +45,13 @@ morphism separately and then composing the results. The functor cannot
 change how morphisms chain together.
 
 These two laws together mean that a functor is a *structure-preserving*
-mapping — it translates one category into another without distorting the
+mapping - it translates one category into another without distorting the
 relationships between objects and morphisms.
 
 A useful intuition: a functor is a sealed container that lets you act on
 whatever is inside without ever opening it. You hand it a function ``f``,
-and the contents are transformed by ``f``, but the container itself —
-its shape, its layout, its presence-or-absence — is left intact. The
+and the contents are transformed by ``f``, but the container itself -
+its shape, its layout, its presence-or-absence - is left intact. The
 laws are what guarantee the seal: ``fmap`` cannot reach in and rearrange
 the structure, only transform the values within it.
 
@@ -61,7 +61,7 @@ Endofunctors: Functors From Py to Py
 A functor where the source and target are the *same* category is called
 an **endofunctor**.
 
-The functors in Katharos are endofunctors on Py — they map Python types
+The functors in Katharos are endofunctors on Py - they map Python types
 and functions *back into* Python types and functions. Here is how:
 
 **Maybe as an endofunctor**
@@ -109,8 +109,8 @@ produces a function ``ImmutableList[A] → ImmutableList[B]``::
 
 Here ``fmap`` applies ``f`` to every element in the list.
 
-These are the same mathematical operation — lifting a function into a
-computational context — expressed by two completely different concrete
+These are the same mathematical operation - lifting a function into a
+computational context - expressed by two completely different concrete
 behaviours.
 
 The Laws in Action
@@ -151,7 +151,7 @@ equals ``x``.
    # two_steps == one_step == Just(8)  ✓
 
 For ``Nothing()``, both sides produce ``Nothing()`` regardless of the
-functions — the composition law holds vacuously there.
+functions - the composition law holds vacuously there.
 
 The same two laws hold for ``ImmutableList``, where the preserved
 structure is the sequence of elements rather than presence-or-absence::
@@ -217,7 +217,7 @@ statement of the endofunctor structure::
            ...
 
 The type parameter ``A`` is the object in Py. ``fmap`` takes a
-morphism ``f : A → B`` and produces a value of type ``Functor[F, B]`` —
+morphism ``f : A → B`` and produces a value of type ``Functor[F, B]`` -
 this is the morphism mapping. The type variable ``F`` names the functor
 itself (``Maybe``, ``ImmutableList``, etc.).
 
@@ -230,11 +230,11 @@ them. Both ``Maybe`` and ``ImmutableList`` do.
 Further Reading
 ---------------
 
-- :doc:`category-theory-primer` — the prerequisite vocabulary used here
-- :doc:`applicatives-mathematics` — extends ``Functor`` with the
+- :doc:`category-theory-primer` - the prerequisite vocabulary used here
+- :doc:`applicatives-mathematics` - extends ``Functor`` with the
   ability to apply n-ary functions
-- :doc:`monads-mathematics` — extends ``Applicative`` with sequential
+- :doc:`monads-mathematics` - extends ``Applicative`` with sequential
   dependency between steps
-- :doc:`../tutorials/functor` — use ``fmap`` hands-on in a data pipeline
-- :doc:`../reference/type-hierarchy` — see where ``Functor`` sits in the
+- :doc:`../tutorials/functor` - use ``fmap`` hands-on in a data pipeline
+- :doc:`../reference/type-hierarchy` - see where ``Functor`` sits in the
   full algebraic hierarchy

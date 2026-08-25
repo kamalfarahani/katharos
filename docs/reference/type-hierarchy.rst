@@ -143,10 +143,10 @@ Concrete Types
      - Notes
    * - ``Maybe[A]``
      - ``Monad``
-     - States: ``Just(value)`` / ``Nothing()``. ``@final`` — do not subclass.
+     - States: ``Just(value)`` / ``Nothing()``. ``@final`` - do not subclass.
    * - ``Result[E, A]``
      - ``Monad``
-     - States: ``Success(value)`` / ``Failure(exc)``. ``@final`` — do not subclass.
+     - States: ``Success(value)`` / ``Failure(exc)``. ``@final`` - do not subclass.
    * - ``IO[A]``
      - ``Monad``
      - Lazy side-effect wrapper. Call ``.execute()`` to run the wrapped action.
