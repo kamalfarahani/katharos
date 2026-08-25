@@ -29,8 +29,8 @@ uv run pyright src
 # Multi-version test matrix (py313, py314, lint)
 uv run tox
 
-# Build docs
-cd docs && make html
+# Build docs and treat warnings as errors
+uv run --group docs sphinx-build -W -b html docs docs/_build/html
 ```
 
 ## Architecture
@@ -70,8 +70,8 @@ Each type implements the appropriate algebra interfaces:
   ```python
   @do(Maybe)
   def computation() -> DoBlock[Maybe, int]:
-      x: int = yield Maybe.Just(3)   # analogous to x <- Just 3 in Haskell
-      y: int = yield Maybe.Just(4)
+      x: int = yield Maybe[int].Just(3)   # analogous to x <- Just 3 in Haskell
+      y: int = yield Maybe[int].Just(4)
       return x + y
   ```
   Each `yield` unwraps the monadic value (short-circuits on `Nothing`/`Failure`). The plain `return` is automatically lifted via `Maybe.ret()`. The `DoBlock[M, R]` return-type alias (`Generator[M, Any, R]`) is exported alongside `do`.
@@ -98,7 +98,16 @@ CSP-style primitives live in `concurrency/csp/`:
 
 Tests mirror `src/` under `tests/types/` and `tests/functools/` etc. Coverage is measured on the `katharos` package. Property-based tests use Hypothesis; shared algebra-law checkers (functor/applicative/monad/monoid laws) are factored out for reuse across types.
 
-### Docstring conventions
+### Documentation conventions
+
+Tutorials are the primary onboarding experience. When writing or revising documentation for newcomers, improve the tutorial path first and keep each lesson focused on helping the reader build something useful.
+
+- Keep tutorials practical, progressive, and runnable. State prerequisites, introduce one concept at a time, show the command to run, include expected output, recap what the reader built, and identify the next lesson.
+- Keep tutorial ordering and prerequisite links accurate. A tutorial must not rely on an API or concept that an earlier required lesson has not introduced.
+- Move theory, design rationale, and exhaustive API details to explanation or reference pages. Link to those pages from the tutorial without interrupting its learning flow.
+- Follow the Diataxis boundaries used under `docs/`: tutorials teach, how-to guides solve specific tasks, reference documents the API, and explanation discusses concepts and design.
+- Do not use Unicode U+2014 em dashes anywhere in repository text. Restructure the sentence or use commas, colons, periods, or parentheses instead. Check with `rg -n $'\u2014' .`.
+- Validate documentation with `uv run --group docs sphinx-build -W -b html docs docs/_build/html`.
 
 Docstrings are Google-style, rendered by Sphinx (`sphinx.ext.napoleon`).
 
