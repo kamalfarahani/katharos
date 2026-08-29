@@ -1,255 +1,220 @@
-Validate a User Registration with Result
-========================================
+Calculate an Order Subtotal with Result
+=======================================
 
-In this tutorial, you will build a registration validator that returns either
-validated user data or a specific error. You will apply ``fmap``, the ``|``
-operator, and do-notation to ``Result`` values, then display the final outcome.
+In this tutorial, you will build an order-subtotal calculator that reads JSON
+input and returns either a calculated subtotal or the error that prevented the
+calculation. You will create ``Success`` and ``Failure`` values, then combine
+two ``Result``-returning functions with do-notation.
+
+**Time:** About 15 minutes.
 
 .. note::
 
-   The email and password rules in this tutorial are intentionally simple.
-   They demonstrate ``Result`` and are not production authentication rules.
+   The JSON validation in this tutorial is intentionally small. It demonstrates
+   ``Result`` and is not a complete order-validation system.
 
 Prerequisites
 -------------
 
-- Complete the :doc:`do-syntax` tutorial. It introduces ``fmap``, the ``|``
-  operator, and do-notation.
-- Be familiar with Python dictionaries, functions, and type hints.
+- Complete the :doc:`do-syntax` tutorial.
+- Be familiar with Python functions, dictionaries, exceptions, and type hints.
 
-Step 1: Return Your First Result
---------------------------------
+Step 1: Parse a Product Price
+-----------------------------
 
-Create a file called ``registration.py`` with the following contents:
+Create a file called ``order_subtotal.py`` with the following contents:
 
 .. code-block:: python
+
+   import json
 
    from katharos.types import Result
 
-   def check_password_length(password: str) -> Result[ValueError, str]:
-       if len(password) >= 8:
-           return Result[ValueError, str].Success(password)
-       return Result[ValueError, str].Failure(ValueError("Password too short"))
+   def parse_unit_price(product_json: str) -> Result[Exception, float]:
+       """Read and validate a product's unit price."""
+       try:
+           unit_price = float(json.loads(product_json)["unit_price"])
+           if unit_price < 0:
+               raise ValueError("unit_price must not be negative")
+           return Result[Exception, float].Success(unit_price)
+       except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+           return Result[Exception, float].Failure(error)
 
-   print(check_password_length("secret123"))
-   print(check_password_length("short"))
+   print(parse_unit_price('{"unit_price": 12.50}'))
+   print(parse_unit_price('{"unit_price": -1}'))
 
 Run the file:
 
 .. code-block:: bash
 
-   python registration.py
+   python order_subtotal.py
 
 You should see:
 
 .. code-block:: text
 
-   Success('secret123')
-   Failure(ValueError('Password too short'))
+   Success(12.5)
+   Failure(ValueError('unit_price must not be negative'))
 
-``Success`` contains the accepted password. ``Failure`` contains the error
-instead of raising it.
+``json.loads`` converts the JSON string to a Python dictionary. The function
+returns ``Success`` for an accepted price and ``Failure`` for an expected input
+error instead of raising it to the caller.
 
-.. note::
+The ``Exception`` type argument accommodates every exception type caught by
+the function. See the :doc:`../reference/api/types` for complete ``Result``
+details.
 
-   This tutorial supplies both type arguments when constructing a ``Result``.
-   For example, ``Result[ValueError, str]`` tells a type checker the error and
-   success types. The arguments are not required for the code to run.
+Step 2: Parse an Order Quantity
+-------------------------------
 
-Step 2: Add Email Validation
+Remove the two ``print`` lines. Add this function and the new calls at the
+bottom of ``order_subtotal.py``:
+
+.. code-block:: python
+
+   def parse_quantity(order_json: str) -> Result[Exception, int]:
+       """Read and validate an order quantity."""
+       try:
+           quantity = int(json.loads(order_json)["quantity"])
+           if quantity <= 0:
+               raise ValueError("quantity must be greater than zero")
+           return Result[Exception, int].Success(quantity)
+       except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+           return Result[Exception, int].Failure(error)
+
+   print(parse_quantity('{"quantity": 4}'))
+   print(parse_quantity('{"quantity": 0}'))
+
+Run the file:
+
+.. code-block:: bash
+
+   python order_subtotal.py
+
+You should see:
+
+.. code-block:: text
+
+   Success(4)
+   Failure(ValueError('quantity must be greater than zero'))
+
+The quantity parser follows the same pattern as the price parser. It returns
+the validated integer or preserves the input error inside ``Failure``.
+
+Step 3: Calculate a Subtotal
 ----------------------------
 
-Remove the two ``print`` lines. Add this function and the new calls at the
-bottom of ``registration.py``:
+Remove the two ``print`` lines. Add this function and call at the bottom of
+``order_subtotal.py``:
 
 .. code-block:: python
 
-   def check_email_format(email: str) -> Result[ValueError, str]:
-       if "@" in email and "." in email:
-           return Result[ValueError, str].Success(email)
-       return Result[ValueError, str].Failure(ValueError("Invalid email format"))
+   def calculate_subtotal(unit_price: float, quantity: int) -> float:
+       return unit_price * quantity
 
-   print(check_email_format("user@example.com"))
-   print(check_email_format("notanemail"))
+   print(calculate_subtotal(12.50, 4))
 
 Run the file:
 
 .. code-block:: bash
 
-   python registration.py
+   python order_subtotal.py
 
 You should see:
 
 .. code-block:: text
 
-   Success('user@example.com')
-   Failure(ValueError('Invalid email format'))
+   50.0
 
-Both validation functions now describe their possible failure in their return
-type.
+``calculate_subtotal`` accepts plain validated values. The next step will
+provide those values from the two ``Result``-returning parsers.
 
-Step 3: Normalize a Successful Email
-------------------------------------
+Step 4: Combine the Parsing Steps
+---------------------------------
 
-Replace the two ``print`` lines with:
-
-.. code-block:: python
-
-   print(check_email_format("User@Example.COM").fmap(str.lower))
-   print(check_email_format("invalid").fmap(str.lower))
-
-Run the file:
-
-.. code-block:: bash
-
-   python registration.py
-
-You should see:
-
-.. code-block:: text
-
-   Success('user@example.com')
-   Failure(ValueError('Invalid email format'))
-
-``fmap`` lowercases the successful email and leaves the failure unchanged.
-
-Step 4: Chain Password Checks
------------------------------
-
-Remove the two ``print`` lines. Add this function and the new calls at the
-bottom of ``registration.py``:
+Replace the contents of ``order_subtotal.py`` with the complete program:
 
 .. code-block:: python
 
-   def check_password_strength(password: str) -> Result[ValueError, str]:
-       if any(character.isdigit() for character in password):
-           return Result[ValueError, str].Success(password)
-       return Result[ValueError, str].Failure(
-           ValueError("Password must contain a number")
-       )
-
-   print(check_password_length("secret123") | check_password_strength)
-   print(check_password_length("secretword") | check_password_strength)
-   print(check_password_length("short") | check_password_strength)
-
-Run the file:
-
-.. code-block:: bash
-
-   python registration.py
-
-You should see:
-
-.. code-block:: text
-
-   Success('secret123')
-   Failure(ValueError('Password must contain a number'))
-   Failure(ValueError('Password too short'))
-
-The ``|`` operator runs the strength check only after the length check
-succeeds. The first ``Failure`` stops the chain.
-
-Step 5: Combine the Registration Checks
----------------------------------------
-
-Add this import below the existing import at the top of ``registration.py``:
-
-.. code-block:: python
+   import json
 
    from katharos.syntax_sugar import DoBlock, do
+   from katharos.types import Result
 
-Remove the three ``print`` lines. Add the registration function and new calls
-at the bottom of the file:
 
-.. code-block:: python
+   def parse_unit_price(product_json: str) -> Result[Exception, float]:
+       """Read and validate a product's unit price."""
+       try:
+           unit_price = float(json.loads(product_json)["unit_price"])
+           if unit_price < 0:
+               raise ValueError("unit_price must not be negative")
+           return Result[Exception, float].Success(unit_price)
+       except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+           return Result[Exception, float].Failure(error)
+
+
+   def parse_quantity(order_json: str) -> Result[Exception, int]:
+       """Read and validate an order quantity."""
+       try:
+           quantity = int(json.loads(order_json)["quantity"])
+           if quantity <= 0:
+               raise ValueError("quantity must be greater than zero")
+           return Result[Exception, int].Success(quantity)
+       except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+           return Result[Exception, int].Failure(error)
+
+
+   def calculate_subtotal(unit_price: float, quantity: int) -> float:
+       return unit_price * quantity
+
 
    @do(Result)
-   def register_user(
-       email: str,
-       password: str,
-   ) -> DoBlock[Result, dict[str, str]]:
-       validated_email: str = yield check_email_format(email).fmap(str.lower)
-       validated_password: str = yield (
-           check_password_length(password) | check_password_strength
-       )
-       return {"email": validated_email, "password": validated_password}
+   def order_subtotal(
+       product_json: str,
+       order_json: str,
+   ) -> DoBlock[Result, float]:
+       unit_price: float = yield parse_unit_price(product_json)
+       quantity: int = yield parse_quantity(order_json)
+       return calculate_subtotal(unit_price, quantity)
 
-   print(register_user("Alice@Example.com", "secret123"))
-   print(register_user("notanemail", "secret123"))
-   print(register_user("alice@example.com", "short"))
 
-Run the file:
-
-.. code-block:: bash
-
-   python registration.py
-
-You should see:
-
-.. code-block:: text
-
-   Success({'email': 'alice@example.com', 'password': 'secret123'})
-   Failure(ValueError('Invalid email format'))
-   Failure(ValueError('Password too short'))
-
-Each ``yield`` gives the function a validated value. The first ``Failure``
-stops the function, while the final dictionary is lifted into ``Success``.
-
-Step 6: Report the Registration Outcome
----------------------------------------
-
-Replace the three ``print`` lines with this reporting function and four calls:
-
-.. code-block:: python
-
-   def report_registration(
-       result: Result[ValueError, dict[str, str]],
-   ) -> None:
-       if result.is_success():
-           print(f"User created: {result.value['email']}")
-       else:
-           print(f"Registration failed: {result.error}")
-
-   report_registration(register_user("Bob@Example.com", "password123"))
-   report_registration(register_user("invalid", "password123"))
-   report_registration(register_user("bob@example.com", "password"))
-   report_registration(register_user("bob@example.com", "short"))
+   print(order_subtotal('{"unit_price": 12.50}', '{"quantity": 4}'))
+   print(order_subtotal('{"unit_price": 12.50}', '{"quantity": 0}'))
 
 Run the completed program:
 
 .. code-block:: bash
 
-   python registration.py
+   python order_subtotal.py
 
 You should see:
 
 .. code-block:: text
 
-   User created: bob@example.com
-   Registration failed: Invalid email format
-   Registration failed: Password must contain a number
-   Registration failed: Password too short
+   Success(50.0)
+   Failure(ValueError('quantity must be greater than zero'))
 
-``is_success`` selects the safe property to read: ``value`` for a success or
-``error`` for a failure.
+Each ``yield`` provides a plain validated value. If either parser returns a
+``Failure``, the function stops before calculating the subtotal. A successful
+subtotal is lifted into ``Success`` automatically.
 
 What You Built
 --------------
 
-You built a registration validator that:
+You built an order-subtotal calculator that:
 
-- Represents accepted values with ``Success`` and validation errors with
-  ``Failure``.
-- Transforms a successful email with ``fmap``.
-- Stops password validation at the first failure with ``|``.
-- Combines dependent validation steps with ``@do(Result)``.
-- Reports successful and failed registrations without raising the validation
-  errors.
+- Parses JSON input and captures expected input errors in ``Failure``.
+- Represents validated prices and quantities with ``Success``.
+- Keeps the subtotal calculation independent from parsing and validation.
+- Combines dependent ``Result`` values with ``@do(Result)``.
+- Stops at the first parsing or validation failure.
 
 Next Steps
 ----------
 
 - Continue with :doc:`immutable-lists` to work with immutable collections.
-- See :doc:`../how-to/catch-exceptions` to convert exception-raising functions
-  with ``Result.catch``.
+- See :doc:`../how-to/catch-exceptions` to replace manual ``try`` and ``except``
+  blocks with ``Result.catch``.
+- Read :doc:`../explanation/error-handling-and-tracebacks` to understand why
+  Katharos represents expected failures as values.
 - Consult the :doc:`../reference/api/types` for the complete ``Result`` API.
