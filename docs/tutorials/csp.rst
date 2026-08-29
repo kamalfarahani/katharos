@@ -37,7 +37,8 @@ Prerequisites
 
 - Python 3.13 or later
 - Katharos installed (see :doc:`getting-started`)
-- Complete the :doc:`error-handling` tutorial so you are familiar with ``Result`` and ``unwrap``
+- Complete the :doc:`error-handling` tutorial so you are familiar with
+  ``Result``.
 
 Step 1: Write the Worker
 ------------------------
