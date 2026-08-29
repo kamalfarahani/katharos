@@ -1,151 +1,217 @@
-Demonstrating Monadic Computations Using Maybe Monad
-=====================================================
+Compose ``Maybe``-Returning Functions with Bind
+===============================================
 
-In this tutorial, we will build a small safe calculation pipeline that chains operations which can fail, using the bind operator (``|``). Along the way, we will encounter ``safe_sqrt``, ``safe_reciprocal``, and ``Maybe[float].ret`` - and see how the chain short-circuits cleanly when any step fails.
+In this tutorial, you will build a contact lookup by composing two functions
+that can fail. The first function will find a username from a user ID. The
+second will find an email address from that username. You will use ``|``
+(bind) to connect them without producing nested ``Maybe`` values.
+
+**Time:** About 15 minutes.
 
 Prerequisites
 -------------
 
-- Complete the :doc:`getting-started` tutorial.
-- Complete the :doc:`handling-null` tutorial so you are familiar with ``Maybe[T].Just`` and ``Maybe[T].Nothing``.
+- Complete the :doc:`functor` tutorial.
+- Be familiar with Python functions, dictionaries, and type hints.
 
-Step 1: Create the Script and a Failing Function
--------------------------------------------------
+Step 1: Create Two Independent Lookups
+--------------------------------------
 
-First, we create a new file called ``pipeline.py`` and add a function that returns a ``Maybe``:
+Create a file called ``contact_lookup.py`` with the following contents:
 
 .. code-block:: python
 
    from katharos.types import Maybe
 
-   def safe_sqrt(x: float) -> Maybe[float]:
-       if x < 0:
-           return Maybe[float].Nothing()
-       return Maybe[float].Just(x ** 0.5)
+   USERNAMES = {
+       1: "alice",
+       2: "bob",
+   }
 
-   print(safe_sqrt(16.0))
-   print(safe_sqrt(-4.0))
+   EMAILS = {
+       "alice": "alice@example.com",
+   }
 
-Now, run the file:
+   def find_username(user_id: int) -> Maybe[str]:
+       return Maybe.from_optional(USERNAMES.get(user_id))
+
+   def find_email(username: str) -> Maybe[str]:
+       return Maybe.from_optional(EMAILS.get(username))
+
+   print(find_username(1))
+   print(find_email("alice"))
+
+Run the file:
 
 .. code-block:: bash
 
-   python pipeline.py
+   python contact_lookup.py
 
-The output should look like this:
+You should see:
 
 .. code-block:: text
 
-   Just(4.0)
-   Nothing()
+   Just('alice')
+   Just('alice@example.com')
 
-Notice how ``safe_sqrt`` always returns a value wrapped in ``Maybe``.
+Each lookup accepts a plain value and returns a ``Maybe``. It returns ``Just``
+when it finds a match and ``Nothing()`` when it does not.
 
-Step 2: See the Problem with fmap
-----------------------------------
+Step 2: See the Composition Gap
+-------------------------------
 
-Next, we try to apply ``safe_sqrt`` to a value already inside a ``Maybe`` using ``fmap``. Replace the two ``print`` lines with:
+The two functions have these type shapes:
 
 .. code-block:: python
 
-   result = Maybe[float].Just(16.0).fmap(safe_sqrt)
-   print(result)
+   find_username: int -> Maybe[str]
+   find_email:    str -> Maybe[str]
 
-Run the file again. The output should look like this:
+Ordinary function composition cannot pass the result of ``find_username``
+directly to ``find_email``. The first function returns ``Maybe[str]``, but the
+second requires a plain ``str``.
+
+Use ``fmap`` from the previous tutorial to apply ``find_email`` to the wrapped
+username. Replace the two ``print`` lines with:
+
+.. code-block:: python
+
+   username = find_username(1)
+   nested_email = username.fmap(find_email)
+
+   print(nested_email)
+
+Run the file again. You should see:
 
 .. code-block:: text
 
-   Just(Just(4.0))
+   Just(Just('alice@example.com'))
 
-Notice the nested ``Just(Just(...))``. That is the problem we are about to fix.
+``fmap`` preserves the outer ``Maybe``. Because ``find_email`` also returns a
+``Maybe``, the composed result contains one ``Maybe`` inside another.
 
-Step 3: Use Bind to Flatten the Result
+Step 3: Connect the Functions with Bind
 ---------------------------------------
 
-Now, we replace ``fmap`` with the bind operator ``|``, which is just an infix shorthand for the ``.bind(...)`` method. Change the ``result`` line to:
+Replace the ``nested_email`` and ``print`` lines with:
 
 .. code-block:: python
 
-   result = Maybe[float].Just(16.0) | safe_sqrt  # or Maybe[float].Just(16.0).bind(safe_sqrt)
-   print(result)
+   email = username | find_email
 
-Run the file again. The output should look like this:
+   print(email)
+
+Run the file. You should see:
 
 .. code-block:: text
 
-   Just(4.0)
+   Just('alice@example.com')
 
-Notice the result is flat. The ``|`` operator applies ``safe_sqrt`` and unwraps the extra layer for us.
+The ``|`` operator calls ``username.bind(find_email)``. Bind passes the plain
+username to ``find_email`` and directly uses the ``Maybe`` returned by that
+function. The result stays flat.
 
-Step 4: Chain Two Operations
------------------------------
+Here, bind connects a ``Maybe[B]`` value to a function with the shape
+``B -> Maybe[C]``. In the next step, you will place this expression inside a
+new function to compose ``A -> Maybe[B]`` with ``B -> Maybe[C]``.
 
-Next, we add a second failing function and chain it after ``safe_sqrt``. Add this function below ``safe_sqrt``:
+Step 4: Create a Reusable Composed Function
+-------------------------------------------
 
-.. code-block:: python
-
-   def safe_reciprocal(x: float) -> Maybe[float]:
-       if x == 0:
-           return Maybe[float].Nothing()
-       return Maybe[float].Just(1 / x)
-
-Then replace the ``result`` block with:
+Replace the ``username``, ``email``, and ``print`` lines with:
 
 .. code-block:: python
 
-   result = Maybe[float].Just(16.0) | safe_sqrt | safe_reciprocal
-   print(result)
+   def find_user_email(user_id: int) -> Maybe[str]:
+       return find_username(user_id) | find_email
 
-Run the file. The output should look like this:
+   print(find_user_email(1))
+
+Run the file. You should see:
 
 .. code-block:: text
 
-   Just(0.25)
+   Just('alice@example.com')
 
-Notice how the value flows through both steps: ``16.0 → 4.0 → 0.25``.
+``find_user_email`` passes the plain user ID to ``find_username``. It then
+binds the returned ``Maybe[str]`` to ``find_email``. If the first lookup
+returns ``Nothing()``, bind skips the second lookup.
 
-Step 5: Watch the Chain Short-Circuit
---------------------------------------
-
-Now, we feed a negative number into the same chain. Change the starting value to ``-16.0``:
-
-.. code-block:: python
-
-   result = Maybe[float].Just(-16.0) | safe_sqrt | safe_reciprocal
-   print(result)
-
-Run the file. The output should look like this:
+You have composed the two original functions into a new function with this
+type shape:
 
 .. code-block:: text
 
-   Nothing()
+   find_user_email: int -> Maybe[str]
 
-Notice that ``safe_reciprocal`` was never reached. Once any step returns ``Nothing()``, the rest of the chain is skipped automatically.
+.. note::
 
-Step 6: Start the Chain with ret
----------------------------------
+   Keeping functions composable while their results remain inside ``Maybe``
+   is the practical job a monad is designed to do.
 
-Finally, we use ``Maybe[float].ret`` to start the chain from a plain value instead of writing ``Maybe[float].Just`` ourselves. Replace the ``result`` line with:
+Step 5: Run the Complete Contact Lookup
+---------------------------------------
+
+Replace the contents of ``contact_lookup.py`` with the complete program:
 
 .. code-block:: python
 
-   result = Maybe[float].ret(16.0) | safe_sqrt | safe_reciprocal
-   print(result)
+   from katharos.types import Maybe
 
-Run the file. The output should look like this:
+   USERNAMES = {
+       1: "alice",
+       2: "bob",
+   }
+
+   EMAILS = {
+       "alice": "alice@example.com",
+   }
+
+   def find_username(user_id: int) -> Maybe[str]:
+       return Maybe.from_optional(USERNAMES.get(user_id))
+
+   def find_email(username: str) -> Maybe[str]:
+       return Maybe.from_optional(EMAILS.get(username))
+
+   def find_user_email(user_id: int) -> Maybe[str]:
+       return find_username(user_id) | find_email
+
+   for user_id in (1, 2, 999):
+       print(f"{user_id}: {find_user_email(user_id)}")
+
+Run the completed lookup:
+
+.. code-block:: bash
+
+   python contact_lookup.py
+
+You should see:
 
 .. code-block:: text
 
-   Just(0.25)
+   1: Just('alice@example.com')
+   2: Nothing()
+   999: Nothing()
 
-Notice the result is identical to Step 4. ``Maybe[float].ret`` simply wraps a plain value into the monad so the chain has a starting point.
+User ``1`` completes both lookups. User ``2`` has a username but no email, so
+``find_email`` returns ``Nothing()``. User ``999`` is missing from the first
+lookup, so bind skips ``find_email`` and preserves ``Nothing()``.
 
-What We Built
--------------
+What You Built
+--------------
 
-We built a pipeline that:
+You built a contact lookup that:
 
-- Wraps a starting value with ``Maybe[float].ret``.
-- Chains failure-aware functions with ``|``.
-- Produces a flat ``Maybe`` result.
-- Short-circuits to ``Nothing()`` as soon as any step fails.
+- Defines two independently useful functions that return ``Maybe``.
+- Uses bind to compose ``A -> Maybe[B]`` with ``B -> Maybe[C]``.
+- Produces a reusable ``A -> Maybe[C]`` function without nested values.
+- Stops the composed lookup as soon as any function returns ``Nothing()``.
+
+Next Steps
+----------
+
+- Continue with :doc:`do-syntax` to express larger bind chains more clearly.
+- Read :doc:`../explanation/monads-mathematics` for Kleisli composition and
+  the monad laws.
+- Consult :doc:`../reference/operators` for the ``|`` contract and related
+  operations.
