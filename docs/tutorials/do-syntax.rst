@@ -6,7 +6,8 @@ In this tutorial, we will build a script that combines several ``Maybe`` values 
 Prerequisites
 -------------
 
-- Complete the :doc:`monadic-computation` tutorial so you are familiar with ``|`` (bind) and ``Maybe[T].ret``.
+- Complete the :doc:`monadic-computation` tutorial so you are familiar with
+  ``|`` (bind).
 
 Step 1: Create the Script and a Multi-Argument Function
 --------------------------------------------------------
@@ -55,6 +56,9 @@ Next, we use ``|`` (bind) to unwrap each value and pass it to ``process``. Repla
        )
    )
    print(result)
+
+Each lambda passed to bind must return a ``Maybe``. The innermost lambda uses
+``Maybe[float].ret`` to wrap the plain value returned by ``process``.
 
 Run the file again. The output should look like this:
 
