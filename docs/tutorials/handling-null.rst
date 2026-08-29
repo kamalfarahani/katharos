@@ -1,20 +1,19 @@
-Handling Null Values with Maybe
-================================
+Handle Missing User Data with Maybe
+===================================
 
-In this tutorial, we will build a program that safely looks up users and their friends without writing a single ``None`` check. Along the way, we will encounter ``Maybe[T].Just``, ``Maybe[T].Nothing``, ``fmap``, and the ``|`` (bind) operator.
-
-.. note::
-
-   Always supply a type argument when constructing a ``Maybe`` value — use ``Maybe[str].Just("hello")`` and ``Maybe[str].Nothing()``, not ``Maybe.Just("hello")`` or ``Maybe.Nothing()``. The type argument lets your type checker (e.g. Pyright or mypy) infer the element type of the container and catch errors at development time.
+In this tutorial, you will build a user lookup that handles both existing and
+missing users without returning ``None``. You will create ``Just`` and
+``Nothing`` values, convert an optional Python value into a ``Maybe``, and
+provide a safe fallback for display.
 
 Prerequisites
 -------------
 
-- Python 3.13 or later
-- Katharos installed (see :doc:`getting-started`)
+- Complete the :doc:`getting-started` tutorial.
+- Be familiar with Python dictionaries, functions, and type hints.
 
-Step 1: Look Up a User
-----------------------
+Step 1: Represent Present and Missing Values
+--------------------------------------------
 
 Create a file called ``user_lookup.py`` with the following contents:
 
@@ -22,22 +21,13 @@ Create a file called ``user_lookup.py`` with the following contents:
 
    from katharos.types import Maybe
 
-   users = {
-       1: "Alice",
-       2: "Bob",
-       3: "Charlie"
-   }
+   found = Maybe[str].Just("Alice")
+   missing = Maybe[str].Nothing()
 
-   def find_user(user_id: int) -> Maybe[str]:
-       if user_id in users:
-           return Maybe[str].Just(users[user_id])
-       else:
-           return Maybe[str].Nothing()
+   print(found)
+   print(missing)
 
-   result = find_user(1)
-   print(result)
-
-Now run the file:
+Run the file:
 
 .. code-block:: bash
 
@@ -47,19 +37,38 @@ You should see:
 
 .. code-block:: text
 
-   Just(Alice)
+   Just('Alice')
+   Nothing()
 
-Notice the result is wrapped in ``Just(...)`` instead of being a plain string.
+``Just`` contains the user's name. ``Nothing`` represents a missing name.
 
-Step 2: Handle the Missing Case
---------------------------------
+.. note::
 
-Now we will look up a user that doesn't exist. Add these two lines at the bottom of ``user_lookup.py``:
+   This tutorial uses an explicit type argument, such as ``Maybe[str]``, when
+   constructing values. This helps a type checker infer what the ``Maybe`` can
+   contain.
+
+Step 2: Build a User Lookup
+---------------------------
+
+Replace the contents of ``user_lookup.py`` with this user dictionary and
+lookup function:
 
 .. code-block:: python
 
-   missing = find_user(99)
-   print(missing)
+   from katharos.types import Maybe
+
+   users: dict[int, str] = {
+       1: "Alice",
+       2: "Bob",
+       3: "Charlie",
+   }
+
+   def find_user(user_id: int) -> Maybe[str]:
+       return Maybe.from_optional(users.get(user_id))
+
+   found = find_user(1)
+   print(found)
 
 Run the file again:
 
@@ -71,25 +80,21 @@ You should see:
 
 .. code-block:: text
 
-   Just(Alice)
-   Nothing()
+   Just('Alice')
 
-Notice that the missing user is represented as ``Nothing()`` instead of raising an error or returning ``None``.
+The dictionary's ``get`` method returns either a name or ``None``.
+``Maybe.from_optional`` converts those two possibilities into ``Just`` or
+``Nothing``.
 
-Step 3: Transform the Value with fmap
---------------------------------------
+Step 3: Look Up a Missing User
+------------------------------
 
-Instead of checking if the value exists, we can transform it directly. Replace the four lines at the bottom of ``user_lookup.py`` with:
+Add these lines to the bottom of ``user_lookup.py``:
 
 .. code-block:: python
 
-   result = find_user(1)
-   greeting = result.fmap(lambda name: f"Hello, {name}!")
-   print(greeting)
-
    missing = find_user(99)
-   missing_greeting = missing.fmap(lambda name: f"Hello, {name}!")
-   print(missing_greeting)
+   print(missing)
 
 Run the file:
 
@@ -101,43 +106,37 @@ You should see:
 
 .. code-block:: text
 
-   Just(Hello, Alice!)
+   Just('Alice')
    Nothing()
 
-Notice how the transformation only happens when the value exists. When the Maybe is Nothing, the function is never called.
+The same function now represents both lookup outcomes without returning
+``None`` to its caller.
 
-Step 4: Chain Operations Together
-----------------------------------
+Step 4: Display a Safe Fallback
+-------------------------------
 
-Now we will look up a user and then look up their friend. First, add a ``friends`` dictionary and a ``find_friend`` function below the existing ``find_user`` function:
+Replace the contents of ``user_lookup.py`` with the complete program:
 
 .. code-block:: python
 
-   friends = {
-       "Alice": "Bob",
-       "Bob": "Charlie",
-       "Charlie": "Alice"
+   from katharos.types import Maybe
+
+   users: dict[int, str] = {
+       1: "Alice",
+       2: "Bob",
+       3: "Charlie",
    }
 
-   def find_friend(name: str) -> Maybe[str]:
-       if name in friends:
-           return Maybe[str].Just(friends[name])
-       else:
-           return Maybe[str].Nothing()
+   def find_user(user_id: int) -> Maybe[str]:
+       return Maybe.from_optional(users.get(user_id))
 
-Now replace the six lines at the bottom of the file with:
+   def display_user(user_id: int) -> str:
+       return find_user(user_id).unwrap_or("User not found")
 
-.. code-block:: python
+   print(display_user(1))
+   print(display_user(99))
 
-   result = find_user(1)
-   friend = result | find_friend
-   print(friend)
-
-   missing = find_user(99)
-   missing_friend = missing | find_friend
-   print(missing_friend)
-
-Run the file:
+Run the completed program:
 
 .. code-block:: bash
 
@@ -147,12 +146,26 @@ You should see:
 
 .. code-block:: text
 
-   Just(Bob)
-   Nothing()
+   Alice
+   User not found
 
-We used the ``|`` operator to chain ``find_friend`` after ``find_user``. The chain stops at the first ``Nothing()`` and skips ``find_friend`` entirely.
+``unwrap_or`` returns the contained name when one exists. For ``Nothing``, it
+returns the fallback string instead.
 
-What We Built
--------------
+What You Built
+--------------
 
-We wrote a program that looks up users and their friends without a single ``None`` check or ``try/except`` block. The Maybe type carried the "missing" case through every transformation for us.
+You built a user lookup that:
+
+- Represents an existing value with ``Just`` and a missing value with
+  ``Nothing``.
+- Converts a Python optional value with ``Maybe.from_optional``.
+- Produces displayable text with ``unwrap_or``.
+
+Next Steps
+----------
+
+- Continue with :doc:`functor` to transform values inside ``Maybe``.
+- See :doc:`../how-to/null-values-with-maybe` for practical null-handling
+  patterns after you complete the introductory tutorials.
+- Consult the :doc:`../reference/api/types` for the complete ``Maybe`` API.

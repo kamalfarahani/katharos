@@ -39,7 +39,7 @@ The ``@`` operator is provided by the base class and delegates to ``op``:
    c = MaxInt(5)
 
    print(a @ b)        # MaxInt(7)
-   print(a @ b @ c)    # MaxInt(7)  — associativity holds
+   print(a @ b @ c)    # MaxInt(7)  - associativity holds
 
 Using your semigroup with F.sigma
 ----------------------------------
@@ -104,7 +104,7 @@ With an identity element you can fold over an empty sequence safely using ``F.fo
    print(result)  # MaxInt(7)
 
    empty_result = F.foldl(matmul, MaxInt.identity(), [])
-   print(empty_result)  # MaxInt(-9223372036854775808)  — the identity
+   print(empty_result)  # MaxInt(-9223372036854775808)  - the identity
 
 Example: a string-joining semigroup
 -------------------------------------

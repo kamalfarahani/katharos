@@ -44,7 +44,7 @@ You should see:
 
    Katharos installed successfully!
 
-If you see an ``ImportError`` instead, the installation did not complete successfully — re-run the pip install step and check for any error messages.
+If you see an ``ImportError`` instead, the installation did not complete successfully - re-run the pip install step and check for any error messages.
 
 What We Built
 -------------

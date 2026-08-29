@@ -2,16 +2,16 @@ The Mathematics of Applicatives
 ================================
 
 A ``Functor`` lets you apply a one-argument function to a value sitting
-inside a context — a ``Maybe``, an ``ImmutableList``, a ``Result``, an
+inside a context - a ``Maybe``, an ``ImmutableList``, a ``Result``, an
 ``IO``. As soon as you try to apply a *two*-argument function to two
 such values, ``fmap`` is not enough. The function and at least one
 argument live outside the context; the values live inside it; ``fmap``
 has no way to bring them together.
 
 The **applicative functor** is the abstraction that fills that gap. It
-extends ``Functor`` with just enough machinery — a way to inject a plain
+extends ``Functor`` with just enough machinery - a way to inject a plain
 value into the context (``pure``), and a way to apply a wrapped function
-to a wrapped value (``ap``) — to lift functions of *any* arity into the
+to a wrapped value (``ap``) - to lift functions of *any* arity into the
 context, uniformly.
 
 This explanation builds on :doc:`functors-mathematics`. If category
@@ -36,7 +36,7 @@ With only ``fmap``, the best you can do is partially apply::
 
    partial = x.fmap(add)
    # partial : Maybe[Callable[[int], int]]
-   # — a function-of-int trapped inside a Maybe
+   # - a function-of-int trapped inside a Maybe
 
 Now you are stuck. You have ``partial : Maybe[int → int]`` and
 ``y : Maybe[int]``, and no way to apply the one to the other. ``fmap``
@@ -59,8 +59,8 @@ The Applicative Interface
 An **applicative functor** is a functor ``F`` equipped with two
 additional operations:
 
-1. ``pure : A → F[A]`` — lift a plain value into the context.
-2. ``<*> : F[A → B] → F[A] → F[B]`` — apply a wrapped function to a
+1. ``pure : A → F[A]`` - lift a plain value into the context.
+2. ``<*> : F[A → B] → F[A] → F[B]`` - apply a wrapped function to a
    wrapped value.
 
 In Katharos, ``pure`` is a classmethod and ``<*>`` is exposed as the
@@ -70,7 +70,7 @@ In Katharos, ``pure`` is a classmethod and ``<*>`` is exposed as the
 
    Maybe.pure(3)                 # Just(3)
    Maybe[int].Just(3) ** Maybe[int].Just(add).fmap(...)
-   # — the ** operator is applicative apply
+   # - the ** operator is applicative apply
 
 The signature is the same as Haskell's ``<*>``, just inverted because
 ``ap`` is a method on the value side: ``value.ap(wrapped_func)`` is
@@ -82,7 +82,7 @@ With ``pure`` and ``ap``, the stuck example becomes unstuck::
    y = Maybe[int].Just(4)
 
    # add is curried: int → (int → int)
-   wrapped_add = x.fmap(add)        # Just(add(3)) — a function inside Maybe
+   wrapped_add = x.fmap(add)        # Just(add(3)) - a function inside Maybe
    result = y.ap(wrapped_add)       # Just(7)
 
 Or with the operator::
@@ -116,7 +116,7 @@ value when the function does nothing.
 
 Lifting ``x`` and ``f`` separately and then combining them inside the
 context is the same as applying ``f`` to ``x`` outside the context and
-lifting the result. ``pure`` does not add behaviour of its own — it
+lifting the result. ``pure`` does not add behaviour of its own - it
 just injects.
 
 **Interchange.** It does not matter which side is lifted by ``pure``
@@ -133,8 +133,8 @@ either lift ``y`` and apply ``u`` to it, or lift the action "feed
    w ** (v ** (u ** App.pure(compose))) == (w ** v) ** u
 
 This is the applicative analogue of the functor composition law. It
-guarantees that combining three wrapped pieces — two functions and a
-value — gives the same result whether you compose the functions first
+guarantees that combining three wrapped pieces - two functions and a
+value - gives the same result whether you compose the functions first
 inside the context, or apply them one at a time.
 
 These four laws together pin down what an applicative *is*. They look
@@ -146,7 +146,7 @@ An Intuition: Wrapped Function Application
 -------------------------------------------
 
 Where a functor is a sealed container that lets you act on its contents
-without opening it, an applicative is the same container — but now you
+without opening it, an applicative is the same container - but now you
 can *also* combine multiple containers, provided you have a function
 inside one of them.
 
@@ -209,7 +209,7 @@ The result has length ``len(funcs) * len(values)``. The list's notion
 of "combine two contexts" is "every pairing," and ``ap`` realises it.
 
 **Result and IO.** ``Result`` mirrors ``Maybe`` with an error channel:
-the first ``Failure`` propagates. ``IO`` defers everything — ``pure``
+the first ``Failure`` propagates. ``IO`` defers everything - ``pure``
 wraps a value as a trivial action, ``ap`` builds a compound action
 whose ``.execute()`` runs both sub-actions and applies one's result to
 the other's. Same four laws, four different concrete behaviours.
@@ -247,8 +247,8 @@ Lifting ``3`` and ``double`` separately and combining them inside
 behaviour beyond injection.
 
 The same laws hold for ``ImmutableList``, ``Result``, and ``IO``. The
-concrete computations look different — the cartesian product on lists
-is visibly different from short-circuiting on ``Maybe`` — but the
+concrete computations look different - the cartesian product on lists
+is visibly different from short-circuiting on ``Maybe`` - but the
 equations themselves are identical.
 
 Why the Laws Matter
@@ -279,7 +279,7 @@ steps: it is strictly more amenable to optimisation.
 
 **The boundary with Monad.** A monad lets a later step inspect the
 value produced by an earlier step. An applicative does not. This
-sounds like a limitation, and in expressive power it is — but it is
+sounds like a limitation, and in expressive power it is - but it is
 also a *guarantee*. An applicative computation cannot branch on its
 own intermediate results, which makes it easier to reason about, to
 analyse statically, and (where possible) to parallelise. Choosing
@@ -294,7 +294,7 @@ duck-typed, so each concrete type could just expose its own ``pure``
 and ``ap`` methods and skip the abstract base. Why does Katharos ship
 an ``Applicative`` ABC?
 
-For the same reasons — the ABC is where the four laws are stated, and
+For the same reasons - the ABC is where the four laws are stated, and
 it is the link in the hierarchy that ``Monad`` extends. Without the
 explicit declaration, "is this type an applicative?" has no meaningful
 answer, and the upward composition (``Monad`` requires ``Applicative``
@@ -333,7 +333,7 @@ operation; ``ap`` is the wrapped-function-application operation. The
 
 The type parameter ``A`` is the value inside the context. ``App`` is
 the applicative itself (``Maybe``, ``ImmutableList``, etc.). The ``B``
-in ``ap`` is the type the wrapped function returns — so ``ap`` takes
+in ``ap`` is the type the wrapped function returns - so ``ap`` takes
 an ``Applicative[App, A → B]`` and produces an ``Applicative[App, B]``,
 exactly as the type ``<*> : F[A → B] → F[A] → F[B]`` requires.
 
@@ -344,10 +344,10 @@ the responsibility of each concrete type. ``Maybe``, ``ImmutableList``,
 Further Reading
 ---------------
 
-- :doc:`functors-mathematics` — the prequel, on the abstraction
+- :doc:`functors-mathematics` - the prequel, on the abstraction
   ``Applicative`` extends
-- :doc:`../reference/type-hierarchy` — see where ``Applicative`` sits
+- :doc:`../reference/type-hierarchy` - see where ``Applicative`` sits
   between ``Functor`` and ``Monad``
-- :doc:`../reference/operators` — the operator table, including ``**``
-- :doc:`../tutorials/monadic-computation` — see how ``Applicative``
+- :doc:`../reference/operators` - the operator table, including ``**``
+- :doc:`../tutorials/monadic-computation` - see how ``Applicative``
   fits alongside ``Monad`` in practical pipelines

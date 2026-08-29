@@ -167,7 +167,7 @@ class F:
         The original function is invoked as soon as every parameter without a
         default is bound.  Consequently, parameters with defaults (as well as
         ``*args``/``**kwargs``) can only be overridden in the step that
-        completes the call — not in a later step, because there is no later
+        completes the call - not in a later step, because there is no later
         step.
 
         Args:

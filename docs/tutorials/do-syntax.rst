@@ -1,12 +1,13 @@
 Combining Multiple Monadic Values with Do Syntax
 ==================================================
 
-In this tutorial, we will build a script that combines several ``Maybe`` values into a single result through a multi-argument plain function. Along the way, we will encounter the ``@do`` decorator, the ``DoBlock`` return type, and see how bound values are available immediately for use in subsequent steps — without any placeholder workarounds.
+In this tutorial, we will build a script that combines several ``Maybe`` values into a single result through a multi-argument plain function. Along the way, we will encounter the ``@do`` decorator, the ``DoBlock`` return type, and see how bound values are available immediately for use in subsequent steps - without any placeholder workarounds.
 
 Prerequisites
 -------------
 
-- Complete the :doc:`monadic-computation` tutorial so you are familiar with ``|`` (bind) and ``Maybe[T].ret``.
+- Complete the :doc:`monadic-computation` tutorial so you are familiar with
+  ``|`` (bind).
 
 Step 1: Create the Script and a Multi-Argument Function
 --------------------------------------------------------
@@ -56,6 +57,9 @@ Next, we use ``|`` (bind) to unwrap each value and pass it to ``process``. Repla
    )
    print(result)
 
+Each lambda passed to bind must return a ``Maybe``. The innermost lambda uses
+``Maybe[float].ret`` to wrap the plain value returned by ``process``.
+
 Run the file again. The output should look like this:
 
 .. code-block:: text
@@ -97,14 +101,14 @@ Notice three things:
 
 - The result is identical to Step 2.
 - ``@do(Maybe)`` tells the decorator which monad this block works with. Every ``yield`` must produce a value of that monad type.
-- ``DoBlock[Maybe, float]`` is the return type annotation for the generator. The first argument is the monad type and the second — ``float`` here — is the type of the plain value returned by the block. The decorator lifts it into the monad automatically.
+- ``DoBlock[Maybe, float]`` is the return type annotation for the generator. The first argument is the monad type and the second - ``float`` here - is the type of the plain value returned by the block. The decorator lifts it into the monad automatically.
 
-Notice also that each ``yield`` expression evaluates to ``Any`` at runtime from Python's perspective — the language cannot track different inner types across multiple ``yield`` sites in the same generator. Write the type of each bound value inline, as shown with ``x: float = yield m1``, to let your type checker and readers know what to expect.
+Notice also that each ``yield`` expression evaluates to ``Any`` at runtime from Python's perspective - the language cannot track different inner types across multiple ``yield`` sites in the same generator. Write the type of each bound value inline, as shown with ``x: float = yield m1``, to let your type checker and readers know what to expect.
 
 Step 4: Use a Bound Value in a Subsequent Yield
 ------------------------------------------------
 
-Unlike the old context-manager API, ``yield`` gives you the real unwrapped value immediately. You can use it in the very next line — including passing it to another monadic function. Replace the ``block`` definition with:
+Unlike the old context-manager API, ``yield`` gives you the real unwrapped value immediately. You can use it in the very next line - including passing it to another monadic function. Replace the ``block`` definition with:
 
 .. code-block:: python
 
@@ -125,7 +129,7 @@ Run the file. The output should look like this:
 
    Just(25.0)
 
-Notice that ``x`` on the second line is the real number ``2.0``, not a placeholder. We multiplied it by ``3`` and wrapped the result in a new ``Maybe`` before yielding — something impossible with a placeholder-based API. The computation is ``(2.0 * 3) * 2 + 3.0 + 4.0 ** 2 = 25.0``.
+Notice that ``x`` on the second line is the real number ``2.0``, not a placeholder. We multiplied it by ``3`` and wrapped the result in a new ``Maybe`` before yielding - something impossible with a placeholder-based API. The computation is ``(2.0 * 3) * 2 + 3.0 + 4.0 ** 2 = 25.0``.
 
 Now restore ``block`` to the simpler version from Step 3 before continuing:
 
@@ -178,7 +182,7 @@ Then replace ``block`` with:
    @do(Maybe)
    def block() -> DoBlock[Maybe, float]:
        r: float = yield raw
-       x: float = yield safe_sqrt(r)  # safe_sqrt returns Maybe[float] — just yield it
+       x: float = yield safe_sqrt(r)  # safe_sqrt returns Maybe[float] - just yield it
        y: float = yield m2
        z: float = yield m3
        return process(x, y, z)
@@ -192,7 +196,7 @@ Run the file. The output should look like this:
 
    Just(27.0)
 
-Notice the value flow: ``raw = 16.0``, ``safe_sqrt(16.0) = 4.0``, then ``process(4.0, 3.0, 4.0) = 4.0*2 + 3.0 + 4.0**2 = 27.0``. Because ``safe_sqrt`` already returns a ``Maybe``, we ``yield`` its result directly and the bind chain takes care of the rest — no distinction between "plain return" and "monadic return" is needed.
+Notice the value flow: ``raw = 16.0``, ``safe_sqrt(16.0) = 4.0``, then ``process(4.0, 3.0, 4.0) = 4.0*2 + 3.0 + 4.0**2 = 27.0``. Because ``safe_sqrt`` already returns a ``Maybe``, we ``yield`` its result directly and the bind chain takes care of the rest - no distinction between "plain return" and "monadic return" is needed.
 
 What We Built
 -------------

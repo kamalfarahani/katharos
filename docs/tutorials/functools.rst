@@ -1,7 +1,7 @@
 Building Reusable Functions with compose and curry
 ===================================================
 
-In this tutorial, we will build a text processing pipeline using function composition and partial application. Along the way, we will encounter ``F.compose``, ``F.curry``, and ``F.foldl`` — and see how combining small functions produces flexible, reusable building blocks.
+In this tutorial, we will build a text processing pipeline using function composition and partial application. Along the way, we will encounter ``F.compose``, ``F.curry``, and ``F.foldl`` - and see how combining small functions produces flexible, reusable building blocks.
 
 Prerequisites
 -------------

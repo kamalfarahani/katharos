@@ -1,8 +1,8 @@
 Errors as Values: ``catch`` and Traceback Preservation
 ======================================================
 
-Katharos models failure as a *value* — a ``Result`` that is either a ``Success``
-or a ``Failure`` — rather than as control flow that unwinds the stack. This
+Katharos models failure as a *value* - a ``Result`` that is either a ``Success``
+or a ``Failure`` - rather than as control flow that unwinds the stack. This
 article explains why ``Result.catch`` exists, why it is shaped as a decorator
 factory, and why it goes out of its way to preserve the original exception's
 traceback.
@@ -12,7 +12,7 @@ Exceptions as values, not control flow
 
 In ordinary Python, a failure is an event: an exception is raised, the current
 call stack unwinds, and execution jumps to whichever ``try/except`` happens to
-be waiting up the stack. The function's signature says nothing about this —
+be waiting up the stack. The function's signature says nothing about this -
 ``def parse_config(path: str) -> Config`` gives no hint that it might raise
 ``FileNotFoundError`` or ``ValueError``. The possibility of failure is invisible
 until it happens at runtime.
@@ -27,7 +27,7 @@ catches.
 Why a decorator factory
 -----------------------
 
-A great deal of Python code already raises exceptions — the standard library,
+A great deal of Python code already raises exceptions - the standard library,
 third-party packages, your own existing functions. ``Result.catch`` is the
 bridge between that world and the errors-as-values world. Rather than hand-write
 the same ``try/except`` wrapper at every boundary:
@@ -48,7 +48,7 @@ you declare the exception you expect and let ``catch`` generate the wrapper:
    def parse_int(s: str) -> int:
        return int(s)
 
-The decorator-factory shape — ``catch(ExceptionType)`` returns a decorator — is
+The decorator-factory shape - ``catch(ExceptionType)`` returns a decorator - is
 what lets you name the exception type at the call site. That choice carries two
 deliberate design decisions:
 
@@ -67,8 +67,8 @@ Why preserving the traceback matters
 
 The usual objection to errors-as-values is that you lose the debugging
 information a traceback gives you. When you catch an exception and replace it
-with, say, a string message or a custom error code, the stack — the precise line
-that failed — is gone.
+with, say, a string message or a custom error code, the stack - the precise line
+that failed - is gone.
 
 ``catch`` avoids this. It stores the *original exception instance* in the
 ``Failure``; it does not re-raise it, wrap it in a new exception, or reduce it to
@@ -85,8 +85,8 @@ the traceback travels with it:
        traceback.print_exception(result.error)        # shows the failing line
        frames = traceback.format_tb(result.error.__traceback__)
 
-This is the point: you get the *discipline* of errors-as-values — failure visible
-in the type, impossible to ignore, composable with the rest of your pipeline —
+This is the point: you get the *discipline* of errors-as-values - failure visible
+in the type, impossible to ignore, composable with the rest of your pipeline -
 *without* giving up the *debuggability* of exceptions. The failing line is still
 recoverable, just from a value you chose when to inspect rather than from a stack
 unwind you had to catch in the right place.
@@ -96,14 +96,14 @@ The trade-off
 
 ``catch`` is the right tool when the failures are expected and you want to handle
 them as data: parsing, I/O, validation, anything where "this might fail" is part
-of the normal flow. It is not a replacement for letting genuine bugs crash —
+of the normal flow. It is not a replacement for letting genuine bugs crash -
 which is exactly why it catches only the type you name. Use it to convert the
 exceptions you anticipate into values, and let everything else propagate.
 
 Further reading
 ---------------
 
-- :doc:`why-fp-in-python` — the broader case for making failure and absence
+- :doc:`why-fp-in-python` - the broader case for making failure and absence
   explicit in the type system
-- :doc:`../how-to/catch-exceptions` — practical recipes for using ``Result.catch``
-- :doc:`../tutorials/error-handling` — build a validation pipeline with ``Result``
+- :doc:`../how-to/catch-exceptions` - practical recipes for using ``Result.catch``
+- :doc:`../tutorials/error-handling` - build a validation pipeline with ``Result``

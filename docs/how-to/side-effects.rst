@@ -1,7 +1,7 @@
 How to Manage Side Effects with ``IO``
 ======================================
 
-This guide shows you how to use ``IO`` to defer and sequence side-effectful operations — keeping your pure computation separate from I/O until you are ready to execute it.
+This guide shows you how to use ``IO`` to defer and sequence side-effectful operations - keeping your pure computation separate from I/O until you are ready to execute it.
 
 Prerequisites
 -------------
@@ -131,8 +131,8 @@ Use ``fmap`` for steps that transform the value but produce no side effect. Use 
 
    pipeline = (
        IO.pure(5)
-       .fmap(double)           # IO(10) — pure transform, no side effect
-       .fmap(double)           # IO(20) — pure transform, no side effect
+       .fmap(double)           # IO(10) - pure transform, no side effect
+       .fmap(double)           # IO(20) - pure transform, no side effect
        | (lambda x: IO(        # side-effectful step
            value=x + 1,
            io_func=FunctionWithSideEffect(f=lambda: print(f"after doubles: {x}")),

@@ -2,7 +2,7 @@ How to Convert Exception-Throwing Functions to Result
 ======================================================
 
 This guide shows how to use ``Result.catch`` to turn an ordinary function that
-raises exceptions into one that returns a ``Result`` — without writing a
+raises exceptions into one that returns a ``Result`` - without writing a
 ``try/except`` block yourself. It also covers how to recover the exact line that
 caused a failure from the captured exception's traceback.
 
@@ -60,7 +60,7 @@ without the decorator:
        return x
 
    print(risky(1))    # Success(1)
-   risky(-1)          # raises TypeError — NOT caught, not wrapped in a Result
+   risky(-1)          # raises TypeError - NOT caught, not wrapped in a Result
 
 This is deliberate: ``catch`` narrows exception handling to the failures you
 expect, while genuine programming errors still surface as exceptions.
@@ -96,13 +96,13 @@ failure short-circuits the rest of the chain:
        return int(s)
 
    print(parse_int("10").fmap(lambda n: n * 2))   # Success(20)
-   print(parse_int("bad").fmap(lambda n: n * 2))  # Failure(ValueError(...)) — lambda never runs
+   print(parse_int("bad").fmap(lambda n: n * 2))  # Failure(ValueError(...)) - lambda never runs
 
    @Result.catch(ZeroDivisionError)
    def reciprocal(n: int) -> float:
        return 1 / n
 
-   # parse, then divide — the first failure wins
+   # parse, then divide - the first failure wins
    print(parse_int("4") | reciprocal)   # Success(0.25)
    print(parse_int("0") | reciprocal)   # Failure(ZeroDivisionError('division by zero'))
 
@@ -111,7 +111,7 @@ Recover the line that caused the failure
 
 ``catch`` stores the *original exception instance* in the ``Failure``, and
 Python attaches the traceback to that instance when it is raised. Because the
-exception is captured rather than re-raised, its ``__traceback__`` is preserved —
+exception is captured rather than re-raised, its ``__traceback__`` is preserved -
 so you can inspect exactly where the failure originated:
 
 .. code-block:: python
@@ -140,7 +140,7 @@ normal exception.
 See also
 --------
 
-- :doc:`error-handling` — handle errors with manual ``try/except`` boundaries and
+- :doc:`error-handling` - handle errors with manual ``try/except`` boundaries and
   convert between ``Maybe`` and ``Result``
-- :doc:`../explanation/error-handling-and-tracebacks` — why ``catch`` works this
+- :doc:`../explanation/error-handling-and-tracebacks` - why ``catch`` works this
   way and why preserving the traceback matters

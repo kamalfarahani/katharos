@@ -190,7 +190,7 @@ class Maybe(Monad["Maybe[Any]", A]):
 
         ``None`` maps to Nothing; any other value is wrapped in a Just.
         Note that this means a ``Just(None)`` cannot be produced with this
-        constructor — use :meth:`Just` directly for that.
+        constructor - use :meth:`Just` directly for that.
 
         Args:
             value: The optional value to convert.

@@ -42,7 +42,7 @@ Use ``|`` to pass the unwrapped value of a ``Just`` into the next function. If a
 
    missing = (
        lookup_user(2)
-       | lookup_role      # returns Nothing() — Bob has no role_id
+       | lookup_role      # returns Nothing() - Bob has no role_id
        | format_badge     # skipped
    )
    # missing == Nothing()
@@ -117,7 +117,7 @@ Use ``fmap`` for infallible steps (the transform always produces a value); use `
 
    result = (
        read_file("config.json")
-       | parse_json                              # fallible — use |
-       .fmap(lambda cfg: cfg.get("host", "localhost"))  # infallible — use fmap
-       | get_host                                # fallible — use |
+       | parse_json                              # fallible - use |
+       .fmap(lambda cfg: cfg.get("host", "localhost"))  # infallible - use fmap
+       | get_host                                # fallible - use |
    )

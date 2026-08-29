@@ -10,8 +10,8 @@ do next based on what it found.
 
 The **monad** is the abstraction that closes that gap. It adds one
 operation, ``bind``, that takes a wrapped value and a *function that
-itself returns a wrapped value*. That tiny shift — letting the
-continuation depend on the previous result — is what makes monadic
+itself returns a wrapped value*. That tiny shift - letting the
+continuation depend on the previous result - is what makes monadic
 code expressive enough to model parsing, configuration lookup,
 short-circuit error handling, list comprehensions, and effectful I/O,
 all with the same three-law contract.
@@ -23,8 +23,8 @@ applicative laws are unfamiliar.
 Why Applicatives Are Not Enough
 --------------------------------
 
-Suppose you are looking up a user, and then — only if the user exists
-— looking up that user's manager. Both lookups return ``Maybe[User]``.
+Suppose you are looking up a user, and then - only if the user exists
+- looking up that user's manager. Both lookups return ``Maybe[User]``.
 
 With ``ap`` alone, you cannot express this. ``ap`` requires both
 operands to be ready before it runs. It can combine ``Maybe[User]``
@@ -42,11 +42,11 @@ needs the actual ``User`` value to know which manager to look up, and
 
    # You cannot write this with ap. The find_manager function needs
    # the User value to even start, but ap can only combine wrapped
-   # values with wrapped functions — not chain one onto another.
+   # values with wrapped functions - not chain one onto another.
 
 The shape of the *second* computation depends on the *value* produced
 by the first. Applicatives are deliberately not allowed that
-dependency — that is exactly the property that lets them be evaluated
+dependency - that is exactly the property that lets them be evaluated
 in parallel. To get sequential dependency back, you need a stronger
 operation.
 
@@ -57,10 +57,10 @@ The Monad Interface
 
 A **monad** is an applicative ``M`` equipped with two operations:
 
-1. ``ret : A → M[A]`` — lift a plain value into the monad. (In
+1. ``ret : A → M[A]`` - lift a plain value into the monad. (In
    Katharos, ``ret`` is an alias for ``pure`` inherited from
    ``Applicative``.)
-2. ``bind : M[A] → (A → M[B]) → M[B]`` — feed the wrapped value to a
+2. ``bind : M[A] → (A → M[B]) → M[B]`` - feed the wrapped value to a
    function that produces a new wrapped value, and flatten the result.
 
 In Katharos, ``bind`` is exposed as the ``|`` operator (Haskell's
@@ -74,14 +74,14 @@ In Katharos, ``bind`` is exposed as the ``|`` operator (Haskell's
 If ``find_user`` returns ``Nothing()``, ``bind`` short-circuits and
 ``find_manager`` is never called. If it returns ``Just(alice)``,
 ``find_manager(alice)`` runs, and its ``Maybe[User]`` result is the
-final value — *not* a ``Maybe[Maybe[User]]``. The "flatten" half of
+final value - *not* a ``Maybe[Maybe[User]]``. The "flatten" half of
 ``bind`` is what prevents the nesting from piling up.
 
 The key thing to notice is that the type of ``f`` in ``m.bind(f)`` is
 ``A → M[B]``, not ``A → B``. The continuation is itself monadic. That
-is what lets it decide its own *shape* — to return ``Nothing()`` and
+is what lets it decide its own *shape* - to return ``Nothing()`` and
 end the chain, to return a list of any length, to schedule new
-side-effects — based on the value it received.
+side-effects - based on the value it received.
 
 The Three Monad Laws
 ---------------------
@@ -118,7 +118,7 @@ type ``A → M[B]`` into a kind of *composable arrow*. If you define
 monad laws are exactly the statement that ``>=>`` is associative and
 that ``ret`` is its identity. In other words, the monad laws say:
 *monadic functions form a category, with ``ret`` as identity and
-``>=>`` as composition.* The three laws are not arbitrary — they are
+``>=>`` as composition.* The three laws are not arbitrary - they are
 the standard category laws applied at one level of remove.
 
 An Intuition: Each Step Decides the Next
@@ -141,7 +141,7 @@ element it sees. An ``IO`` step can schedule different reads depending
 on the result of an earlier read.
 
 That power has a cost. Because a monadic step depends on previous
-values, monadic computations are inherently sequential — you cannot
+values, monadic computations are inherently sequential - you cannot
 parallelise them the way applicatives allow. This is why "use
 ``Applicative`` when both work, ``Monad`` only when you need it" is a
 genuine guideline, not a stylistic preference. The trade-off is
@@ -167,7 +167,7 @@ is never called.
 
 **ImmutableList as a monad.** ``ret(x)`` is the singleton
 ``ImmutableList([x])``. ``bind`` is the classical *flatMap* or
-*concatMap* — apply the function to each element, then concatenate::
+*concatMap* - apply the function to each element, then concatenate::
 
    from katharos.types import ImmutableList
 
@@ -229,7 +229,7 @@ adds nothing on the right side either.
 
 You can bind step by step, or fuse the two continuations into one;
 either grouping yields the same answer. For ``Nothing()``, both sides
-short-circuit and produce ``Nothing()`` — associativity holds
+short-circuit and produce ``Nothing()`` - associativity holds
 vacuously there.
 
 The same three laws hold for ``ImmutableList``, ``Result``, and
@@ -260,18 +260,18 @@ laws guarantee that adding it changes nothing.
 
 **Do-notation works at all.** Katharos's ``@do`` decorator translates a
 generator-based syntax into a series of ``bind`` calls. The translation
-is only sound because of associativity — successive ``yield`` statements
+is only sound because of associativity - successive ``yield`` statements
 correspond to successive binds, and the laws guarantee that any way of
 parenthesising the resulting bind tree gives the same answer. Without
 the laws, the sugar would not be faithful to the semantics.
 
 **Sequencing is meaningful.** ``then`` (the ``>>`` operator) is defined
-as ``self.bind(lambda _: other)`` — discard the first result and run
+as ``self.bind(lambda _: other)`` - discard the first result and run
 the second. The monad laws ensure that ``>>`` is associative and that
 ``M.ret(x) >> m == m``, so ``>>`` behaves like the sequencing operator
 you would expect from any imperative language.
 
-**The boundary with Applicative — revisited.** Every monad gives you
+**The boundary with Applicative - revisited.** Every monad gives you
 an applicative for free: ``mf ** mx`` can be implemented as
 ``mf.bind(lambda f: mx.bind(lambda x: M.ret(f(x))))``. The reverse is
 not true. The monad laws are strictly stronger than the applicative
@@ -294,7 +294,7 @@ applies here. Python is duck-typed; each type could just expose
   monadically" is not enforceable.
 - Sugar like ``@do(Maybe)`` is parametric in the monad. The decorator
   takes any ``Monad`` subclass and produces correctly-translated
-  do-notation — that uniformity is only possible because the
+  do-notation - that uniformity is only possible because the
   ``Monad`` interface is declared, not merely conventional.
 
 And the honest caveat repeats: Python cannot prove ``bind`` satisfies
@@ -325,7 +325,7 @@ statement of the interface::
        def then[B](self, other: Monad[Mon, B]) -> Monad[Mon, B]:
            return self | (lambda _: other)
 
-``Monad`` extends ``Applicative``, which extends ``Functor`` — every
+``Monad`` extends ``Applicative``, which extends ``Functor`` - every
 monad is automatically an applicative and a functor. ``ret`` is a thin
 alias over ``pure`` from ``Applicative``; ``bind`` is the new
 operation; ``then`` is a derived sequencing helper defined in terms of
@@ -340,15 +340,15 @@ associativity. ``Maybe``, ``Result``, ``ImmutableList``,
 Further Reading
 ---------------
 
-- :doc:`functors-mathematics` — the foundation of the algebraic
+- :doc:`functors-mathematics` - the foundation of the algebraic
   hierarchy
-- :doc:`applicatives-mathematics` — the middle layer, and the
+- :doc:`applicatives-mathematics` - the middle layer, and the
   expressiveness/analysability trade-off with monads
-- :doc:`../tutorials/monadic-computation` — using ``bind`` and ``then``
+- :doc:`../tutorials/monadic-computation` - using ``bind`` and ``then``
   in practical pipelines
-- :doc:`../tutorials/do-syntax` — the generator-based sugar that the
+- :doc:`../tutorials/do-syntax` - the generator-based sugar that the
   monad laws make sound
-- :doc:`../reference/type-hierarchy` — where ``Monad`` sits in the
+- :doc:`../reference/type-hierarchy` - where ``Monad`` sits in the
   full algebra
-- :doc:`../reference/operators` — the operator table, including ``|``
+- :doc:`../reference/operators` - the operator table, including ``|``
   and ``>>``

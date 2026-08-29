@@ -1,7 +1,7 @@
 The Mathematics of Semigroups and Monoids
 ==========================================
 
-Functors, applicatives, and monads are about *contexts* — wrapping a
+Functors, applicatives, and monads are about *contexts* - wrapping a
 value in a structure that does something on top of it. Semigroups and
 monoids are about something more elementary: *combining*. When do two
 things of the same kind have a natural way to be combined into a third
@@ -14,13 +14,13 @@ quiet workhorses of functional programming. They are the foundation
 under list concatenation, numeric summation, string joining,
 ``Map.merge``, ``reduce``, ``map-reduce``, parallel folds, optional
 combination, and a dozen other operations that are everywhere but
-rarely named. Naming them — and pinning down their laws — is what
+rarely named. Naming them - and pinning down their laws - is what
 turns these scattered patterns into a single uniform vocabulary.
 
 This explanation is independent of :doc:`functors-mathematics`,
 :doc:`applicatives-mathematics`, and :doc:`monads-mathematics`.
 Semigroups and monoids form a separate algebraic hierarchy in
-Katharos — they live in their own module and have nothing structural
+Katharos - they live in their own module and have nothing structural
 to do with ``fmap`` or ``bind``.
 
 What Does It Mean to Combine?
@@ -32,7 +32,7 @@ obvious ways: add them, or multiply them. Take two lists. Concatenate
 them. Take two sets. Take their union, or their intersection. Take two
 dictionaries. Merge them.
 
-In every case, you have a *binary operation* — a function that takes
+In every case, you have a *binary operation* - a function that takes
 two values of some type ``S`` and returns a value of the same type
 ``S``. The operation does not change types; whatever ``S`` is going
 in, ``S`` is coming out. This closure under the operation is the first
@@ -41,7 +41,7 @@ requirement.
 But not every binary operation deserves to be called a combination.
 Consider subtraction. ``(10 - 5) - 3 == 2``, but ``10 - (5 - 3) == 8``.
 The way you group the operands changes the answer. Subtraction is a
-binary operation on integers, but it is a brittle one — if someone
+binary operation on integers, but it is a brittle one - if someone
 hands you a list ``[10, 5, 3]`` and asks you to "combine them with
 ``-``," there is no single right answer.
 
@@ -109,7 +109,7 @@ captures this with ``F.sigma``, which combines all elements of a
    # NonEmptyList([1, 2, 3, 4, 5])
 
 Notice the type constraint: ``F.sigma`` only accepts a
-``NonEmptyList``. That is not arbitrary — it is the boundary at which
+``NonEmptyList``. That is not arbitrary - it is the boundary at which
 the semigroup interface runs out. With a semigroup alone, there is no
 way to fold an empty list. There is no "neutral starting value" to
 return. Semigroups can combine, but they cannot start from nothing.
@@ -137,7 +137,7 @@ string ``""``. For list concatenation, the empty list ``[]``. For set
 union, the empty set. For dictionary merge, the empty dictionary.
 
 The pattern is unmistakable once you see it: the identity is always
-"the empty version of the thing." That is not coincidence — it is
+"the empty version of the thing." That is not coincidence - it is
 exactly what an identity element *means* in this context.
 
 In Katharos, a monoid declares its identity through a classmethod::
@@ -164,7 +164,7 @@ combined.
 
 This is why ``sum([])`` returns ``0`` and ``"".join([])`` returns
 ``""``. Those are not special cases hacked in for the empty-list
-edge — they are the identity element doing its job. A monoid is what
+edge - they are the identity element doing its job. A monoid is what
 makes such a "default for empty" mathematically well-grounded.
 
 Concrete Instances
@@ -202,7 +202,7 @@ identity is the empty list::
    xs @ ImmutableList[int].identity()         # ImmutableList([1, 2])
 
 **NonEmptyList under concatenation.** ``op`` is concatenation. There
-is no identity — the empty list is not a valid ``NonEmptyList``, so
+is no identity - the empty list is not a valid ``NonEmptyList``, so
 the type *cannot* have one. ``NonEmptyList`` is therefore a semigroup
 but not a monoid. This is mathematically honest: forcing an identity
 where none exists would be lying about the structure of the type.
@@ -284,12 +284,12 @@ combined in any order. The math guarantees the result is the same::
 a sequential fold be parallelised. Split a long list across n workers,
 each worker reduces its chunk, then a final pass combines the n
 partial results. The answer is identical to a sequential reduce.
-``map-reduce``, parallel ``fold`` in databases, GPU reductions —
+``map-reduce``, parallel ``fold`` in databases, GPU reductions -
 they all assume associativity, because without it, every other
 optimisation is unsafe.
 
 **Folds over empty inputs.** The identity laws are what let you fold
-an arbitrary collection — including an empty one — and get a defined
+an arbitrary collection - including an empty one - and get a defined
 answer. ``sum([])`` is ``0``, ``"".join([])`` is ``""``, the empty
 union is the empty set. None of these are special cases; they are
 each just the identity of the relevant monoid. Code that depends on
@@ -301,7 +301,7 @@ same reasoning. You can write a generic ``combine_all`` that takes a
 ``NonEmptyList[Semigroup]`` and folds it, or a generic
 ``combine_with_default`` that takes any ``Iterable[Monoid]``, and the
 function will work for ``Sum``, ``Product``, ``ImmutableList``,
-``MonoidMaybe``, or any user-defined monoid — without knowing
+``MonoidMaybe``, or any user-defined monoid - without knowing
 anything about the concrete type beyond the contract.
 
 Why Two Abstract Classes?
@@ -311,8 +311,8 @@ Python is duck-typed; any type could just expose ``op`` and
 ``identity`` methods directly. Why does Katharos split them into
 ``Semigroup`` and ``Monoid``?
 
-The split mirrors the mathematical reality. Some types — like
-``NonEmptyList`` — genuinely have an associative combine operation but
+The split mirrors the mathematical reality. Some types - like
+``NonEmptyList`` - genuinely have an associative combine operation but
 genuinely have no identity element. Collapsing the hierarchy into a
 single class would force every implementer to either invent a fake
 identity (lying about the structure) or refuse to participate (losing
@@ -320,7 +320,7 @@ the abstraction). The two-level hierarchy lets each type declare
 exactly as much structure as it has, no more and no less.
 
 The hierarchy also lets generic code state its requirements
-precisely. ``F.sigma`` requires only ``Semigroup`` — it works on
+precisely. ``F.sigma`` requires only ``Semigroup`` - it works on
 ``NonEmptyList`` precisely because it does not need an identity. A
 generic fold over a possibly-empty collection would require
 ``Monoid``. The compiler (and the reader) can see at a glance which
@@ -352,7 +352,7 @@ The two classes read as direct statements of the structure::
        def identity(cls) -> M:
            ...
 
-``Monoid`` extends ``Semigroup`` — every monoid is automatically a
+``Monoid`` extends ``Semigroup`` - every monoid is automatically a
 semigroup, exactly as the mathematics says. ``op`` is the binary
 operation; ``identity`` is the classmethod that produces the unit
 element. The ``@`` operator (defined via ``__matmul__``) is sugar for
@@ -383,11 +383,11 @@ exactly the right level of abstraction.
 Further Reading
 ---------------
 
-- :doc:`functors-mathematics` — the parallel hierarchy on the context
+- :doc:`functors-mathematics` - the parallel hierarchy on the context
   side of Katharos's algebra
-- :doc:`../reference/type-hierarchy` — see how the ``Semigroup`` /
+- :doc:`../reference/type-hierarchy` - see how the ``Semigroup`` /
   ``Monoid`` track sits beside the ``Functor`` / ``Applicative`` /
   ``Monad`` track
-- :doc:`../reference/operators` — the operator table, including ``@``
-- :doc:`why-fp-in-python` — why these abstractions are worth bringing
+- :doc:`../reference/operators` - the operator table, including ``@``
+- :doc:`why-fp-in-python` - why these abstractions are worth bringing
   to Python at all
