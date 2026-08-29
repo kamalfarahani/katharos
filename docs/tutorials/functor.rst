@@ -1,193 +1,223 @@
-Build a Data Processing Pipeline with Functors
-==============================================
+Build a User Birth-Year Report with ``fmap``
+================================================
 
-In this tutorial, we will build a data processing pipeline that transforms values inside containers. Along the way, we will encounter ``fmap`` on ``Maybe`` and ``ImmutableList``, and learn how transformations compose cleanly when data may be missing.
+In this tutorial, you will build a birth-year report for a list of user IDs.
+The report will calculate a message for each known user and display a fallback
+for each missing user. Along the way, you will use ``fmap`` to transform values
+inside ``Maybe`` and ``ImmutableList``.
+
+``Maybe`` and ``ImmutableList`` are functors. This means you can transform
+their contents with ``fmap`` while preserving their surrounding structure.
 
 Prerequisites
 -------------
 
-- Complete the :doc:`getting-started` tutorial.
-- Katharos installed (see :doc:`getting-started`)
+- Complete the :doc:`handling-null` tutorial.
+- Be familiar with Python functions, lambdas, dictionaries, and type hints.
 
-Step 1: Transform a Single Optional Value
-------------------------------------------
+Step 1: Look Up One User
+------------------------
 
-Create a new Python file called ``pipeline.py`` with the following contents:
+Create a file called ``user_report.py`` with the following contents:
 
 .. code-block:: python
 
    from katharos.types import Maybe
 
-   age = Maybe[int].Just(25)
-   doubled = age.fmap(lambda x: x * 2)
-   print(doubled)
+   users = {
+       1: 25,
+       2: 30,
+       3: 35,
+   }
 
-   age = Maybe[int].Nothing()
-   doubled = age.fmap(lambda x: x * 2)
-   print(doubled)
+   def get_user_age(user_id: int) -> Maybe[int]:
+       return Maybe.from_optional(users.get(user_id))
+
+   print(get_user_age(1))
+   print(get_user_age(999))
 
 Run the file:
 
 .. code-block:: bash
 
-   python pipeline.py
+   python user_report.py
 
 You should see:
 
 .. code-block:: text
 
-   Just(50)
+   Just(25)
    Nothing()
 
-Notice that the value was doubled in the first case. In the second case the function was not called at all - there was no value to transform.
+The lookup returns ``Just(25)`` for the known user and ``Nothing()`` for the
+missing user. This repeats the ``Maybe`` lookup pattern from the previous
+tutorial.
 
-Step 2: Process User Ages
---------------------------
+Step 2: Transform an Optional Age
+---------------------------------
 
-Now we will build a function that looks up user ages. Replace the contents of ``pipeline.py`` with:
+Replace the two ``print`` lines with this code:
 
 .. code-block:: python
 
-   from katharos.types import Maybe
+   REFERENCE_YEAR = 2026
 
-   def get_user_age(user_id: int) -> Maybe[int]:
-       users = {1: 25, 2: 30, 3: 35}
-       age = users.get(user_id)
-       if age is None:
-           return Maybe[int].Nothing()
-       return Maybe[int].Just(age)
+   birth_year = get_user_age(1).fmap(
+       lambda age: REFERENCE_YEAR - age
+   )
+   missing_birth_year = get_user_age(999).fmap(
+       lambda age: REFERENCE_YEAR - age
+   )
 
-   current_year = 2026
-   birth_year = get_user_age(1).fmap(lambda age: current_year - age)
    print(birth_year)
+   print(missing_birth_year)
 
-   birth_year = get_user_age(999).fmap(lambda age: current_year - age)
-   print(birth_year)
-
-Run the file:
-
-.. code-block:: bash
-
-   python pipeline.py
-
-You should see:
+Run the file again. You should see:
 
 .. code-block:: text
 
    Just(2001)
    Nothing()
 
-Notice how the birth year calculation is skipped entirely when the user does not exist.
+``fmap`` applied the calculation to the age inside ``Just``. It preserved the
+``Maybe`` structure, so the result remained a ``Just``. For ``Nothing()``, it
+skipped the calculation and preserved ``Nothing()``.
 
-Step 3: Chain Multiple Transformations
----------------------------------------
+Step 3: Chain Two Transformations
+---------------------------------
 
-We will now chain multiple transformations together. Add this code at the bottom of ``pipeline.py``:
+Keep ``REFERENCE_YEAR`` and replace everything below it with this code:
 
 .. code-block:: python
 
-   result = (
-       get_user_age(2)
-       .fmap(lambda age: age + 5)
-       .fmap(lambda age: age * 2)
-       .fmap(lambda age: f"Age in dog years: {age}")
+   message = (
+       get_user_age(1)
+       .fmap(lambda age: REFERENCE_YEAR - age)
+       .fmap(lambda birth_year: f"Born in {birth_year}")
    )
-   print(result)
-
-   result = (
+   missing_message = (
        get_user_age(999)
-       .fmap(lambda age: age + 5)
-       .fmap(lambda age: age * 2)
-       .fmap(lambda age: f"Age in dog years: {age}")
+       .fmap(lambda age: REFERENCE_YEAR - age)
+       .fmap(lambda birth_year: f"Born in {birth_year}")
    )
-   print(result)
 
-Run the file:
-
-.. code-block:: bash
-
-   python pipeline.py
-
-You should see the new lines at the bottom of the output:
-
-.. code-block:: text
-
-   Just('Age in dog years: 70')
-   Nothing()
-
-Notice that all three transformations were skipped for the missing user. Each transformation preserves the ``Nothing()`` without any extra checking.
-
-Step 4: Transform Multiple Values in a List
---------------------------------------------
-
-Now we will transform all values in an ``ImmutableList``. Add this code at the bottom of ``pipeline.py``:
-
-.. code-block:: python
-
-   from katharos.types import ImmutableList
-
-   ages = ImmutableList([20, 25, 30, 35, 40])
-   doubled = ages.fmap(lambda x: x * 2)
-   print(doubled)
-
-Run the file. You should see a new line at the bottom:
-
-.. code-block:: text
-
-   ImmutableList([40, 50, 60, 70, 80])
-
-Notice that ``fmap`` applied the function to every element, producing a new list.
-
-Step 5: Process a List of User IDs
------------------------------------
-
-We will now process multiple user IDs at once. Add this code at the bottom of ``pipeline.py``:
-
-.. code-block:: python
-
-   user_ids = ImmutableList([1, 2, 3])
-   current_year = 2026
-   birth_years = user_ids.fmap(
-       lambda user_id: get_user_age(user_id).fmap(lambda age: current_year - age)
-   )
-   print(birth_years)
+   print(message)
+   print(missing_message)
 
 Run the file. You should see:
 
 .. code-block:: text
 
-   ImmutableList([Just(2001), Just(1996), Just(1991)])
+   Just('Born in 2001')
+   Nothing()
 
-Notice how ``fmap`` composes: the outer ``fmap`` iterates over the list, and the inner ``fmap`` transforms each ``Maybe`` age into a birth year.
+Each call to ``fmap`` transforms the value produced by the previous call. For
+the missing user, both transformations are skipped.
 
-Step 6: Build a Complete Processing Pipeline
----------------------------------------------
+Step 4: Look Up Several Users
+-----------------------------
 
-Now we will combine everything into a reusable pipeline function. Add this code at the bottom of ``pipeline.py``:
+Change the import at the top of ``user_report.py`` to include
+``ImmutableList``:
+
+.. code-block:: python
+
+   from katharos.types import ImmutableList, Maybe
+
+Keep the user dictionary, ``get_user_age``, and ``REFERENCE_YEAR``. Replace
+everything below ``REFERENCE_YEAR`` with:
+
+.. code-block:: python
+
+   user_ids = ImmutableList([1, 2, 3, 999])
+   ages = user_ids.fmap(get_user_age)
+
+   print(ages)
+
+Run the file. You should see:
+
+.. code-block:: text
+
+   ImmutableList([Just(25), Just(30), Just(35), Nothing()])
+
+Here, ``ImmutableList.fmap`` calls ``get_user_age`` for each user ID and
+preserves the list structure. The missing user remains visible as
+``Nothing()``.
+
+Step 5: Build the Report Pipeline
+---------------------------------
+
+Replace the ``user_ids``, ``ages``, and ``print`` lines with this reusable
+pipeline:
 
 .. code-block:: python
 
    def process_user(user_id: int) -> Maybe[str]:
-       current_year = 2026
        return (
            get_user_age(user_id)
-           .fmap(lambda age: current_year - age)
+           .fmap(lambda age: REFERENCE_YEAR - age)
            .fmap(lambda birth_year: f"Born in {birth_year}")
        )
 
-   def format_result(maybe_message: Maybe[str]) -> str:
-       if maybe_message.is_just():
-           return maybe_message.value
-       return "User not found"
+   user_ids = ImmutableList([1, 2, 3, 999])
+   results = user_ids.fmap(process_user)
+
+   print(results)
+
+Run the file. You should see:
+
+.. code-block:: text
+
+   ImmutableList([Just('Born in 2001'), Just('Born in 1996'), Just('Born in 1991'), Nothing()])
+
+The outer ``fmap`` processes every user ID in the list. Inside
+``process_user``, the two ``Maybe.fmap`` calls build a message only when the
+lookup finds an age.
+
+Step 6: Display the Completed Report
+------------------------------------
+
+Replace the contents of ``user_report.py`` with the complete program:
+
+.. code-block:: python
+
+   from katharos.types import ImmutableList, Maybe
+
+   REFERENCE_YEAR = 2026
+
+   users = {
+       1: 25,
+       2: 30,
+       3: 35,
+   }
+
+   def get_user_age(user_id: int) -> Maybe[int]:
+       return Maybe.from_optional(users.get(user_id))
+
+   def process_user(user_id: int) -> Maybe[str]:
+       return (
+           get_user_age(user_id)
+           .fmap(lambda age: REFERENCE_YEAR - age)
+           .fmap(lambda birth_year: f"Born in {birth_year}")
+       )
+
+   def format_result(message: Maybe[str]) -> str:
+       return message.unwrap_or("User not found")
 
    user_ids = ImmutableList([1, 2, 3, 999])
    results = user_ids.fmap(process_user)
-   formatted = results.fmap(format_result)
+   formatted_results = results.fmap(format_result)
 
-   for message in formatted:
-       print(message)
+   for result in formatted_results:
+       print(result)
 
-Run the file. The final lines of the output should be:
+Run the completed report:
+
+.. code-block:: bash
+
+   python user_report.py
+
+You should see:
 
 .. code-block:: text
 
@@ -196,9 +226,27 @@ Run the file. The final lines of the output should be:
    Born in 1991
    User not found
 
-Notice that the missing user (ID 999) produced the fallback string ``"User not found"`` - the ``Maybe`` propagated through the whole pipeline and was only converted to a plain value at the very end.
+The pipeline preserves each ``Maybe`` until ``format_result`` converts it to
+displayable text. The second ``ImmutableList.fmap`` then applies that boundary
+conversion to every report entry.
 
-What We Built
--------------
+What You Built
+--------------
 
-We built a data processing pipeline that transforms values inside ``Maybe`` and ``ImmutableList`` containers using ``fmap``. The same operator works on both types, and transformations compose cleanly without any explicit ``None`` checks.
+You built a birth-year report that:
+
+- Reuses ``Maybe.from_optional`` to represent successful and missing lookups.
+- Transforms values inside ``Maybe`` without explicit ``None`` checks.
+- Chains several ``Maybe.fmap`` transformations.
+- Uses ``ImmutableList.fmap`` to process several users.
+- Converts each final ``Maybe`` to displayable text with ``unwrap_or``.
+
+Next Steps
+----------
+
+- Continue with :doc:`monadic-computation` to chain operations that themselves
+  return ``Maybe``.
+- Read :doc:`../explanation/functors-mathematics` to understand functors and
+  their laws.
+- Consult :doc:`../reference/operators` for the ``fmap`` contract and related
+  operations.
