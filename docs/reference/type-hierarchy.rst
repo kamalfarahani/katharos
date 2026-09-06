@@ -156,6 +156,9 @@ Concrete Types
    * - ``NonEmptyList[T]``
      - ``Monad``, ``Semigroup``
      - Guaranteed non-empty. Exposes ``.head`` and ``.tail``.
+   * - ``Lazy[A]``
+     - ``Monad``
+     - Lazy, memoized synchronous computation. Call ``.force()`` to evaluate it.
    * - ``MonoidMaybe[A]``
      - ``Monoid``
      - ``Maybe`` with a ``Monoid`` instance. Requires the wrapped type to be a ``Semigroup``.

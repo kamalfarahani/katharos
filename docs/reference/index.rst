@@ -45,6 +45,7 @@ Data Types
 - :class:`katharos.types.Result`
 - :class:`katharos.types.ImmutableList`
 - :class:`katharos.types.NonEmptyList`
+- :class:`katharos.types.Lazy`
 - :class:`katharos.types.IO`
 
 Utilities

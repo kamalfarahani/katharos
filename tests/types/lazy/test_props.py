@@ -6,8 +6,8 @@ complementing the worked-example tests in ``test_lazy.py``.
 
 Note on equality: :class:`Lazy` has no value-based ``__eq__`` (two Lazies
 compare by identity), so the algebraic laws are checked through a custom
-comparator that resolves both sides (``lambda a, b: a.resolve() == b.resolve()``).
-Because :meth:`Lazy.resolve` memoizes, resolving the same Lazy more than once is
+comparator that forces both sides (``lambda a, b: a.force() == b.force()``).
+Because :meth:`Lazy.force` memoizes, forcing the same Lazy more than once is
 idempotent, so a single Lazy instance can safely back both sides of a law.
 """
 
@@ -20,8 +20,8 @@ from tests.law_helpers import (
     check_applicative_laws,
     check_functor_laws,
     check_monad_laws,
-    unary_int_funcs as funcs,
 )
+from tests.law_helpers import unary_int_funcs as funcs
 
 
 def to_lazy_plus_one(x: int) -> Lazy[int]:
@@ -37,8 +37,8 @@ def to_lazy_square(x: int) -> Lazy[int]:
 
 
 # Comparator that drives both sides to a concrete value.
-def resolves_equal(a: Lazy, b: Lazy) -> bool:
-    return a.resolve() == b.resolve()
+def forces_equal(a: Lazy, b: Lazy) -> bool:
+    return a.force() == b.force()
 
 
 # Strategies --------------------------------------------------------------
@@ -52,15 +52,15 @@ lazy_funcs = funcs.map(lambda f: Lazy(fetcher=lambda: f))
 
 
 def test_functor_laws():
-    check_functor_laws(lazies, eq=resolves_equal)
+    check_functor_laws(lazies, eq=forces_equal)
 
 
 def test_applicative_laws():
-    check_applicative_laws(lazies, lazy_funcs, Lazy.pure, eq=resolves_equal)
+    check_applicative_laws(lazies, lazy_funcs, Lazy.pure, eq=forces_equal)
 
 
 def test_monad_laws():
-    check_monad_laws(lazies, kleislis, Lazy.pure, eq=resolves_equal)
+    check_monad_laws(lazies, kleislis, Lazy.pure, eq=forces_equal)
 
 
 class TestLaziness:
@@ -73,8 +73,8 @@ class TestLaziness:
             return x
 
         lazy = Lazy(fetcher=fetcher)
-        assert calls == []  # not run until resolved
-        lazy.resolve()
+        assert calls == []  # not run until forced
+        lazy.force()
         assert len(calls) == 1
 
     @given(lazies, funcs, kleislis)
@@ -96,14 +96,14 @@ class TestMemoization:
             return x
 
         lazy = Lazy(fetcher=fetcher)
-        results = [lazy.resolve() for _ in range(n)]
+        results = [lazy.force() for _ in range(n)]
         assert results == [x] * n
         assert len(calls) == 1
 
     @given(st.integers())
-    def test_resolve_is_idempotent(self, x: int):
+    def test_force_is_idempotent(self, x: int):
         lazy = Lazy(fetcher=lambda: x)
-        assert lazy.resolve() == lazy.resolve()
+        assert lazy.force() == lazy.force()
 
     @given(st.integers(min_value=1, max_value=5))
     def test_raised_exception_is_memoized_and_reraised(self, n: int):
@@ -117,7 +117,7 @@ class TestMemoization:
         lazy = Lazy(fetcher=fetcher)
         for _ in range(n):
             with pytest.raises(ValueError) as exc_info:
-                lazy.resolve()
+                lazy.force()
             assert exc_info.value is err
         # Failure is evaluated at most once, just like success.
         assert len(calls) == 1
@@ -126,23 +126,23 @@ class TestMemoization:
 class TestOperatorEquivalence:
     @given(lazies, kleislis)
     def test_pipe_equals_bind(self, lazy, f):
-        assert (lazy | f).resolve() == lazy.bind(f).resolve()
+        assert (lazy | f).force() == lazy.bind(f).force()
 
     @given(lazies, lazy_funcs)
     def test_pow_equals_ap(self, lazy, wf):
-        assert (lazy**wf).resolve() == lazy.ap(wf).resolve()
+        assert (lazy**wf).force() == lazy.ap(wf).force()
 
     @given(lazies, lazies)
     def test_rshift_discards_left(self, lazy, other):
         # `a >> b` sequences and yields b's value, ignoring a's.
-        assert (lazy >> other).resolve() == other.resolve()
+        assert (lazy >> other).force() == other.force()
 
 
 class TestPureAndRet:
     @given(st.integers())
-    def test_pure_resolves_to_value(self, x: int):
-        assert Lazy.pure(x).resolve() == x
+    def test_pure_forces_to_value(self, x: int):
+        assert Lazy.pure(x).force() == x
 
     @given(st.integers())
     def test_ret_equals_pure(self, x: int):
-        assert Lazy.ret(x).resolve() == Lazy.pure(x).resolve()
+        assert Lazy.ret(x).force() == Lazy.pure(x).force()
