@@ -73,22 +73,22 @@ class TestLazyConstruction:
         assert isinstance(p, Lazy)
 
     def test_pure_and_ret_are_equivalent(self):
-        assert Lazy.pure(42).resolve() == Lazy.ret(42).resolve()
+        assert Lazy.pure(42).force() == Lazy.ret(42).force()
 
 
-class TestLazyResolution:
-    def test_resolve_returns_fetcher_value(self):
+class TestLazyForcing:
+    def test_force_returns_fetcher_value(self):
         p = Lazy(fetcher=lambda: 42)
 
-        assert p.resolve() == 42
+        assert p.force() == 42
 
-    def test_resolve_pure(self):
-        assert Lazy.pure(99).resolve() == 99
+    def test_force_pure(self):
+        assert Lazy.pure(99).force() == 99
 
-    def test_resolve_ret(self):
-        assert Lazy.ret("hello").resolve() == "hello"
+    def test_force_ret(self):
+        assert Lazy.ret("hello").force() == "hello"
 
-    def test_resolve_memoizes_fetcher_result(self):
+    def test_force_memoizes_fetcher_result(self):
         counter = [0]
 
         def increment():
@@ -97,18 +97,18 @@ class TestLazyResolution:
 
         p = Lazy(fetcher=increment)
 
-        assert p.resolve() == 1
-        assert p.resolve() == 1
-        assert p.resolve() == 1
+        assert p.force() == 1
+        assert p.force() == 1
+        assert p.force() == 1
         assert counter[0] == 1
 
-    def test_resolve_with_various_types(self):
-        assert Lazy.pure([1, 2, 3]).resolve() == [1, 2, 3]
-        assert Lazy.pure({"a": 1}).resolve() == {"a": 1}
-        assert Lazy.pure(None).resolve() is None
-        assert Lazy.pure(True).resolve() is True
+    def test_force_with_various_types(self):
+        assert Lazy.pure([1, 2, 3]).force() == [1, 2, 3]
+        assert Lazy.pure({"a": 1}).force() == {"a": 1}
+        assert Lazy.pure(None).force() is None
+        assert Lazy.pure(True).force() is True
 
-    def test_resolve_memoizes_across_shared_upstream(self):
+    def test_force_memoizes_across_shared_upstream(self):
         counter = [0]
 
         def expensive():
@@ -119,20 +119,20 @@ class TestLazyResolution:
         a = upstream.fmap(lambda x: x + 1)
         b = upstream.fmap(lambda x: x * 10)
 
-        assert a.resolve() == 2
-        assert b.resolve() == 10
+        assert a.force() == 2
+        assert b.force() == 10
         assert counter[0] == 1
 
-    def test_resolve_propagates_fetcher_exception(self):
+    def test_force_propagates_fetcher_exception(self):
         def boom():
             raise ValueError("nope")
 
         p = Lazy(fetcher=boom)
 
         with pytest.raises(ValueError, match="nope"):
-            p.resolve()
+            p.force()
 
-    def test_resolve_memoizes_fetcher_exception(self):
+    def test_force_memoizes_fetcher_exception(self):
         counter = [0]
 
         def boom():
@@ -142,13 +142,13 @@ class TestLazyResolution:
         p = Lazy(fetcher=boom)
 
         with pytest.raises(ValueError):
-            p.resolve()
+            p.force()
         with pytest.raises(ValueError):
-            p.resolve()
+            p.force()
 
         assert counter[0] == 1
 
-    def test_resolve_runs_fetcher_once_under_concurrency(self):
+    def test_force_runs_fetcher_once_under_concurrency(self):
         counter = [0]
         start = threading.Barrier(8)
 
@@ -161,9 +161,9 @@ class TestLazyResolution:
         results: list[int] = []
 
         def worker():
-            # Line up all threads, then race into resolve() together.
+            # Line up all threads, then race into force() together.
             start.wait()
-            results.append(p.resolve())
+            results.append(p.force())
 
         threads = [threading.Thread(target=worker) for _ in range(8)]
         for t in threads:
@@ -173,6 +173,35 @@ class TestLazyResolution:
 
         assert counter[0] == 1
         assert results == [1] * 8
+
+
+class TestLazyResolveCompatibility:
+    def test_resolve_and_force_share_cached_value(self):
+        calls = []
+        lazy = Lazy(fetcher=lambda: (calls.append(None), 42)[1])
+
+        assert lazy.resolve() == 42
+        assert lazy.force() == 42
+        assert calls == [None]
+
+    def test_resolve_and_force_share_cached_exception(self):
+        calls = []
+        error = ValueError("nope")
+
+        def boom():
+            calls.append(None)
+            raise error
+
+        lazy = Lazy(fetcher=boom)
+
+        with pytest.raises(ValueError) as force_error:
+            lazy.force()
+        with pytest.raises(ValueError) as resolve_error:
+            lazy.resolve()
+
+        assert force_error.value is error
+        assert resolve_error.value is error
+        assert calls == [None]
 
 
 class TestFunctorLaws:
@@ -188,7 +217,7 @@ class TestFunctorLaws:
         result = p.fmap(F.id)
 
         assert isinstance(result, Lazy)
-        assert result.resolve() == p.resolve()
+        assert result.force() == p.force()
 
     def test_functor_composition(self):
         def f(x: int) -> int:
@@ -202,8 +231,8 @@ class TestFunctorLaws:
         left = p.fmap(lambda x: f(g(x)))
         right = p.fmap(g).fmap(f)
 
-        assert left.resolve() == right.resolve()
-        assert left.resolve() == 30
+        assert left.force() == right.force()
+        assert left.force() == 30
 
     def test_fmap_is_lazy(self):
         called = []
@@ -215,10 +244,10 @@ class TestFunctorLaws:
         p = Lazy.pure(5).fmap(f)
 
         assert called == []
-        assert p.resolve() == 10
+        assert p.force() == 10
         assert called == [5]
 
-    def test_fmap_memoizes_on_resolve(self):
+    def test_fmap_memoizes_on_force(self):
         calls = []
 
         def f(x: int) -> int:
@@ -226,21 +255,21 @@ class TestFunctorLaws:
             return x * 2
 
         p = Lazy.pure(5).fmap(f)
-        p.resolve()
-        p.resolve()
+        p.force()
+        p.force()
 
         assert len(calls) == 1
 
     def test_fmap_type_transformation(self):
         p = Lazy.pure(42).fmap(str)
 
-        assert p.resolve() == "42"
-        assert isinstance(p.resolve(), str)
+        assert p.force() == "42"
+        assert isinstance(p.force(), str)
 
     def test_fmap_chain(self):
         result = Lazy.pure(1).fmap(lambda x: x + 9).fmap(lambda x: x * 3).fmap(str)
 
-        assert result.resolve() == "30"
+        assert result.force() == "30"
 
 
 class TestApplicativeLaws:
@@ -259,7 +288,7 @@ class TestApplicativeLaws:
         result = p.ap(id_func)
 
         assert isinstance(result, Lazy)
-        assert result.resolve() == p.resolve()
+        assert result.force() == p.force()
 
     def test_applicative_homomorphism(self):
         def f(x: int) -> int:
@@ -268,8 +297,8 @@ class TestApplicativeLaws:
         left = Lazy.pure(21).ap(Lazy.pure(f))
         right = Lazy.pure(f(21))
 
-        assert left.resolve() == right.resolve()
-        assert left.resolve() == 42
+        assert left.force() == right.force()
+        assert left.force() == 42
 
     def test_applicative_interchange(self):
         def f(x: int) -> int:
@@ -283,8 +312,8 @@ class TestApplicativeLaws:
 
         right = Lazy.pure(f).ap(Lazy.pure(apply_to_y))
 
-        assert left.resolve() == right.resolve()
-        assert left.resolve() == 42
+        assert left.force() == right.force()
+        assert left.force() == 42
 
     def test_applicative_composition(self):
         def mul_two(x: int) -> int:
@@ -300,8 +329,8 @@ class TestApplicativeLaws:
         left = (w**v) ** u
         right = w ** (v ** (u ** Lazy.pure(F.compose)))
 
-        assert left.resolve() == right.resolve()
-        assert left.resolve() == 30
+        assert left.force() == right.force()
+        assert left.force() == 30
 
     def test_ap_applies_function_to_value(self):
         double = Lazy.pure(lambda x: x * 2)
@@ -309,7 +338,7 @@ class TestApplicativeLaws:
 
         result = value.ap(double)
 
-        assert result.resolve() == 42
+        assert result.force() == 42
 
     def test_ap_is_lazy(self):
         fetcher_calls = []
@@ -328,11 +357,11 @@ class TestApplicativeLaws:
         assert fetcher_calls == []
         assert func_calls == []
 
-        assert result.resolve() == 15
+        assert result.force() == 15
         assert len(fetcher_calls) == 1
         assert len(func_calls) == 1
 
-    def test_ap_memoizes_on_resolve(self):
+    def test_ap_memoizes_on_force(self):
         calls = []
         counter = [0]
 
@@ -345,8 +374,8 @@ class TestApplicativeLaws:
             return x * 10
 
         result = Lazy(fetcher=fetcher).ap(Lazy.pure(func))
-        result.resolve()
-        result.resolve()
+        result.force()
+        result.force()
 
         assert calls == [1]
 
@@ -366,15 +395,15 @@ class TestMonadLaws:
         left = Lazy.pure(21).bind(f)
         right = f(21)
 
-        assert left.resolve() == right.resolve()
-        assert left.resolve() == 42
+        assert left.force() == right.force()
+        assert left.force() == 42
 
     def test_monad_right_identity(self):
         m = Lazy.pure(42)
 
         result = m.bind(Lazy.pure)
 
-        assert result.resolve() == m.resolve()
+        assert result.force() == m.force()
 
     def test_monad_associativity(self):
         def f(x: int) -> Lazy[int]:
@@ -388,8 +417,8 @@ class TestMonadLaws:
         left = m.bind(f).bind(g)
         right = m.bind(lambda x: f(x).bind(g))
 
-        assert left.resolve() == right.resolve()
-        assert left.resolve() == 30
+        assert left.force() == right.force()
+        assert left.force() == 30
 
     def test_bind_chains_computations(self):
         result = (
@@ -398,7 +427,7 @@ class TestMonadLaws:
             .bind(lambda x: Lazy.pure(x + 2))
         )
 
-        assert result.resolve() == 32
+        assert result.force() == 32
 
     def test_bind_is_lazy(self):
         fetcher_calls = []
@@ -417,11 +446,11 @@ class TestMonadLaws:
         assert fetcher_calls == []
         assert bind_calls == []
 
-        assert result.resolve() == 10
+        assert result.force() == 10
         assert fetcher_calls == [1]
         assert bind_calls == [5]
 
-    def test_bind_memoizes_on_resolve(self):
+    def test_bind_memoizes_on_force(self):
         counter = [0]
         bind_calls = []
 
@@ -434,8 +463,8 @@ class TestMonadLaws:
             return Lazy.pure(x * 10)
 
         result = Lazy(fetcher=fetcher).bind(f)
-        result.resolve()
-        result.resolve()
+        result.force()
+        result.force()
 
         assert bind_calls == [1]
 
@@ -445,7 +474,7 @@ class TestMonadLaws:
             n = i
             p = p.bind(lambda x, n=n: Lazy.pure(x + n))
 
-        assert p.resolve() == 16
+        assert p.force() == 16
 
 
 class TestLazyOperators:
@@ -455,18 +484,18 @@ class TestLazyOperators:
 
         result = value**func
 
-        assert result.resolve() == 42
+        assert result.force() == 42
 
     def test_pow_operator_matches_ap(self):
         value = Lazy.pure(5)
         func = Lazy.pure(lambda x: x + 3)
 
-        assert (value**func).resolve() == value.ap(func).resolve()
+        assert (value**func).force() == value.ap(func).force()
 
     def test_or_operator_binds(self):
         result = Lazy.pure(10) | (lambda x: Lazy.pure(x * 3))
 
-        assert result.resolve() == 30
+        assert result.force() == 30
 
     def test_or_operator_matches_bind(self):
         def f(x: int) -> Lazy[int]:
@@ -474,7 +503,7 @@ class TestLazyOperators:
 
         p = Lazy.pure(5)
 
-        assert (p | f).resolve() == p.bind(f).resolve()
+        assert (p | f).force() == p.bind(f).force()
 
     def test_rshift_operator_sequences(self):
         first = Lazy.pure(1)
@@ -482,7 +511,7 @@ class TestLazyOperators:
 
         result = first >> second
 
-        assert result.resolve() == 99
+        assert result.force() == 99
 
     def test_rshift_discards_left_value(self):
         left_calls = []
@@ -493,7 +522,7 @@ class TestLazyOperators:
 
         result = Lazy(fetcher=left_fetcher) >> Lazy.pure(99)
 
-        assert result.resolve() == 99
+        assert result.force() == 99
 
     def test_rshift_evaluates_left_side(self):
         left_calls = []
@@ -503,7 +532,7 @@ class TestLazyOperators:
             return 42
 
         result = Lazy(fetcher=left_fetcher) >> Lazy.pure(99)
-        result.resolve()
+        result.force()
 
         assert left_calls == [1]
 
@@ -512,7 +541,7 @@ class TestLazyOperators:
             Lazy.pure(2) | (lambda x: Lazy.pure(x * 5)) | (lambda x: Lazy.pure(x - 1))
         )
 
-        assert result.resolve() == 9
+        assert result.force() == 9
 
 
 class TestLazyLaziness:
@@ -546,7 +575,7 @@ class TestLazyLaziness:
 
         assert side_effects == []
 
-    def test_resolve_triggers_full_chain(self):
+    def test_force_triggers_full_chain(self):
         log = []
 
         def step(label: str, value: int) -> int:
@@ -560,7 +589,7 @@ class TestLazyLaziness:
         )
 
         assert log == []
-        assert result.resolve() == 6
+        assert result.force() == 6
         assert log == ["fetch", "fmap", "bind"]
 
 

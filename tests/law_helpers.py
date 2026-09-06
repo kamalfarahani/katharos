@@ -14,7 +14,7 @@ Hypothesis run (nesting ``@given`` is disallowed and trips health checks).
 Equality is injected via ``eq(a, b) -> bool`` and defaults to :func:`operator.eq`,
 which is correct for the types that define a value-based ``__eq__`` (``Maybe``,
 ``Result``, ``ImmutableList``, ``NonEmptyList``). Types without one pass a custom
-comparator, e.g. ``lambda a, b: a.resolve() == b.resolve()`` for ``Lazy``,
+comparator, e.g. ``lambda a, b: a.force() == b.force()`` for ``Lazy``,
 ``lambda a, b: a.value == b.value`` for ``IO``, or a ``._value`` comparison
 (optionally via :func:`pytest.approx`) for ``Sum``/``Product``.
 """

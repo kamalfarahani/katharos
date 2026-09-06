@@ -48,6 +48,15 @@ NonEmptyList
    :show-inheritance:
    :special-members: __init__, __matmul__
 
+Lazy
+----
+
+.. autoclass:: katharos.types.Lazy
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__, __or__, __pow__, __rshift__, __repr__
+
 IO
 --
 

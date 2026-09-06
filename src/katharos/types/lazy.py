@@ -14,7 +14,7 @@ class Lazy[A](Monad["Lazy[Any]", A]):
 
     ``Lazy`` wraps a zero-argument callable (the *fetch* function) whose
     return value is produced on demand.  The computation is not run until
-    :meth:`resolve` is called, which caches the result so the fetch function
+    :meth:`force` is called, which caches the result so the fetch function
     runs at most once.
 
     It implements the :class:`~katharos.algebra.Monad`,
@@ -24,23 +24,23 @@ class Lazy[A](Monad["Lazy[Any]", A]):
 
     Examples:
         >>> p = Lazy(fetcher=lambda: 21)
-        >>> p.fmap(lambda x: x * 2).resolve()
+        >>> p.fmap(lambda x: x * 2).force()
         42
 
         >>> add_one = Lazy(fetcher=lambda: lambda x: x + 1)
         >>> Lazy(fetcher=lambda: 10) ** add_one  # doctest: +ELLIPSIS
         Lazy(...)
-        >>> (Lazy(fetcher=lambda: 10) ** add_one).resolve()
+        >>> (Lazy(fetcher=lambda: 10) ** add_one).force()
         11
 
         >>> Lazy(fetcher=lambda: 3) | (lambda x: Lazy(fetcher=lambda: x * 10))  # doctest: +ELLIPSIS
         Lazy(...)
-        >>> (Lazy(fetcher=lambda: 3) | (lambda x: Lazy(fetcher=lambda: x * 10))).resolve()
+        >>> (Lazy(fetcher=lambda: 3) | (lambda x: Lazy(fetcher=lambda: x * 10))).force()
         30
 
     Note:
         Supports the ``|`` (bind) and ``**`` (applicative apply) operators.
-        The first call to :meth:`resolve` evaluates the full computation chain
+        The first call to :meth:`force` evaluates the full computation chain
         and memoizes the result.
     """
 
@@ -52,10 +52,10 @@ class Lazy[A](Monad["Lazy[Any]", A]):
             x: The value to wrap.
 
         Returns:
-            A Lazy that yields ``x`` when resolved.
+            A Lazy that yields ``x`` when forced.
 
         Examples:
-            >>> Lazy.pure(42).resolve()
+            >>> Lazy.pure(42).force()
             42
         """
         return cls(fetcher=lambda: x)
@@ -70,10 +70,10 @@ class Lazy[A](Monad["Lazy[Any]", A]):
             x: The value to wrap.
 
         Returns:
-            A Lazy that yields ``x`` when resolved.
+            A Lazy that yields ``x`` when forced.
 
         Examples:
-            >>> Lazy.ret("hello").resolve()
+            >>> Lazy.ret("hello").force()
             'hello'
         """
         return cls.pure(x)
@@ -88,9 +88,9 @@ class Lazy[A](Monad["Lazy[Any]", A]):
         Args:
             fetcher: A zero-argument callable whose return value is the
                 result of this Lazy.  It is called lazily the first
-                time :meth:`resolve` is invoked.
+                time :meth:`force` is invoked.
             backend: The threading backend whose lock guards
-                :meth:`resolve`. Defaults to the shared
+                :meth:`force`. Defaults to the shared
                 :func:`~katharos.concurrency.threading_backend.default_backend`.
         """
         self._value = Maybe[A].Nothing()
@@ -106,24 +106,24 @@ class Lazy[A](Monad["Lazy[Any]", A]):
         """Apply a function wrapped in a Lazy to this Lazy's value.
 
         Both this Lazy and ``wrapped_funcs`` are evaluated lazily; neither
-        is run until the returned Lazy is resolved.
+        is run until the returned Lazy is forced.
 
         Args:
             wrapped_funcs: A Lazy containing a function ``A -> B`` to apply.
 
         Returns:
-            A new Lazy that, when resolved, applies the fetched function
+            A new Lazy that, when forced, applies the fetched function
             to the fetched value.
 
         Examples:
             >>> double = Lazy(fetcher=lambda: lambda x: x * 2)
-            >>> (Lazy(fetcher=lambda: 5) ** double).resolve()
+            >>> (Lazy(fetcher=lambda: 5) ** double).force()
             10
         """
         wrapped_funcs = cast(Lazy[Callable[[A], B]], wrapped_funcs)
 
         return Lazy(
-            lambda: wrapped_funcs.resolve()(self.resolve()),
+            lambda: wrapped_funcs.force()(self.force()),
             backend=self._backend,
         )
 
@@ -131,19 +131,19 @@ class Lazy[A](Monad["Lazy[Any]", A]):
         """Chain a function that returns a Lazy.
 
         Args:
-            f: A function that takes the resolved value and returns a new
+            f: A function that takes the forced value and returns a new
                 ``Lazy[B]``.
 
         Returns:
-            A new Lazy that, when resolved, resolves this Lazy and then
-            resolves the Lazy returned by ``f``.
+            A new Lazy that, when forced, forces this Lazy and then
+            forces the Lazy returned by ``f``.
 
         Examples:
-            >>> (Lazy(fetcher=lambda: 3) | (lambda x: Lazy.pure(x + 7))).resolve()
+            >>> (Lazy(fetcher=lambda: 3) | (lambda x: Lazy.pure(x + 7))).force()
             10
         """
         f = cast(Callable[[A], Lazy[B]], f)
-        lazy_b = Lazy(lambda: f(self.resolve()).resolve(), backend=self._backend)
+        lazy_b = Lazy(lambda: f(self.force()).force(), backend=self._backend)
 
         return lazy_b
 
@@ -151,22 +151,22 @@ class Lazy[A](Monad["Lazy[Any]", A]):
         """Map a pure function over the wrapped value.
 
         Args:
-            f: A function to apply to the resolved value.
+            f: A function to apply to the forced value.
 
         Returns:
             A new Lazy that applies ``f`` to the result of this Lazy
-            when resolved.
+            when forced.
 
         Examples:
-            >>> Lazy(fetcher=lambda: 4).fmap(lambda x: x ** 2).resolve()
+            >>> Lazy(fetcher=lambda: 4).fmap(lambda x: x ** 2).force()
             16
         """
-        return Lazy(lambda: f(self.resolve()), backend=self._backend)
+        return Lazy(lambda: f(self.force()), backend=self._backend)
 
-    def resolve(self) -> A:
-        """Execute the fetcher and memoize its result.
+    def force(self) -> A:
+        """Force evaluation and memoize the result.
 
-        The fetcher is run at most once: the resolved value is cached so
+        The fetcher is run at most once: the forced value is cached so
         subsequent calls return it without re-executing. If the fetcher
         raises, the exception is cached too and re-raised on every
         subsequent call, so failure is also evaluated at most once.
@@ -177,24 +177,24 @@ class Lazy[A](Monad["Lazy[Any]", A]):
 
         .. warning::
             The guard lock is not reentrant. A fetcher that calls
-            :meth:`resolve` on the *same* Lazy (directly or indirectly)
+            :meth:`force` on the *same* Lazy (directly or indirectly)
             will deadlock.
 
             For example, this never completes because the fetcher tries to
-            acquire the same lock already held by the outer ``resolve`` call::
+            acquire the same lock already held by the outer ``force`` call::
 
-                lazy = Lazy(lambda: lazy.resolve())
-                lazy.resolve()
+                lazy = Lazy(lambda: lazy.force())
+                lazy.force()
 
         Returns:
-            The resolved value.
+            The forced value.
 
         Raises:
             BaseException: Whatever the fetcher raised. Cached on the first
                 failure and re-raised on each subsequent call.
 
         Examples:
-            >>> Lazy(fetcher=lambda: 6).resolve()
+            >>> Lazy(fetcher=lambda: 6).force()
             6
         """
         with self._lock:
@@ -212,6 +212,24 @@ class Lazy[A](Monad["Lazy[Any]", A]):
             else:
                 self._value = Maybe[A].Just(value)
                 return value
+
+    def resolve(self) -> A:
+        """Return the forced value.
+
+        This method is a compatibility alias for :meth:`force`. New code
+        should call :meth:`force` directly.
+
+        Returns:
+            The forced value.
+
+        Raises:
+            BaseException: Whatever the fetcher raised.
+
+        Examples:
+            >>> Lazy(fetcher=lambda: 6).resolve()
+            6
+        """
+        return self.force()
 
     def __pow__[B](
         self,
@@ -231,7 +249,7 @@ class Lazy[A](Monad["Lazy[Any]", A]):
         """Infix operator for monadic bind (``|``).
 
         Args:
-            f: A function that takes the resolved value and returns a
+            f: A function that takes the forced value and returns a
                 ``Lazy[B]``.
 
         Returns:
@@ -245,7 +263,7 @@ class Lazy[A](Monad["Lazy[Any]", A]):
         Discards the result of this Lazy and returns ``other``.
 
         Args:
-            other: The Lazy to return after this one resolves.
+            other: The Lazy to return after this one is forced.
 
         Returns:
             ``other``, ignoring the value of this Lazy.
