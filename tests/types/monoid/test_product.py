@@ -2,7 +2,7 @@ import decimal
 
 import pytest
 
-from katharos.types.monoid import Product
+from katharos.types.monoid import Product, Sum
 
 
 class TestProductInt:
@@ -197,3 +197,45 @@ class TestProductEdgeCases:
         b = Product(10**50)
         result = a.op(b)
         assert result._value == 10**100
+
+
+class TestProductEquality:
+    @pytest.mark.parametrize("value", [2, 2.5, 2 + 3j, decimal.Decimal("2.5")])
+    def test_equal_wrapped_values(self, value):
+        assert Product(value) == Product(value)
+
+    def test_different_wrapped_values(self):
+        assert Product(2) != Product(3)
+
+    def test_separately_specialized_instances_compare_by_value(self):
+        assert Product[int](2) == Product[int](2)
+        assert Product[int](2) == Product(2)
+        assert Product[int](2) == Product[float](2.0)
+
+    @pytest.mark.parametrize("other", [2, None, object(), Sum(2)])
+    def test_unrelated_objects_are_not_equal(self, other):
+        assert Product(2) != other
+
+    def test_unrelated_object_can_handle_reflected_comparison(self):
+        class MatchesProduct:
+            def __eq__(self, other: object) -> bool:
+                return isinstance(other, Product) and other._value == 2
+
+        assert Product(2) == MatchesProduct()
+
+
+class TestProductHash:
+    def test_equal_numeric_products_deduplicate_in_set(self):
+        products = {
+            Product[int](2),
+            Product[int](2),
+            Product[float](2.0),
+            Product[complex](2 + 0j),
+            Product[decimal.Decimal](decimal.Decimal(2)),
+        }
+        assert len(products) == 1
+
+    def test_equal_product_can_look_up_dictionary_entry(self):
+        products = {Product[int](2): "two", Product[int](3): "three"}
+        assert products[Product[int](2)] == "two"
+        assert products[Product(3)] == "three"
