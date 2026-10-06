@@ -6,6 +6,6 @@ from .sum import Sum
 __all__ = [
     "AdditiveMonoid",
     "MultiplicativeMonoid",
-    "Sum",
     "Product",
+    "Sum",
 ]
