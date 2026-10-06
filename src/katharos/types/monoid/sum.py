@@ -84,3 +84,24 @@ class Sum[
             ``Sum(<value>)`` with the wrapped value.
         """
         return f"Sum({self._value!r})"
+
+    def __eq__(self, value: object) -> bool:
+        """Compare sums by their wrapped values.
+
+        Args:
+            value: The object to compare with.
+
+        Returns:
+            Whether the other object is a Sum wrapping an equal value.
+        """
+        if not isinstance(value, Sum):
+            return NotImplemented
+        return self._value == value._value
+
+    def __hash__(self) -> int:
+        """Hash the Sum by its wrapped value.
+
+        Returns:
+            The hash of the wrapped value.
+        """
+        return hash(self._value)

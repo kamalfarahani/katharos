@@ -4,8 +4,8 @@ These tests use Hypothesis to assert the monoid laws of :class:`Sum` hold
 across a wide range of generated values, complementing the worked-example
 tests in ``test_sum.py``.
 
-:class:`Sum` is a :class:`~katharos.algebra.Monoid` under addition. It has no
-value-based ``__eq__``, so results are compared through ``._value``. Integer
+:class:`Sum` is a :class:`~katharos.algebra.Monoid` under addition. Results are
+compared through ``._value`` to support approximate comparisons. Integer
 and ``Decimal`` arithmetic is exact (bounded magnitude keeps the latter inside
 the decimal context precision), so those laws use ``==``; ``float`` and
 ``complex`` use :func:`pytest.approx` to absorb rounding.
@@ -21,7 +21,7 @@ from katharos.types.monoid import Sum
 from tests.law_helpers import check_monoid_laws
 
 
-# Comparators on the wrapped ``._value`` (Sum has no value-based __eq__).
+# Comparators on the wrapped values for exact and approximate arithmetic.
 def exact_eq(a, b) -> bool:
     return a._value == b._value
 

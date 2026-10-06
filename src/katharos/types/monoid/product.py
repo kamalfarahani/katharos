@@ -23,7 +23,7 @@ class Product[
     """
 
     @classmethod
-    def __class_getitem__(cls, item: type[S]) -> type["Product"]:
+    def __class_getitem__(cls, item: type[S]) -> type[Product]:
         """Return a dynamic subclass of ``Product`` bound to the given element type.
 
         Called implicitly by the ``Product[SomeType]`` subscription syntax so
@@ -84,3 +84,24 @@ class Product[
             ``Product(<value>)`` with the wrapped value.
         """
         return f"Product({self._value!r})"
+
+    def __eq__(self, value: object) -> bool:
+        """Compare products by their wrapped values.
+
+        Args:
+            value: The object to compare with.
+
+        Returns:
+            Whether the other object is a Product wrapping an equal value.
+        """
+        if not isinstance(value, Product):
+            return NotImplemented
+        return self._value == value._value
+
+    def __hash__(self) -> int:
+        """Hash the Product by its wrapped value.
+
+        Returns:
+            The hash of the wrapped value.
+        """
+        return hash(self._value)

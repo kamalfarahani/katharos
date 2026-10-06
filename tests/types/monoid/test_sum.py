@@ -2,7 +2,7 @@ import decimal
 
 import pytest
 
-from katharos.types.monoid import Sum
+from katharos.types.monoid import Product, Sum
 
 
 class TestSumInt:
@@ -191,3 +191,45 @@ class TestSumEdgeCases:
         b = Sum(10**100)
         result = a.op(b)
         assert result._value == 2 * (10**100)
+
+
+class TestSumEquality:
+    @pytest.mark.parametrize("value", [2, 2.5, 2 + 3j, decimal.Decimal("2.5")])
+    def test_equal_wrapped_values(self, value):
+        assert Sum(value) == Sum(value)
+
+    def test_different_wrapped_values(self):
+        assert Sum(2) != Sum(3)
+
+    def test_separately_specialized_instances_compare_by_value(self):
+        assert Sum[int](2) == Sum[int](2)
+        assert Sum[int](2) == Sum(2)
+        assert Sum[int](2) == Sum[float](2.0)
+
+    @pytest.mark.parametrize("other", [2, None, object(), Product(2)])
+    def test_unrelated_objects_are_not_equal(self, other):
+        assert Sum(2) != other
+
+    def test_unrelated_object_can_handle_reflected_comparison(self):
+        class MatchesSum:
+            def __eq__(self, other: object) -> bool:
+                return isinstance(other, Sum) and other._value == 2
+
+        assert Sum(2) == MatchesSum()
+
+
+class TestSumHash:
+    def test_equal_numeric_sums_deduplicate_in_set(self):
+        sums = {
+            Sum[int](2),
+            Sum[int](2),
+            Sum[float](2.0),
+            Sum[complex](2 + 0j),
+            Sum[decimal.Decimal](decimal.Decimal(2)),
+        }
+        assert len(sums) == 1
+
+    def test_equal_sum_can_look_up_dictionary_entry(self):
+        sums = {Sum[int](2): "two", Sum[int](3): "three"}
+        assert sums[Sum[float](2.0)] == "two"
+        assert sums[Sum(3)] == "three"
