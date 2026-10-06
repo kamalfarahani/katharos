@@ -23,7 +23,7 @@ class Product[
     """
 
     @classmethod
-    def __class_getitem__(cls, item: type[S]) -> type["Product"]:
+    def __class_getitem__(cls, item: type[S]) -> type[Product]:
         """Return a dynamic subclass of ``Product`` bound to the given element type.
 
         Called implicitly by the ``Product[SomeType]`` subscription syntax so
