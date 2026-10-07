@@ -23,11 +23,26 @@
 pip install katharos
 ```
 
-Or using `uv`
+Or using `uv`:
 
 ```bash
 uv add katharos
 ```
+
+## Goals
+
+Katharos exists to make functional-style Python practical, safe, and pleasant to write.
+
+- **Errors, absence, and effects as values.** `Maybe`, `Result`, `IO`, and `Lazy` put failure, missing data, and side effects in the type signature, where they compose, instead of hiding them in `None` and exceptions.
+- **Law-abiding abstractions.** `Functor`, `Applicative`, `Monad`, `Semigroup`, and `Monoid` come with their algebraic laws, checked by property-based tests (Hypothesis), so you can rely on them when you refactor.
+- **Pythonic ergonomics.** Operators (`|`, `**`, `>>`, `@`) and `do`-notation keep functional code readable to Python developers. Everything is fully type-annotated and checked with pyright.
+- **Concurrency on the same core.** Go-style CSP (`go`, `Channel`) returns `Result` values, so a closed or timed-out channel is something you handle, not an exception you catch.
+- **Approachable.** Tutorials come first, so you can learn one concept at a time by building something useful.
+
+### Non-goals
+
+- Not a port of the full Haskell or Scala typeclass ecosystem. Katharos covers a small, well-tested set of abstractions.
+- Not a replacement for `asyncio`. The concurrency layer is thread-based message passing.
 
 ## What it looks like
 
