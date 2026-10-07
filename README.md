@@ -217,7 +217,7 @@ csp.go(fibonacci, 10, c)
 for i in c:  # receives until the channel is closed
     print(i)  # 0 1 1 2 3 5 8 13 21 34
 
-c.recv()
+print(c.recv())  # Failure(ChannelClosedError(...)): closure is a value, not a raise
 ```
 
 Every concurrency model is bound to a swappable `BaseThreadingBackend` (standard threads by default), and the `csp` runtime supplies it automatically, so you can retarget work onto a different backend in one place. Additional models (such as an actor model) are planned, built on the same backend abstraction and the same `Result`-valued, composable style.
