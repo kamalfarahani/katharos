@@ -46,81 +46,74 @@ Katharos exists to make functional-style Python practical, safe, and pleasant to
 
 ## What it looks like
 
-**Before:** scattered `None` checks and exception handling:
+Two everyday problems, each shown without and with Katharos.
+
+### Missing values: `Maybe`
+
+Without Katharos, every lookup needs its own `None` check:
 
 ```python
-user = find_user(user_id)
-if user is None:
-    return None
-account = find_account(user)
-if account is None:
-    return None
-return account.discount
+def lookup_discount(user_id: int) -> float | None:
+    user = find_user(user_id)
+    if user is None:
+        return None
+    return find_discount(user)
 ```
 
-**After:** `do`-notation that short-circuits cleanly on `Nothing`:
+With Katharos, `find_user` and `find_discount` return a `Maybe`, and `do`-notation short-circuits on `Nothing`:
 
 ```python
 from katharos.types import Maybe
 from katharos.syntax_sugar import do, DoBlock
 
+def find_user(user_id: int) -> Maybe[User]: ...      # Just(user) or Nothing()
+def find_discount(user: User) -> Maybe[float]: ...   # Just(0.15) or Nothing()
+
 @do(Maybe)
 def lookup_discount(user_id: int) -> DoBlock[Maybe, float]:
-    user    = yield find_user(user_id)
-    account = yield find_account(user)
-    return account.discount   # Just(0.15) or Nothing()
+    user     = yield find_user(user_id)
+    discount = yield find_discount(user)
+    return discount                           # Just(0.15) or Nothing()
 ```
 
-**Before:** nested try/except to propagate errors:
+### Failures: `Result`
+
+Without Katharos, each step can raise, so callers must know which exceptions to catch:
 
 ```python
 def process(raw: str) -> int:
-    try:
-        n = parse_int(raw)
-    except ValueError as e:
-        raise RuntimeError("bad input") from e
-    try:
-        return validate_positive(n)
-    except ValueError as e:
-        raise RuntimeError("bad value") from e
+    n = int(raw)                              # may raise ValueError
+    if n <= 0:
+        raise ValueError(f"{n} is not positive")
+    return n
 ```
 
-**After:** errors as values, chained with `|`:
+With Katharos, failure is part of the return type, and steps chain with `|`:
 
 ```python
 from katharos.types import Result
 
-def process(raw: str) -> Result[Exception, int]:
-    return parse_int(raw) | validate_positive   # Failure short-circuits automatically
+def parse_int(s: str) -> Result[ValueError, int]: ...        # Success(n) or Failure(ValueError)
+def validate_positive(n: int) -> Result[ValueError, int]: ...  # Success(n) or Failure(ValueError)
+
+def process(raw: str) -> Result[ValueError, int]:
+    return parse_int(raw) | validate_positive   # a Failure short-circuits the chain
 ```
 
-## More examples
+## Tour
 
-**Handle optional values without `None` checks:**
+### Chaining with `|` and `fmap`
+
+`|` (bind) feeds a value into the next step; `fmap` transforms the value inside without changing the context:
 
 ```python
 from katharos.types import Maybe
 
-result = Maybe[int].Just(5) | (lambda x: Maybe[int].Just(x * 2))  # Just(10)
-nothing = Maybe[int].Nothing() | (lambda x: Maybe[int].Just(x * 2))  # Nothing()
+Maybe[int].Just(5) | (lambda x: Maybe[int].Just(x * 2))    # Just(10)
+Maybe[int].Nothing() | (lambda x: Maybe[int].Just(x * 2))  # Nothing()
 ```
 
-**Model errors as values instead of exceptions:**
-
-```python
-from katharos.types import Result
-
-def parse_int(s: str) -> Result[ValueError, int]:
-    try:
-        return Result.Success(int(s))
-    except ValueError as e:
-        return Result.Failure(e)
-
-parse_int("42").fmap(lambda n: n * 2) # Success(84)
-parse_int("??").fmap(lambda n: n * 2)  # Failure(...)
-```
-
-**Skip the boilerplate with `Result.catch`:**
+### Turning exceptions into values: `Result.catch`
 
 `Result.catch` turns a function that raises into one that returns a `Result`, with no
 manual `try/except`. Only the declared exception type becomes a `Failure`; the
@@ -137,12 +130,17 @@ def parse_int(s: str) -> int:
 parse_int("42")    # Success(42)
 parse_int("??")    # Failure(ValueError("invalid literal for int() with base 10: '??'"))
 
+parse_int("42").fmap(lambda n: n * 2)   # Success(84)
+parse_int("??").fmap(lambda n: n * 2)   # Failure(ValueError(...)), fmap is skipped
+
 failure = parse_int("??")
 if failure.is_failure():
     traceback.print_exception(failure.error)  # full traceback, pointing at the failing line
 ```
 
-**Combine values with the Semigroup operator:**
+### Combining with `@`
+
+The Semigroup operator combines two values of the same type:
 
 ```python
 from katharos.types import ImmutableList
@@ -197,6 +195,29 @@ with csp.go:                 # scope waits for all work launched inside
     csp.go(worker, 1)
     csp.go(worker, 2)
 # both workers have finished here
+```
+
+Here is the Fibonacci example from the [Go Tour](https://go.dev/tour/concurrency/4): a producer sends values and closes the channel, and the consumer ranges over it until it is closed.
+
+```python
+from katharos.concurrency.csp import Channel, csp
+
+
+def fibonacci(n: int, c: Channel[int]) -> None:
+    x, y = 0, 1
+    for _ in range(n):
+        c.send(x)
+        x, y = y, x + y
+    c.close()
+
+
+c = csp.Channel[int](capacity=10)
+csp.go(fibonacci, 10, c)
+
+for i in c:  # receives until the channel is closed
+    print(i)  # 0 1 1 2 3 5 8 13 21 34
+
+c.recv()
 ```
 
 Every concurrency model is bound to a swappable `BaseThreadingBackend` (standard threads by default), and the `csp` runtime supplies it automatically, so you can retarget work onto a different backend in one place. Additional models (such as an actor model) are planned, built on the same backend abstraction and the same `Result`-valued, composable style.
