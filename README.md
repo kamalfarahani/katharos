@@ -5,7 +5,7 @@
 <h1 align="center">Katharos</h1>
 
 <p align="center">
-  A functional programming and concurrency library for Python. Katharos pairs algebraic abstractions (<code>Functor</code>, <code>Applicative</code>, <code>Monad</code>, <code>Semigroup</code>, <code>Monoid</code>) and concrete types like <code>Maybe</code>, <code>Result</code>, <code>ImmutableList</code>, and <code>IO</code> with message-passing concurrency built on the same functional core. The two halves share one idea: model errors, effects, and concurrent communication as <strong>composable, type-safe values</strong>. A concurrent hand-off returns a <code>Result</code>, so "the channel closed" is something you handle, not an exception you catch.
+  A functional programming and concurrency library for Python. Model errors, effects, and concurrent communication as <strong>composable, type-safe values</strong>: <code>Maybe</code>, <code>Result</code>, <code>IO</code>, and Go-style channels, built on <code>Functor</code>, <code>Applicative</code>, and <code>Monad</code>.
 </p>
 
 <p align="center">
@@ -54,7 +54,7 @@ Without Katharos, every lookup needs its own `None` check:
 
 ```python
 def lookup_discount(user_id: int) -> float | None:
-    user = find_user(user_id)
+    user = find_user(user_id)  # str | None
     if user is None:
         return None
     return find_discount(user)
@@ -66,8 +66,8 @@ With Katharos, `find_user` and `find_discount` return a `Maybe`, and `do`-notati
 from katharos.types import Maybe
 from katharos.syntax_sugar import do, DoBlock
 
-def find_user(user_id: int) -> Maybe[User]: ...      # Just(user) or Nothing()
-def find_discount(user: User) -> Maybe[float]: ...   # Just(0.15) or Nothing()
+def find_user(user_id: int) -> Maybe[str]: ...      # Just("ada") or Nothing()
+def find_discount(user: str) -> Maybe[float]: ...   # Just(0.15) or Nothing()
 
 @do(Maybe)
 def lookup_discount(user_id: int) -> DoBlock[Maybe, float]:
@@ -100,6 +100,27 @@ def process(raw: str) -> Result[ValueError, int]:
     return parse_int(raw) | validate_positive   # a Failure short-circuits the chain
 ```
 
+## Types at a glance
+
+| Type | What it is for |
+|------|----------------|
+| `Maybe[A]` | A value that may be absent: `Just(value)` or `Nothing()` |
+| `Result[E, A]` | A computation that may fail: `Success(value)` or `Failure(error)` |
+| `ImmutableList[T]` | An immutable list that is a monad and a monoid |
+| `NonEmptyList[T]` | A list guaranteed to have at least one element |
+| `IO[A]` | A lazy side effect, run explicitly with `.execute()` |
+| `Lazy[A]` | A lazy, memoized synchronous computation, run with `.resolve()` |
+| `Sum`, `Product` | Numeric monoids for combining numbers |
+
+Operators work across these types:
+
+| Operator | Method | Meaning |
+|----------|--------|---------|
+| `\|` | `bind` | Feed a value into the next step (`>>=` in Haskell) |
+| `**` | `ap` | Apply a wrapped function to a wrapped value (`<*>`) |
+| `>>` | `then` | Sequence two steps, discarding the first value |
+| `@` | `op` | Combine two values (`<>`) |
+
 ## Tour
 
 ### Chaining with `|` and `fmap`
@@ -111,6 +132,8 @@ from katharos.types import Maybe
 
 Maybe[int].Just(5) | (lambda x: Maybe[int].Just(x * 2))    # Just(10)
 Maybe[int].Nothing() | (lambda x: Maybe[int].Just(x * 2))  # Nothing()
+
+Maybe[int].Just(5).fmap(lambda x: x * 2)                   # Just(10)
 ```
 
 ### Turning exceptions into values: `Result.catch`
@@ -171,7 +194,9 @@ print(do_block())  # Success(8)
 
 ## Concurrency
 
-Katharos provides **message-passing concurrency** that builds on the same functional core, with room for more than one concurrency model. The first model available is **Go-style CSP**: launch work concurrently with `go` (like Go's `go f(x)`), communicate over typed `Channel`s, and (crucially) receive values as a `Result`, so a closed or timed-out channel is a value you pattern-match, not an exception you wrap in `try`:
+Katharos provides **message-passing concurrency** on the same functional core. The first model is **Go-style CSP**: launch work with `go`, communicate over typed `Channel`s, and receive values as a `Result`, so a closed or timed-out channel is a value you handle, not an exception you catch.
+
+### Channels
 
 ```python
 from katharos.concurrency.csp import csp
@@ -186,18 +211,7 @@ ch.close()
 ch.recv()               # Failure(ChannelClosedError(...)): closure is a value, not a raise
 ```
 
-Used as a context manager, `go` becomes a **structured-concurrency scope** that joins everything spawned inside it before the block exits:
-
-```python
-from katharos.concurrency.csp import csp
-
-with csp.go:                 # scope waits for all work launched inside
-    csp.go(worker, 1)
-    csp.go(worker, 2)
-# both workers have finished here
-```
-
-Here is the Fibonacci example from the [Go Tour](https://go.dev/tour/concurrency/4): a producer sends values and closes the channel, and the consumer ranges over it until it is closed.
+Iterating a channel yields values until it is closed. This is the Fibonacci example from the [Go Tour](https://go.dev/tour/concurrency/4): a producer sends values and closes the channel, and the consumer ranges over it.
 
 ```python
 from katharos.concurrency.csp import Channel, csp
@@ -216,9 +230,24 @@ csp.go(fibonacci, 10, c)
 
 for i in c:  # receives until the channel is closed
     print(i)  # 0 1 1 2 3 5 8 13 21 34
-
-print(c.recv())  # Failure(ChannelClosedError(...)): closure is a value, not a raise
 ```
+
+### Structured concurrency
+
+Used as a context manager, `go` becomes a **scope** that joins everything spawned inside it before the block exits:
+
+```python
+from katharos.concurrency.csp import csp
+
+def worker(n: int) -> None: ...
+
+with csp.go:                 # scope waits for all work launched inside
+    csp.go(worker, 1)
+    csp.go(worker, 2)
+# both workers have finished here
+```
+
+### Backends
 
 Every concurrency model is bound to a swappable `BaseThreadingBackend` (standard threads by default), and the `csp` runtime supplies it automatically, so you can retarget work onto a different backend in one place. Additional models (such as an actor model) are planned, built on the same backend abstraction and the same `Result`-valued, composable style.
 
