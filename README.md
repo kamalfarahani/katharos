@@ -55,6 +55,28 @@ Successful values continue through the pipeline; failures skip subsequent
 transformations. `Result.catch` catches the declared exception type and preserves
 its traceback.
 
+## Type hierarchy
+
+Katharos has two independent hierarchies: one for transforming and chaining
+computations, and one for combining values. Each abstraction adds capabilities
+to the one above it; concrete types can belong to both.
+
+```mermaid
+flowchart TD
+    Functor --> Applicative --> Monad
+    Semigroup --> Monoid
+    Monad -.-> contexts["Maybe, Result, IO, Lazy"]
+    Monad -.-> ImmutableList
+    Monad -.-> NonEmptyList
+    Monoid -.-> ImmutableList
+    Semigroup -.-> NonEmptyList
+    Monoid -.-> monoids["MonoidMaybe, Sum, Product"]
+```
+
+Solid arrows show inheritance; dotted arrows show implementations.
+See the [type hierarchy reference](https://katharos.readthedocs.io/en/latest/reference/type-hierarchy.html)
+for methods and laws.
+
 ## Goals
 
 Katharos exists to make functional-style Python practical, safe, and pleasant to write.
