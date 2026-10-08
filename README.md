@@ -5,7 +5,7 @@
 <h1 align="center">Katharos</h1>
 
 <p align="center">
-  A functional programming and concurrency library for Python. Model errors, effects, and concurrent communication as <strong>composable, type-safe values</strong>: <code>Maybe</code>, <code>Result</code>, <code>IO</code>, and Go-style channels, built on <code>Functor</code>, <code>Applicative</code>, and <code>Monad</code>.
+  A functional programming and concurrency library for Python. Chain operations that can fail or return missing data, control when side effects run, and coordinate concurrent workers through <strong>typed channels</strong>.
 </p>
 
 <p align="center">
@@ -29,6 +29,30 @@ Or using `uv`:
 uv add katharos
 ```
 
+## Quick start
+
+Turn exceptions into values and transform successful results:
+
+```python
+from katharos.types import Result
+
+
+@Result.catch(ValueError)
+def parse_int(raw: str) -> int:
+    return int(raw)
+
+
+print(parse_int("21").fmap(lambda n: n * 2))
+# Success(42)
+
+print(parse_int("oops").fmap(lambda n: n * 2))
+# Failure(ValueError("invalid literal for int() with base 10: 'oops'"))
+```
+
+Successful values continue through the pipeline; failures skip subsequent
+transformations. `Result.catch` catches the declared exception type and preserves
+its traceback.
+
 ## Goals
 
 Katharos exists to make functional-style Python practical, safe, and pleasant to write.
@@ -36,7 +60,7 @@ Katharos exists to make functional-style Python practical, safe, and pleasant to
 - **Errors, absence, and effects as values.** `Maybe`, `Result`, `IO`, and `Lazy` put failure, missing data, and side effects in the type signature, where they compose, instead of hiding them in `None` and exceptions.
 - **Law-abiding abstractions.** `Functor`, `Applicative`, `Monad`, `Semigroup`, and `Monoid` come with their algebraic laws, checked by property-based tests (Hypothesis), so you can rely on them when you refactor.
 - **Pythonic ergonomics.** Operators (`|`, `**`, `>>`, `@`) and `do`-notation keep functional code readable to Python developers. Everything is fully type-annotated and checked with pyright.
-- **Concurrency on the same core.** Go-style CSP (`go`, `Channel`) returns `Result` values, so a closed or timed-out channel is something you handle, not an exception you catch.
+- **Message-passing concurrency.** Launch concurrent workers and communicate through typed channels. Channel receives return `Result` values for data, closure, and timeouts.
 - **Approachable.** Tutorials come first, so you can learn one concept at a time by building something useful.
 
 ### Non-goals
@@ -121,47 +145,7 @@ Operators work across these types:
 | `>>` | `then` | Sequence two steps, discarding the first value |
 | `@` | `op` | Combine two values (`<>`) |
 
-## Tour
-
-### Chaining with `|` and `fmap`
-
-`|` (bind) feeds a value into the next step; `fmap` transforms the value inside without changing the context:
-
-```python
-from katharos.types import Maybe
-
-Maybe[int].Just(5) | (lambda x: Maybe[int].Just(x * 2))    # Just(10)
-Maybe[int].Nothing() | (lambda x: Maybe[int].Just(x * 2))  # Nothing()
-
-Maybe[int].Just(5).fmap(lambda x: x * 2)                   # Just(10)
-```
-
-### Turning exceptions into values: `Result.catch`
-
-`Result.catch` turns a function that raises into one that returns a `Result`, with no
-manual `try/except`. Only the declared exception type becomes a `Failure`; the
-caught exception keeps its traceback, so you can still find the line that failed.
-
-```python
-import traceback
-from katharos.types import Result
-
-@Result.catch(ValueError)
-def parse_int(s: str) -> int:
-    return int(s)
-
-parse_int("42")    # Success(42)
-parse_int("??")    # Failure(ValueError("invalid literal for int() with base 10: '??'"))
-
-parse_int("42").fmap(lambda n: n * 2)   # Success(84)
-parse_int("??").fmap(lambda n: n * 2)   # Failure(ValueError(...)), fmap is skipped
-
-failure = parse_int("??")
-if failure.is_failure():
-    traceback.print_exception(failure.error)  # full traceback, pointing at the failing line
-```
-
-### Combining with `@`
+## Combining with `@`
 
 The Semigroup operator combines two values of the same type:
 
@@ -171,30 +155,9 @@ from katharos.types import ImmutableList
 ImmutableList([1, 2]) @ ImmutableList([3, 4])  # ImmutableList([1, 2, 3, 4])
 ```
 
-## Do-notation
-
-`do`-notation works with any monad: `Maybe`, `Result`, `IO`, `ImmutableList` and your custom monads. Each `yield` unwraps the monadic value:
-
-```python
-from katharos.syntax_sugar import do, DoBlock
-from katharos.types import Result
-
-def parse_positive(x: int) -> Result[ValueError, int]:
-    return Result.Success(x) if x > 0 else Result.Failure(ValueError(f"{x} is not positive"))
-
-# Clean, imperative-style monadic code
-@do(Result)
-def do_block() -> DoBlock[Result, int]:
-    x: int = yield parse_positive(5)
-    y: int = yield parse_positive(3)
-    return x + y
-
-print(do_block())  # Success(8)
-```
-
 ## Concurrency
 
-Katharos provides **message-passing concurrency** on the same functional core. The first model is **Go-style CSP**: launch work with `go`, communicate over typed `Channel`s, and receive values as a `Result`, so a closed or timed-out channel is a value you handle, not an exception you catch.
+Katharos provides **Go-style message-passing concurrency**: launch workers with `csp.go` and communicate over typed channels. `recv()` returns a `Result` containing a value, a closure error, or a timeout error.
 
 ### Channels
 
@@ -249,7 +212,7 @@ with csp.go:                 # scope waits for all work launched inside
 
 ### Backends
 
-Every concurrency model is bound to a swappable `BaseThreadingBackend` (standard threads by default), and the `csp` runtime supplies it automatically, so you can retarget work onto a different backend in one place. Additional models (such as an actor model) are planned, built on the same backend abstraction and the same `Result`-valued, composable style.
+The `csp` runtime uses standard Python threads by default. Supply a different `BaseThreadingBackend` to customize how workers run and synchronize.
 
 ## Documentation
 
