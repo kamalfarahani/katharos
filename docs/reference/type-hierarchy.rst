@@ -2,6 +2,10 @@ Type Hierarchy Reference
 ========================
 
 Katharos organises its types into two independent abstract hierarchies defined in ``katharos.algebra``.
+The computational hierarchy supports transforming and chaining computations;
+the combining hierarchy supports combining values. Each abstraction adds
+capabilities to its parent, and concrete types can implement both hierarchies.
+Solid arrows show inheritance; dotted arrows show implementations.
 
 .. mermaid::
 
@@ -13,6 +17,7 @@ Katharos organises its types into two independent abstract hierarchies defined i
         monad -.-> maybe["Maybe[A]"]
         monad -.-> result["Result[E, A]"]
         monad -.-> io["IO[A]"]
+        monad -.-> lazy["Lazy[A]"]
         monad -.-> immutableList["ImmutableList[T]"]
         monad -.-> nonEmptyList["NonEmptyList[T]"]
 
@@ -25,7 +30,7 @@ Katharos organises its types into two independent abstract hierarchies defined i
         classDef abstract fill:#C2E5FF,stroke:#3DADFF
         classDef concrete fill:#CDF4D3,stroke:#66D575
         class semigroup,monoid,functor,applicative,monad abstract
-        class maybe,result,io,immutableList,nonEmptyList,monoidMaybe,sum,product concrete
+        class maybe,result,io,lazy,immutableList,nonEmptyList,monoidMaybe,sum,product concrete
 
 ----
 
