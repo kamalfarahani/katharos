@@ -19,6 +19,8 @@
 
 ## Installation
 
+Requires Python 3.13+.
+
 ```bash
 pip install katharos
 ```
@@ -77,11 +79,24 @@ Two everyday problems, each shown without and with Katharos.
 Without Katharos, every lookup needs its own `None` check:
 
 ```python
+def find_user(user_id: int) -> str | None:
+    return {1: "ada", 2: "grace"}.get(user_id)
+
+
+def find_discount(user: str) -> float | None:
+    return {"ada": 0.15}.get(user)
+
+
 def lookup_discount(user_id: int) -> float | None:
     user = find_user(user_id)  # str | None
     if user is None:
         return None
     return find_discount(user)
+
+
+print(lookup_discount(1))  # 0.15
+print(lookup_discount(2))  # None: no discount
+print(lookup_discount(3))  # None: no user
 ```
 
 With Katharos, `find_user` and `find_discount` return a `Maybe`, and `do`-notation short-circuits on `Nothing`:
@@ -90,14 +105,25 @@ With Katharos, `find_user` and `find_discount` return a `Maybe`, and `do`-notati
 from katharos.types import Maybe
 from katharos.syntax_sugar import do, DoBlock
 
-def find_user(user_id: int) -> Maybe[str]: ...      # Just("ada") or Nothing()
-def find_discount(user: str) -> Maybe[float]: ...   # Just(0.15) or Nothing()
+
+def find_user(user_id: int) -> Maybe[str]:
+    return Maybe.from_optional({1: "ada", 2: "grace"}.get(user_id))
+
+
+def find_discount(user: str) -> Maybe[float]:
+    return Maybe.from_optional({"ada": 0.15}.get(user))
+
 
 @do(Maybe)
 def lookup_discount(user_id: int) -> DoBlock[Maybe, float]:
-    user     = yield find_user(user_id)
-    discount = yield find_discount(user)
-    return discount                           # Just(0.15) or Nothing()
+    user: str = yield find_user(user_id)
+    discount: float = yield find_discount(user)
+    return discount
+
+
+print(lookup_discount(1))  # Just(0.15)
+print(lookup_discount(2))  # Nothing(): no discount
+print(lookup_discount(3))  # Nothing(): no user
 ```
 
 ### Failures: `Result`
@@ -110,6 +136,13 @@ def process(raw: str) -> int:
     if n <= 0:
         raise ValueError(f"{n} is not positive")
     return n
+
+
+print(process("42"))  # 42
+try:
+    process("0")
+except ValueError as error:
+    print(error)  # 0 is not positive
 ```
 
 With Katharos, failure is part of the return type, and steps chain with `|`:
@@ -117,11 +150,25 @@ With Katharos, failure is part of the return type, and steps chain with `|`:
 ```python
 from katharos.types import Result
 
-def parse_int(s: str) -> Result[ValueError, int]: ...        # Success(n) or Failure(ValueError)
-def validate_positive(n: int) -> Result[ValueError, int]: ...  # Success(n) or Failure(ValueError)
+
+@Result.catch(ValueError)
+def parse_int(raw: str) -> int:
+    return int(raw)
+
+
+def validate_positive(n: int) -> Result[ValueError, int]:
+    if n <= 0:
+        return Result.Failure(ValueError(f"{n} is not positive"))
+    return Result.Success(n)
+
 
 def process(raw: str) -> Result[ValueError, int]:
-    return parse_int(raw) | validate_positive   # a Failure short-circuits the chain
+    return parse_int(raw) | validate_positive
+
+
+print(process("42"))  # Success(42)
+print(process("0"))   # Failure(ValueError('0 is not positive'))
+print(process("??"))  # Failure(ValueError("invalid literal for int() with base 10: '??'"))
 ```
 
 ## Types at a glance
@@ -130,13 +177,13 @@ def process(raw: str) -> Result[ValueError, int]:
 |------|----------------|
 | `Maybe[A]` | A value that may be absent: `Just(value)` or `Nothing()` |
 | `Result[E, A]` | A computation that may fail: `Success(value)` or `Failure(error)` |
-| `ImmutableList[T]` | An immutable list that is a monad and a monoid |
+| `ImmutableList[T]` | An immutable list for transforming, chaining, and combining values |
 | `NonEmptyList[T]` | A list guaranteed to have at least one element |
 | `IO[A]` | A lazy side effect, run explicitly with `.execute()` |
 | `Lazy[A]` | A lazy, memoized synchronous computation, run with `.resolve()` |
 | `Sum`, `Product` | Numeric monoids for combining numbers |
 
-Operators work across these types:
+Types support operators according to their abstractions:
 
 | Operator | Method | Meaning |
 |----------|--------|---------|
@@ -215,6 +262,8 @@ with csp.go:                 # scope waits for all work launched inside
 The `csp` runtime uses standard Python threads by default. Supply a different `BaseThreadingBackend` to customize how workers run and synchronize.
 
 ## Documentation
+
+[Start here: Getting Started with Katharos](https://katharos.readthedocs.io/en/latest/tutorials/getting-started.html).
 
 Full tutorials, how-to guides, API reference, and explanations of the mathematical foundations are at **[katharos.readthedocs.io](https://katharos.readthedocs.io/en/latest/)**.
 
