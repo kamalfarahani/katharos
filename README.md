@@ -226,7 +226,7 @@ ImmutableList([1, 2]) @ ImmutableList([3, 4])  # ImmutableList([1, 2, 3, 4])
 
 ## Concurrency
 
-Katharos provides **Go-style message-passing concurrency**: launch workers with `csp.go` and communicate over typed channels. `recv()` returns a `Result` containing a value, a closure error, or a timeout error.
+Katharos provides **Go-style message-passing concurrency**: launch workers with `csp.go` and communicate over typed channels. `send()` returns `Success(None)` on completion or `Failure(ChannelClosedError)` if closure prevents completion. `recv()` returns a `Result` containing a value, a closure error, or a timeout error.
 
 ### Channels
 
@@ -241,6 +241,7 @@ ch.recv()               # Success(42)
 
 ch.close()
 ch.recv()               # Failure(ChannelClosedError(...)): closure is a value, not a raise
+ch.send(99)             # Failure(ChannelClosedError('send on closed channel'))
 ```
 
 Iterating a channel yields values until it is closed. This is the Fibonacci example from the [Go Tour](https://go.dev/tour/concurrency/4): a producer sends values and closes the channel, and the consumer ranges over it.
@@ -252,7 +253,7 @@ from katharos.concurrency.csp import Channel, csp
 def fibonacci(n: int, c: Channel[int]) -> None:
     x, y = 0, 1
     for _ in range(n):
-        c.send(x)
+        c.send(x).unwrap()
         x, y = y, x + y
     c.close()
 

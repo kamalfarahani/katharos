@@ -72,8 +72,9 @@ values being obviously correct over being maximally fast, that is the right defa
 channel with thousands of simultaneously blocked peers would feel it, but that is a rare
 shape.
 
-Finally, ``recv`` does not return a bare value - it returns a
-:class:`~katharos.types.Result`. "The channel is closed" and "the wait timed out" are
+Both ``send`` and ``recv`` return a
+:class:`~katharos.types.Result`. A successful send contains ``None``; a
+successful receive contains the received value. "The channel is closed" and "the wait timed out" are
 not exceptional events to be caught somewhere up the stack; they are ordinary outcomes
 you will routinely branch on. Modeling them as ``Failure(ChannelClosedError)`` and
 ``Failure(ChannelTimeoutError)`` makes them visible in the type and impossible to ignore,

@@ -16,3 +16,4 @@ These guides solve specific tasks you'll encounter when using Katharos. Each gui
    custom-monad
    side-effects
    concurrency_csp
+   stress-test-channels

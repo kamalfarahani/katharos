@@ -1,0 +1,49 @@
+name: Channel stress campaign
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Stress duration
+        type: choice
+        options:
+          - stress
+          - soak
+        default: stress
+      seed:
+        description: Starting random seed
+        type: string
+        default: '3500'
+
+permissions:
+  contents: read
+
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v4
+      - name: Run isolated campaign
+        env:
+          CHANNEL_STRESS_PROFILE: ${{ inputs.profile }}
+          CHANNEL_STRESS_SEED: ${{ inputs.seed }}
+        run: >-
+          uv run --locked python -m tests.concurrency.stress
+          --profile "$CHANNEL_STRESS_PROFILE"
+          --seed "$CHANNEL_STRESS_SEED"
+      - name: Upload summary and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-stress-${{ matrix.python-version }}
+          path: .stress-artifacts/
+          include-hidden-files: true

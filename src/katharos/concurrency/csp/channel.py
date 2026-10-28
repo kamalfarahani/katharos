@@ -10,7 +10,7 @@ from katharos.types.result import Result
 
 
 class ChannelClosedError(Exception):
-    """Raised when sending on, or closing, an already-closed channel."""
+    """A channel closure outcome; raised when closing an already-closed channel."""
 
 
 class ChannelTimeoutError(Exception):
@@ -52,6 +52,8 @@ class Channel[A]:
     - **Buffered** (``capacity > 0``): :meth:`send` only blocks once the
       buffer is full, and :meth:`recv` only blocks once it is empty.
 
+    :meth:`send` returns ``Success(None)`` on completion or
+    ``Failure(ChannelClosedError)`` if closure prevents completion.
     Unlike Go, :meth:`recv` returns a :class:`~katharos.types.Result`:
     ``Success(value)`` while values are available, ``Failure(ChannelClosedError)``
     once the channel is closed and drained, or ``Failure(ChannelTimeoutError)``
@@ -70,6 +72,7 @@ class Channel[A]:
         >>> from katharos.concurrency.threading_backend import ThreadingBackend
         >>> ch = Channel[int](capacity=1, backend=ThreadingBackend())
         >>> ch.send(42)
+        Success(None)
         >>> ch.recv()
         Success(42)
         >>> ch.close()
@@ -115,7 +118,7 @@ class Channel[A]:
         """The threading backend coordinating this channel's senders and receivers."""
         return self._backend
 
-    def send(self, value: A) -> None:
+    def send(self, value: A) -> Result[ChannelClosedError, None]:
         """Send a value into the channel, blocking as needed.
 
         For a buffered channel this blocks while the buffer is full. For an
@@ -124,22 +127,29 @@ class Channel[A]:
         Args:
             value: The value to send.
 
-        Raises:
-            ChannelClosedError: If the channel is (or becomes) closed before
-                the value can be delivered.
+        Returns:
+            ``Success(None)`` when the value is accepted into the buffer or
+            received by another thread on an unbuffered channel.
+            ``Failure(ChannelClosedError)`` if closure prevents completion.
+            A completed unbuffered hand-off remains successful even if the
+            channel closes before the sender resumes.
         """
         with self._cond:
             if self._closed:
-                raise ChannelClosedError("send on closed channel")
+                return Result[ChannelClosedError, None].Failure(
+                    ChannelClosedError("send on closed channel")
+                )
 
             if self._capacity > 0:
                 while len(self._buffer) >= self._capacity and not self._closed:
                     self._cond.wait()
                 if self._closed:
-                    raise ChannelClosedError("send on closed channel")
+                    return Result[ChannelClosedError, None].Failure(
+                        ChannelClosedError("send on closed channel")
+                    )
                 self._buffer.append(_Slot(value))
                 self._wake()
-                return
+                return Result[ChannelClosedError, None].Success(None)
 
             # Unbuffered: offer the value, then block until *this* slot is
             # taken by a receiver. Waiting on our own slot's identity (rather
@@ -158,7 +168,11 @@ class Channel[A]:
                     self._buffer.remove(slot)
                 except ValueError:
                     pass
-                raise ChannelClosedError("send on closed channel")
+                return Result[ChannelClosedError, None].Failure(
+                    ChannelClosedError("send on closed channel")
+                )
+
+            return Result[ChannelClosedError, None].Success(None)
 
     def recv(
         self,
@@ -180,6 +194,7 @@ class Channel[A]:
             >>> from katharos.concurrency.threading_backend import ThreadingBackend
             >>> ch = Channel[int](capacity=1, backend=ThreadingBackend())
             >>> ch.send(42)
+            Success(None)
             >>> ch.recv()
             Success(42)
 
@@ -305,7 +320,7 @@ class Channel[A]:
     def close(self) -> None:
         """Close the channel.
 
-        After closing, :meth:`send` raises :class:`ChannelClosedError` and
+        After closing, :meth:`send` returns ``Failure(ChannelClosedError)`` and
         :meth:`recv` returns the remaining buffered values followed by a
         ``Failure(ChannelClosedError)``. Any blocked senders or receivers
         are woken.
@@ -314,8 +329,8 @@ class Channel[A]:
             Closing an unbuffered channel while a sender is parked on an
             offered value races with any concurrent :meth:`recv`: that
             in-flight value is either handed to the receiver (the send then
-            returns normally) or dropped (the send raises
-            :class:`ChannelClosedError`), depending on which side next
+            returns ``Success(None)``) or dropped (the send returns
+            ``Failure(ChannelClosedError)``), depending on which side next
             acquires the lock. As in Go, do not ``close`` a channel
             concurrently with a send you expect to complete.
 

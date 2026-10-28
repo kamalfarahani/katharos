@@ -34,6 +34,14 @@ jobs:
       
       - name: Run tests
         run: tox -e ${{ matrix.tox-env }}
+
+      - name: Upload channel stress failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: channel-stress-ci-${{ matrix.python-version }}
+          path: .stress-artifacts/
+          include-hidden-files: true
   
   typecheck:
     runs-on: ubuntu-latest

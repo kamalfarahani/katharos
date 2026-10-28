@@ -85,6 +85,19 @@ CSPRuntime
 Channel
 -------
 
+``send(value)`` returns ``Result[ChannelClosedError, None]``: ``Success(None)``
+when a buffered channel accepts the value or an unbuffered receiver takes it,
+and ``Failure(ChannelClosedError("send on closed channel"))`` when closure
+prevents completion. Blocked senders wake on closure. A completed unbuffered
+hand-off remains successful even when closure precedes the sender resuming.
+
+.. warning::
+
+   Breaking change: ``send`` previously returned ``None`` and raised
+   ``ChannelClosedError`` on closure. Callers that caught that exception must
+   now inspect the returned ``Result`` with ``is_failure()`` and ``error``.
+   ``close()`` still raises ``ChannelClosedError`` if already closed.
+
 .. autoclass:: katharos.concurrency.csp.Channel
    :members:
    :undoc-members:
