@@ -8,6 +8,7 @@ environment variable (defaulting to ``dev``):
 """
 
 import os
+from pathlib import Path
 
 from hypothesis import settings
 
@@ -30,3 +31,18 @@ settings.load_profile(
         "dev",
     )
 )
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--channel-stress",
+        choices=("ci", "stress", "soak"),
+        default="ci",
+        help="Channel stress profile; long profiles are opt-in.",
+    )
+    parser.addoption(
+        "--channel-stress-artifacts",
+        type=Path,
+        default=Path(".stress-artifacts"),
+        help="Directory for channel stress failure traces and campaign summary.",
+    )

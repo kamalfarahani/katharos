@@ -53,13 +53,13 @@ Create a new file called ``pool.py`` with the following contents:
 
    def worker(jobs: Channel[int], results: Channel[int]) -> None:
        for job in jobs:
-           results.send(job * 2)
+           results.send(job * 2).unwrap()
 
    jobs: Channel[int] = csp.Channel[int](capacity=3)
    results: Channel[int] = csp.Channel[int](capacity=3)
 
    for j in [1, 2, 3]:
-       jobs.send(j)
+       jobs.send(j).unwrap()
    jobs.close()
 
    csp.go(worker, jobs, results)
@@ -81,7 +81,13 @@ You should see:
    4
    6
 
-Notice the shape of the port. ``make(chan int, numJobs)`` becomes ``csp.Channel[int](capacity=3)``, ``go worker(...)`` becomes ``csp.go(worker, ...)``, and ``close(jobs)`` becomes ``jobs.close()``. Because ``recv`` returns a ``Result``, we call ``unwrap`` to get the plain value.
+Notice the shape of the port. ``make(chan int, numJobs)`` becomes
+``csp.Channel[int](capacity=3)``, ``go worker(...)`` becomes
+``csp.go(worker, ...)``, and ``close(jobs)`` becomes ``jobs.close()``.
+Both ``send`` and ``recv`` return a ``Result``. A successful send contains
+``None``; a successful receive contains the value. We call ``unwrap`` to
+check each send and get each received value. Only this producer closes
+``jobs``, after all its sends, and ``results`` stays open while workers send.
 
 Step 2: Scale Up to a Pool
 --------------------------
@@ -94,7 +100,7 @@ The point of a worker pool is to run several workers against the *same* jobs cha
 
    def worker(jobs: Channel[int], results: Channel[int]) -> None:
        for job in jobs:
-           results.send(job * 2)
+           results.send(job * 2).unwrap()
 
    num_jobs: int = 5
    jobs: Channel[int] = csp.Channel[int](capacity=num_jobs)
@@ -104,7 +110,7 @@ The point of a worker pool is to run several workers against the *same* jobs cha
        csp.go(worker, jobs, results)
 
    for j in range(1, num_jobs + 1):
-       jobs.send(j)
+       jobs.send(j).unwrap()
    jobs.close()
 
    collected: list[int] = [results.recv().unwrap() for _ in range(num_jobs)]
@@ -138,14 +144,14 @@ So far the work has been instant. Let us make each job take a tenth of a second,
    def worker(jobs: Channel[int], results: Channel[int]) -> None:
        for job in jobs:
            time.sleep(0.1)
-           results.send(job * 2)
+           results.send(job * 2).unwrap()
 
    num_jobs: int = 5
    jobs: Channel[int] = csp.Channel[int](capacity=num_jobs)
    results: Channel[int] = csp.Channel[int](capacity=num_jobs)
 
    for j in range(1, num_jobs + 1):
-       jobs.send(j)
+       jobs.send(j).unwrap()
    jobs.close()
 
    start = time.monotonic()

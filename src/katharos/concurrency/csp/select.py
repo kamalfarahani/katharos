@@ -72,6 +72,7 @@ def recv[A](channel: Channel[A]) -> _RecvCase[A]:
         >>> from katharos.concurrency.csp import csp, recv, select
         >>> ch = csp.Channel[int](capacity=1)
         >>> ch.send(7)
+        Success(None)
         >>> choice = select(recv(ch))
         >>> choice.index, choice.value.unwrap()
         (0, 7)
@@ -185,6 +186,7 @@ def select[A](
         >>> a = csp.Channel[int](capacity=1)
         >>> b = csp.Channel[int](capacity=1)
         >>> b.send(99)
+        Success(None)
         >>> choice = select(recv(a), recv(b))
         >>> choice.index, choice.value.unwrap()
         (1, 99)

@@ -98,7 +98,7 @@ receive it on the other side. An unbuffered channel makes this a synchronous han
    answer = csp.Channel[int]()
 
    def compute() -> None:
-       answer.send(6 * 7)
+       answer.send(6 * 7).unwrap()
 
    csp.go(compute)
    print(answer.recv().unwrap())   # 42
@@ -119,9 +119,9 @@ catches up. A buffered ``send`` only blocks once the buffer is full:
 
    buffer = csp.Channel[int](capacity=3)
 
-   buffer.send(1)
-   buffer.send(2)
-   buffer.send(3)   # all three succeed without a reader present
+   buffer.send(1).unwrap()
+   buffer.send(2).unwrap()
+   buffer.send(3).unwrap()   # all three succeed without a reader present
    print(buffer.recv().unwrap())   # 1
 
 Stream a sequence and stop cleanly
@@ -138,7 +138,7 @@ iterable, so the consumer drains it with a plain ``for`` loop that ends automati
 
    def produce() -> None:
        for n in range(3):
-           stream.send(n)
+           stream.send(n).unwrap()
        stream.close()
 
    csp.go(produce)
@@ -165,10 +165,10 @@ shared ``results`` channel. Close ``jobs`` to end the workers' loops, then use a
 
    def worker() -> None:
        for job in jobs:
-           results.send(job * job)
+           results.send(job * job).unwrap()
 
    for n in range(1, 6):
-       jobs.send(n)
+       jobs.send(n).unwrap()
    jobs.close()
 
    with csp.go:
@@ -194,7 +194,7 @@ which case was chosen:
 
    a = csp.Channel[str]()
    b = csp.Channel[str](capacity=1)
-   b.send("from b")
+   b.send("from b").unwrap()
 
    choice = select(recv(a), recv(b))
    print(choice.index)            # 1  (the b case)
@@ -266,8 +266,8 @@ the worker. List the ``done`` case first so cancellation takes priority:
 
    handle = csp.go(consumer)
 
-   work.send(1)
-   work.send(2)
+   work.send(1).unwrap()
+   work.send(2).unwrap()
    done.close()                          # tell the consumer to stop
    handle.join()
 
@@ -276,8 +276,8 @@ the worker. List the ``done`` case first so cancellation takes priority:
 Handle closed and timed-out outcomes
 ------------------------------------
 
-Both ``recv`` and a ``select`` case carry a ``Result``. Branch on it to react to each
-outcome explicitly, distinguishing the two failure types by class:
+``send``, ``recv``, and a ``select`` case carry a ``Result``. Branch on a receive
+outcome to react explicitly, distinguishing the two failure types by class:
 
 .. code-block:: python
 
@@ -298,6 +298,20 @@ outcome explicitly, distinguishing the two failure types by class:
    elif isinstance(outcome.error, ChannelTimeoutError):
        print("timed out")
 
+A send reports closure through its returned ``Result`` too. Check it when a
+consumer may close the channel before the producer finishes:
+
+.. code-block:: python
+
+   sent = ch.send(42)
+   if sent.is_failure():
+       print(sent.error)   # send on closed channel
+
+A successful send contains ``None``. In examples where the producer controls
+closure, ``send(...).unwrap()`` checks that the send completed. To migrate from
+older versions, replace ``try``/``except ChannelClosedError`` around ``send``
+with a check of the returned ``Result``. See :doc:`../reference/api/concurrency`.
+
 Pin or swap the threading backend
 ---------------------------------
 
@@ -312,7 +326,7 @@ specific backend (for example, to run a green-thread backend), build your own
 
    runtime = CSPRuntime(ThreadingBackend())
    ch = runtime.Channel[int](capacity=1)
-   ch.send(99)
+   ch.send(99).unwrap()
    print(ch.recv().unwrap())   # 99
 
 To create a single channel against an explicit backend, pass ``backend=`` to
@@ -324,7 +338,7 @@ To create a single channel against an explicit backend, pass ``backend=`` to
    from katharos.concurrency.csp import Channel
 
    ch = Channel[int](capacity=1, backend=default_backend())
-   ch.send(7)
+   ch.send(7).unwrap()
    print(ch.recv().unwrap())   # 7
 
 See also

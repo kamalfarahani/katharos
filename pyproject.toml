@@ -50,6 +50,7 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = ["channel_stress: isolated channel contention and race campaign"]
 
 [dependency-groups]
 dev = [
