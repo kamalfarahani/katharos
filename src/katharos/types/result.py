@@ -10,30 +10,30 @@ from katharos.algebra import Monad
 from katharos.algebra.applicative.applicative import Applicative
 from katharos.types.errors import UnwrapError
 
-E = TypeVar("E", bound=BaseException, covariant=True)
-A = TypeVar("A", covariant=True)
+E_co = TypeVar("E_co", bound=BaseException, covariant=True)
+A_co = TypeVar("A_co", covariant=True)
 
 
 @dataclass
-class _ErrorWrapper(Generic[E]):
-    err: E
+class _ErrorWrapper(Generic[E_co]):
+    err: E_co
 
 
 @final
 class Result(
-    Generic[E, A],
-    Monad["Result[E, Any]", A],
+    Generic[E_co, A_co],
+    Monad["Result[E_co, Any]", A_co],
 ):
     """A Result monad for error handling without exceptions.
 
     The Result type encapsulates a computation that can either succeed with a value
-    of type A or fail with an exception of type E. It implements the Monad, Applicative,
+    of type A_co or fail with an exception of type E_co. It implements the Monad, Applicative,
     and Functor interfaces for composable error handling.
 
     A Result can be in one of two states:
 
-    - **Success**: Contains a value of type ``A`` (which may itself be an exception)
-    - **Failure**: Contains an exception of type ``E``
+    - **Success**: Contains a value of type ``A_co`` (which may itself be an exception)
+    - **Failure**: Contains an exception of type ``E_co``
 
     The success/failure distinction is tracked internally rather than by the
     type of the wrapped value, so an exception may be carried as a *success*
@@ -41,8 +41,8 @@ class Result(
 
     **Type Parameters:**
 
-    - ``E``: The type of the exception (must be a subclass of :class:`BaseException`).
-    - ``A``: The type of the success value.
+    - ``E_co``: The type of the exception (must be a subclass of :class:`BaseException`).
+    - ``A_co``: The type of the success value.
 
     Examples:
         >>> success = Result.Success(42)
@@ -87,7 +87,7 @@ class Result(
     """
 
     @classmethod
-    def pure[T](cls: type[Result], x: T) -> Result[E, T]:
+    def pure[T](cls: type[Result], x: T) -> Result[E_co, T]:
         """Wrap a value in a Success.
 
         Args:
@@ -120,7 +120,7 @@ class Result(
         return Result(x)
 
     @classmethod
-    def ret[T](cls: type[Result[E, T]], x: T) -> Result[E, T]:
+    def ret[T](cls: type[Result[E_co, T]], x: T) -> Result[E_co, T]:
         """Wrap a value in a Success.
 
         Alias for :meth:`pure`, provided to satisfy the Monad interface.
@@ -138,7 +138,7 @@ class Result(
         return cls.pure(x)
 
     # Overload 1 only matches unspecialized access (``Result.Success(x)``):
-    # a subscripted ``Result[E, T].Success`` is never assignable to
+    # a subscripted ``Result[E_co, T].Success`` is never assignable to
     # ``type[Result[Never, Never]]``, so it falls through to overload 2,
     # which binds both type parameters from the class subscript instead
     # of the argument.
@@ -230,16 +230,16 @@ class Result(
 
         return Result(_ErrorWrapper(e))
 
-    def __init__(self, value: A | _ErrorWrapper[E]) -> None:
+    def __init__(self, value: A_co | _ErrorWrapper[E_co]) -> None:
         """Initialize the Result.
 
         Args:
-            value: The value to wrap, either A or E.
+            value: The value to wrap, either A_co or E_co.
         """
         self._value = value
 
     @property
-    def value(self) -> A:
+    def value(self) -> A_co:
         """Get the success value of the Result.
 
         Returns:
@@ -263,7 +263,7 @@ class Result(
         return self._value
 
     @property
-    def error(self) -> E:
+    def error(self) -> E_co:
         """Get the error of the Result.
 
         Returns:
@@ -286,7 +286,7 @@ class Result(
 
         return self._value.err
 
-    def unwrap(self) -> A:
+    def unwrap(self) -> A_co:
         """Unwrap the success value, raising an error if this is a Failure.
 
         This method extracts the success value from a Success Result. If the Result
@@ -315,7 +315,7 @@ class Result(
         """
         return self.value
 
-    def fmap[B](self, f: Callable[[A], B]) -> Result[E, B]:
+    def fmap[B](self, f: Callable[[A_co], B]) -> Result[E_co, B]:
         """Map a function over the success value.
 
         Args:
@@ -336,15 +336,15 @@ class Result(
             Success('HI')
         """
         if isinstance(self._value, _ErrorWrapper):
-            casted_self = cast(Result[E, B], self)
+            casted_self = cast(Result[E_co, B], self)
             return casted_self
 
-        return Result[E, B].pure(f(self._value))
+        return Result[E_co, B].pure(f(self._value))
 
     def ap[BE: BaseException, B](
         self,
-        wrapped_funcs: Applicative[Result[BE, Any], Callable[[A], B]],
-    ) -> Result[BE | E, B]:
+        wrapped_funcs: Applicative[Result[BE, Any], Callable[[A_co], B]],
+    ) -> Result[BE | E_co, B]:
         """Apply a function wrapped in a Result to this Result.
 
         Args:
@@ -368,9 +368,9 @@ class Result(
             >>> Result.Success(5).ap(failure_fn)
             Failure(TypeError('bad fn'))
         """
-        wrapped_funcs = cast(Result[BE, Callable[[A], B]], wrapped_funcs)
+        wrapped_funcs = cast(Result[BE, Callable[[A_co], B]], wrapped_funcs)
         if self.is_failure():
-            return cast(Result[E, B], self)
+            return cast(Result[E_co, B], self)
 
         if wrapped_funcs.is_failure():
             return cast(Result[BE, B], wrapped_funcs)
@@ -380,8 +380,8 @@ class Result(
 
     def bind[BE: BaseException, B](
         self,
-        f: Callable[[A], Monad[Result[BE, Any], B]],
-    ) -> Result[BE | E, B]:
+        f: Callable[[A_co], Monad[Result[BE, Any], B]],
+    ) -> Result[BE | E_co, B]:
         """Bind a function that returns a Result to this Result.
 
         Args:
@@ -404,9 +404,9 @@ class Result(
             >>> Result.Failure(ValueError("err")).bind(lambda x: Result.Success(x + 1))
             Failure(ValueError('err'))
         """
-        f = cast(Callable[[A], Result[BE, B]], f)
+        f = cast(Callable[[A_co], Result[BE, B]], f)
         if isinstance(self._value, _ErrorWrapper):
-            casted_self = cast(Result[E, B], self)
+            casted_self = cast(Result[E_co, B], self)
             return casted_self
 
         return f(self._value)
@@ -446,8 +446,8 @@ class Result(
 
     def __pow__[BE: BaseException, B](
         self,
-        wrapped_funcs: Applicative[Result[BE, Any], Callable[[A], B]],
-    ) -> Result[BE | E, B]:
+        wrapped_funcs: Applicative[Result[BE, Any], Callable[[A_co], B]],
+    ) -> Result[BE | E_co, B]:
         """Infix operator for applicative application (``**``).
 
         Args:
@@ -470,8 +470,8 @@ class Result(
 
     def __or__[BE: BaseException, B](
         self,
-        f: Callable[[A], Monad[Result[BE, Any], B]],
-    ) -> Result[BE | E, B]:
+        f: Callable[[A_co], Monad[Result[BE, Any], B]],
+    ) -> Result[BE | E_co, B]:
         """Infix operator for monadic bind (``|``).
 
         Args:

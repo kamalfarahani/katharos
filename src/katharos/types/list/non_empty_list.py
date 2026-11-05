@@ -8,13 +8,13 @@ from katharos.algebra.applicative.applicative import Applicative
 
 from .base_immutable_list import BaseImmutableList
 
-T = TypeVar(name="T", covariant=True)
+T_co = TypeVar(name="T_co", covariant=True)
 
 
 class NonEmptyList(
-    BaseImmutableList[T],
-    Monad["NonEmptyList[Any]", T],
-    Semigroup["NonEmptyList[T]"],
+    BaseImmutableList[T_co],
+    Monad["NonEmptyList[Any]", T_co],
+    Semigroup["NonEmptyList[T_co]"],
 ):
     """An immutable list guaranteed to contain at least one element.
 
@@ -30,8 +30,8 @@ class NonEmptyList(
 
     def __init__(
         self,
-        head: T,
-        tail: list[T],
+        head: T_co,
+        tail: list[T_co],
     ) -> None:
         """Create a non-empty list with at least one element.
 
@@ -39,7 +39,7 @@ class NonEmptyList(
             head: The first (guaranteed) element.
             tail: The remaining elements (may be empty).
         """
-        elements: list[T] = [head] + tail
+        elements: list[T_co] = [head] + tail
         super().__init__(elements)
 
     def __eq__(self, other: object) -> bool:
@@ -63,7 +63,7 @@ class NonEmptyList(
         """
         return hash(tuple(self._elements))
 
-    def __add__(self, other: Iterable[T]) -> NonEmptyList[T]:
+    def __add__(self, other: Iterable[T_co]) -> NonEmptyList[T_co]:
         """Concatenate this list with another iterable.
 
         Args:
@@ -86,7 +86,7 @@ class NonEmptyList(
         return f"NonEmptyList({self._elements!r})"
 
     @property
-    def head(self) -> T:
+    def head(self) -> T_co:
         """The first element of the list.
 
         Returns:
@@ -95,7 +95,7 @@ class NonEmptyList(
         return self._elements[0]
 
     @property
-    def tail(self) -> list[T]:
+    def tail(self) -> list[T_co]:
         """All elements after the first.
 
         Returns:
@@ -131,7 +131,7 @@ class NonEmptyList(
 
         return cls.pure(x)
 
-    def fmap[B](self, f: Callable[[T], B]) -> NonEmptyList[B]:
+    def fmap[B](self, f: Callable[[T_co], B]) -> NonEmptyList[B]:
         """Map a function over every element.
 
         Args:
@@ -148,7 +148,7 @@ class NonEmptyList(
 
     def ap[B](
         self,
-        wrapped_funcs: Applicative[NonEmptyList, Callable[[T], B]],
+        wrapped_funcs: Applicative[NonEmptyList, Callable[[T_co], B]],
     ) -> NonEmptyList[B]:
         """Apply each wrapped function to each element (cartesian product).
 
@@ -171,7 +171,7 @@ class NonEmptyList(
 
     def bind[B](
         self,
-        f: Callable[[T], Monad[NonEmptyList, B]],
+        f: Callable[[T_co], Monad[NonEmptyList, B]],
     ) -> NonEmptyList[B]:
         """Flatmap this list with a function that returns a NonEmptyList (concatMap).
 
@@ -190,7 +190,7 @@ class NonEmptyList(
 
         return NonEmptyList(head=result[0], tail=result[1:])
 
-    def op(self, other: NonEmptyList[T]) -> NonEmptyList[T]:
+    def op(self, other: NonEmptyList[T_co]) -> NonEmptyList[T_co]:
         """Concatenate this list with another NonEmptyList.
 
         Args:

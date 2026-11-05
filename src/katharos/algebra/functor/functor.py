@@ -4,11 +4,11 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any, Generic, TypeVar
 
-F = TypeVar("F", bound="Functor[Any, Any]", covariant=True)
-A = TypeVar("A", covariant=True)
+F_co = TypeVar("F_co", bound="Functor[Any, Any]", covariant=True)
+A_co = TypeVar("A_co", covariant=True)
 
 
-class Functor(ABC, Generic[F, A]):
+class Functor(ABC, Generic[F_co, A_co]):
     """Abstract base class for functors.
 
     A functor is a type that implements :meth:`fmap`, allowing functions to be
@@ -22,7 +22,7 @@ class Functor(ABC, Generic[F, A]):
     """
 
     @abstractmethod
-    def fmap[B](self, f: Callable[[A], B]) -> Functor[F, B]:
+    def fmap[B](self, f: Callable[[A_co], B]) -> Functor[F_co, B]:
         """Map a function over the functor.
 
         Args:

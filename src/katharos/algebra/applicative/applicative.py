@@ -6,11 +6,11 @@ from typing import Any, Self, TypeVar
 
 from katharos.algebra.functor.functor import Functor
 
-App = TypeVar("App", bound="Applicative[Any, Any]", covariant=True)
-A = TypeVar("A", covariant=True)
+App_co = TypeVar("App_co", bound="Applicative[Any, Any]", covariant=True)
+A_co = TypeVar("A_co", covariant=True)
 
 
-class Applicative(Functor[App, A], ABC):
+class Applicative(Functor[App_co, A_co], ABC):
     """Abstract base class for applicative functors.
 
     An applicative functor extends :class:`~katharos.algebra.Functor` with the
@@ -35,7 +35,7 @@ class Applicative(Functor[App, A], ABC):
 
     @classmethod
     @abstractmethod
-    def pure[T](cls: type[Self], x: T) -> Applicative[App, T]:
+    def pure[T](cls: type[Self], x: T) -> Applicative[App_co, T]:
         """Lift a value into the applicative context.
 
         Args:
@@ -49,8 +49,8 @@ class Applicative(Functor[App, A], ABC):
     @abstractmethod
     def ap[B](
         self,
-        wrapped_funcs: Applicative[App, Callable[[A], B]],
-    ) -> Applicative[App, B]:
+        wrapped_funcs: Applicative[App_co, Callable[[A_co], B]],
+    ) -> Applicative[App_co, B]:
         """Apply wrapped functions to this applicative's value.
 
         Args:
@@ -63,8 +63,8 @@ class Applicative(Functor[App, A], ABC):
 
     def __pow__[B](
         self,
-        wrapped_funcs: Applicative[App, Callable[[A], B]],
-    ) -> Applicative[App, B]:
+        wrapped_funcs: Applicative[App_co, Callable[[A_co], B]],
+    ) -> Applicative[App_co, B]:
         """Infix operator for applicative application (``**``).
 
         Args:

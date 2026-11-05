@@ -6,11 +6,11 @@ from typing import Any, TypeVar
 
 from katharos.algebra.applicative.applicative import Applicative
 
-Mon = TypeVar("Mon", bound="Monad[Any, Any]", covariant=True)
-A = TypeVar("A", covariant=True)
+Mon_co = TypeVar("Mon_co", bound="Monad[Any, Any]", covariant=True)
+A_co = TypeVar("A_co", covariant=True)
 
 
-class Monad(Applicative[Mon, A], ABC):
+class Monad(Applicative[Mon_co, A_co], ABC):
     """Abstract base class for monads.
 
     A monad extends :class:`~katharos.algebra.Applicative` with the ``bind``
@@ -42,7 +42,7 @@ class Monad(Applicative[Mon, A], ABC):
     """
 
     @classmethod
-    def ret[T](cls: type[Monad[Mon, T]], x: T) -> Monad[Mon, T]:
+    def ret[T](cls: type[Monad[Mon_co, T]], x: T) -> Monad[Mon_co, T]:
         """Wrap a value in the monad.
 
         Args:
@@ -56,8 +56,8 @@ class Monad(Applicative[Mon, A], ABC):
     @abstractmethod
     def bind[B](
         self,
-        f: Callable[[A], Monad[Mon, B]],
-    ) -> Monad[Mon, B]:
+        f: Callable[[A_co], Monad[Mon_co, B]],
+    ) -> Monad[Mon_co, B]:
         """Chain this monad with a function that returns a monad.
 
         Args:
@@ -69,7 +69,7 @@ class Monad(Applicative[Mon, A], ABC):
         """
         raise NotImplementedError()
 
-    def then[B](self, other: Monad[Mon, B]) -> Monad[Mon, B]:
+    def then[B](self, other: Monad[Mon_co, B]) -> Monad[Mon_co, B]:
         """Sequence two monadic actions, discarding the first result.
 
         Args:
@@ -80,7 +80,7 @@ class Monad(Applicative[Mon, A], ABC):
         """
         return self | (lambda _: other)
 
-    def __or__[B](self, f: Callable[[A], Monad[Mon, B]]) -> Monad[Mon, B]:
+    def __or__[B](self, f: Callable[[A_co], Monad[Mon_co, B]]) -> Monad[Mon_co, B]:
         """Infix operator for monadic bind (``|``).
 
         Args:
@@ -92,7 +92,7 @@ class Monad(Applicative[Mon, A], ABC):
         """
         return self.bind(f)
 
-    def __rshift__[B](self, other: Monad[Mon, B]) -> Monad[Mon, B]:
+    def __rshift__[B](self, other: Monad[Mon_co, B]) -> Monad[Mon_co, B]:
         """Infix operator for sequencing two monadic actions (``>>``).
 
         Args:

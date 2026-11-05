@@ -3,10 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Generic, TypeVar
 
-S = TypeVar("S", bound="Semigroup[Any]", covariant=True)
+S_co = TypeVar("S_co", bound="Semigroup[Any]", covariant=True)
 
 
-class Semigroup(ABC, Generic[S]):
+class Semigroup(ABC, Generic[S_co]):
     """Abstract base class for semigroups.
 
     A semigroup is a set equipped with an associative binary operation.
@@ -14,7 +14,7 @@ class Semigroup(ABC, Generic[S]):
     """
 
     @abstractmethod
-    def op(self, other: S) -> S:  # type: ignore
+    def op(self, other: S_co) -> S_co:  # type: ignore
         """Combine this semigroup with another semigroup.
 
         The abstract binary operation that subclasses must implement.
@@ -29,7 +29,7 @@ class Semigroup(ABC, Generic[S]):
 
         raise NotImplementedError()
 
-    def __matmul__(self, other: S) -> S:  # type: ignore
+    def __matmul__(self, other: S_co) -> S_co:  # type: ignore
         """Infix operator for the semigroup binary operation (``@``).
 
         Must satisfy associativity: ``(a @ b) @ c == a @ (b @ c)``.

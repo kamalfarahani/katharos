@@ -8,18 +8,18 @@ from katharos.algebra.applicative.applicative import Applicative
 
 from .base_immutable_list import BaseImmutableList
 
-T = TypeVar(name="T", covariant=True)
+T_co = TypeVar(name="T_co", covariant=True)
 
 
 class ImmutableList(
-    BaseImmutableList[T],
-    Monad["ImmutableList[Any]", T],
-    Monoid["ImmutableList[T]"],
+    BaseImmutableList[T_co],
+    Monad["ImmutableList[Any]", T_co],
+    Monoid["ImmutableList[T_co]"],
 ):
     """A covariant immutable list with full monad and monoid support.
 
     Provides an immutable wrapper around a Python list. The type parameter
-    ``T`` is covariant, so ``ImmutableList[Child]`` is a subtype of
+    ``T_co`` is covariant, so ``ImmutableList[Child]`` is a subtype of
     ``ImmutableList[Parent]`` when ``Child`` is a subtype of ``Parent``.
 
     Instances are hashable and safe to use as dictionary keys or set members.
@@ -76,7 +76,7 @@ class ImmutableList(
         """
         return str(self._elements)
 
-    def __add__(self, other: Iterable[T]) -> ImmutableList[T]:
+    def __add__(self, other: Iterable[T_co]) -> ImmutableList[T_co]:
         """Concatenate this list with another iterable.
 
         Args:
@@ -88,7 +88,7 @@ class ImmutableList(
         return ImmutableList(list(self) + list(other))
 
     @classmethod
-    def identity(cls: type[ImmutableList[T]]) -> ImmutableList[T]:
+    def identity(cls: type[ImmutableList[T_co]]) -> ImmutableList[T_co]:
         """Return the identity element for the monoid operation.
 
         Returns:
@@ -122,7 +122,7 @@ class ImmutableList(
         """
         return cls.pure(x)
 
-    def op(self, other: ImmutableList[T]) -> ImmutableList[T]:
+    def op(self, other: ImmutableList[T_co]) -> ImmutableList[T_co]:
         """Combine this list with another using concatenation.
 
         Args:
@@ -133,7 +133,7 @@ class ImmutableList(
         """
         return self + other
 
-    def fmap[B](self, f: Callable[[T], B]) -> ImmutableList[B]:
+    def fmap[B](self, f: Callable[[T_co], B]) -> ImmutableList[B]:
         """Map a function over every element.
 
         Args:
@@ -146,7 +146,7 @@ class ImmutableList(
 
     def ap[B](
         self,
-        wrapped_funcs: Applicative[ImmutableList, Callable[[T], B]],
+        wrapped_funcs: Applicative[ImmutableList, Callable[[T_co], B]],
     ) -> ImmutableList[B]:
         """Apply each wrapped function to each element (cartesian product).
 
@@ -157,12 +157,12 @@ class ImmutableList(
             A new ImmutableList with results of applying every function to
             every element.
         """
-        wrapped_funcs = cast(ImmutableList[Callable[[T], B]], wrapped_funcs)
+        wrapped_funcs = cast(ImmutableList[Callable[[T_co], B]], wrapped_funcs)
         return ImmutableList[B]([f(x) for f in wrapped_funcs for x in self])
 
     def bind[B](
         self,
-        f: Callable[[T], Monad[ImmutableList, B]],
+        f: Callable[[T_co], Monad[ImmutableList, B]],
     ) -> ImmutableList[B]:
         """Flatmap this list with a function that returns a list (concatMap).
 
@@ -173,10 +173,10 @@ class ImmutableList(
             A new ImmutableList with the results of all returned lists
             concatenated.
         """
-        f = cast(Callable[[T], ImmutableList[B]], f)
+        f = cast(Callable[[T_co], ImmutableList[B]], f)
         return ImmutableList[B]([x for elem in self for x in f(elem)])
 
-    def __matmul__(self, other: ImmutableList[T]) -> ImmutableList[T]:
+    def __matmul__(self, other: ImmutableList[T_co]) -> ImmutableList[T_co]:
         """Infix operator for the semigroup concatenation (``@``).
 
         Args:
@@ -189,7 +189,7 @@ class ImmutableList(
 
     def __pow__[B](
         self,
-        wrapped_funcs: Applicative[ImmutableList, Callable[[T], B]],
+        wrapped_funcs: Applicative[ImmutableList, Callable[[T_co], B]],
     ) -> ImmutableList[B]:
         """Infix operator for applicative application (``**``).
 
@@ -204,7 +204,7 @@ class ImmutableList(
 
     def __or__[B](
         self,
-        f: Callable[[T], Monad[ImmutableList, B]],
+        f: Callable[[T_co], Monad[ImmutableList, B]],
     ) -> ImmutableList[B]:
         """Infix operator for monadic bind (``|``).
 
