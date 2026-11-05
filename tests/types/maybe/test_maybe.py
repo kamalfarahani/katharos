@@ -1,5 +1,5 @@
-from katharos.types.maybe import Maybe
 from katharos.functools import F
+from katharos.types.maybe import Maybe
 
 
 def add_one(x: float) -> float:
@@ -298,7 +298,7 @@ class TestTruthiness:
 class TestEquality:
     def test_non_maybe_comparison_is_unequal(self):
         assert Maybe.Just(1) != 1
-        assert Maybe.Nothing() != None  # noqa: E711
+        assert Maybe.Nothing() != None
 
     def test_reflected_equality_is_delegated(self):
         class AlwaysEqual:

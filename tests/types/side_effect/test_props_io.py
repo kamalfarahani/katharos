@@ -23,6 +23,8 @@ from tests.law_helpers import (
     check_applicative_laws,
     check_functor_laws,
     check_monad_laws,
+)
+from tests.law_helpers import (
     unary_int_funcs as funcs,
 )
 

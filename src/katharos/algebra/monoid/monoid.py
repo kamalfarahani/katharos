@@ -5,10 +5,10 @@ from typing import Any, TypeVar
 
 from katharos.algebra.semigroup.semigroup import Semigroup
 
-M = TypeVar("M", bound="Monoid[Any]", covariant=True)
+M_co = TypeVar("M_co", bound="Monoid[Any]", covariant=True)
 
 
-class Monoid(Semigroup[M]):
+class Monoid(Semigroup[M_co]):
     """Abstract base class for monoids.
 
     A monoid is a semigroup with an identity element.
@@ -16,13 +16,13 @@ class Monoid(Semigroup[M]):
 
     @classmethod
     @abstractmethod
-    def identity(cls) -> M:
+    def identity(cls) -> M_co:
         """Return the identity element of the monoid.
 
         Must satisfy: ``a @ identity() == a`` and ``identity() @ a == a``
         for all ``a`` in the monoid.
 
         Returns:
-            The identity element of type M.
+            The identity element of type M_co.
         """
         raise NotImplementedError()

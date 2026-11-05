@@ -47,6 +47,9 @@ unary_int_funcs = st.sampled_from(
 )
 
 
+_integer_scalars = st.integers()
+
+
 def check_functor_laws(
     values: st.SearchStrategy,
     funcs: st.SearchStrategy = unary_int_funcs,
@@ -77,7 +80,7 @@ def check_applicative_laws(
     pure: Callable,
     *,
     funcs: st.SearchStrategy = unary_int_funcs,
-    scalars: st.SearchStrategy = st.integers(),
+    scalars: st.SearchStrategy = _integer_scalars,
     eq: Callable[[object, object], bool] = operator.eq,
 ) -> None:
     """Assert the four applicative laws.
@@ -117,7 +120,7 @@ def check_monad_laws(
     kleislis: st.SearchStrategy,
     pure: Callable,
     *,
-    scalars: st.SearchStrategy = st.integers(),
+    scalars: st.SearchStrategy = _integer_scalars,
     eq: Callable[[object, object], bool] = operator.eq,
 ) -> None:
     """Assert the three monad laws.

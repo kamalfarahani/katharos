@@ -8,10 +8,12 @@ from katharos.algebra.applicative.applicative import Applicative
 
 from .function_with_side_effect import FunctionWithSideEffect
 
-A = TypeVar("A", covariant=True)
+A_co = TypeVar("A_co", covariant=True)
+
+_NO_OP = FunctionWithSideEffect.no_op()
 
 
-class IO(Monad["IO[Any]", A]):
+class IO(Monad["IO[Any]", A_co]):
     """Lazy wrapper for a value with deferred side-effect execution.
 
     ``IO`` encapsulates a value together with an optional side-effect function.
@@ -54,8 +56,8 @@ class IO(Monad["IO[Any]", A]):
 
     def __init__(
         self,
-        value: A,
-        io_func: FunctionWithSideEffect = FunctionWithSideEffect.no_op(),
+        value: A_co,
+        io_func: FunctionWithSideEffect = _NO_OP,
     ):
         """Initialize an IO action.
 
@@ -67,7 +69,7 @@ class IO(Monad["IO[Any]", A]):
         self.io_func = io_func
 
     @property
-    def value(self) -> A:
+    def value(self) -> A_co:
         """The value inside this IO action.
 
         Returns:
@@ -79,7 +81,7 @@ class IO(Monad["IO[Any]", A]):
         """Execute the accumulated side effects."""
         self.io_func.f()
 
-    def fmap[B](self, f: Callable[[A], B]) -> IO[B]:
+    def fmap[B](self, f: Callable[[A_co], B]) -> IO[B]:
         """Map a function over the wrapped value.
 
         Args:
@@ -92,7 +94,7 @@ class IO(Monad["IO[Any]", A]):
 
     def ap[B](
         self,
-        wrapped_funcs: Applicative[IO, Callable[[A], B]],
+        wrapped_funcs: Applicative[IO, Callable[[A_co], B]],
     ) -> IO[B]:
         """Apply a function wrapped in IO to this IO action.
 
@@ -106,7 +108,7 @@ class IO(Monad["IO[Any]", A]):
 
     def bind[B](
         self,
-        f: Callable[[A], Monad[IO, B]],
+        f: Callable[[A_co], Monad[IO, B]],
     ) -> IO[B]:
         """Chain this IO action with a function that returns another IO action.
 
@@ -117,7 +119,7 @@ class IO(Monad["IO[Any]", A]):
             A new IO action combining this action's side effects with those
             of the result of applying ``f``.
         """
-        f = cast(Callable[[A], IO[B]], f)
+        f = cast(Callable[[A_co], IO[B]], f)
         return self >> f(self.value)
 
     def then[B](self, other: Monad[IO, B]) -> IO[B]:
@@ -140,7 +142,7 @@ class IO(Monad["IO[Any]", A]):
 
     def __pow__[B](
         self,
-        wrapped_funcs: Applicative[IO, Callable[[A], B]],
+        wrapped_funcs: Applicative[IO, Callable[[A_co], B]],
     ) -> IO[B]:
         """Infix operator for applicative application (``**``).
 
@@ -152,7 +154,7 @@ class IO(Monad["IO[Any]", A]):
         """
         return self.ap(wrapped_funcs)
 
-    def __or__[B](self, f: Callable[[A], Monad[IO, B]]) -> IO[B]:
+    def __or__[B](self, f: Callable[[A_co], Monad[IO, B]]) -> IO[B]:
         """Infix operator for monadic bind (``|``).
 
         Args:

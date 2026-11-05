@@ -14,7 +14,7 @@ class TestNothing:
 
     def test_nothing_equality_with_itself(self):
         n = _Nothing()
-        assert n == n
+        assert n == n  # noqa: PLR0124 - Test equality reflexivity.
 
     def test_nothing_equality_with_another_nothing(self):
         n1 = _Nothing()

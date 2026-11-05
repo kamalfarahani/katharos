@@ -23,6 +23,8 @@ from tests.law_helpers import (
     check_functor_laws,
     check_monad_laws,
     check_semigroup_laws,
+)
+from tests.law_helpers import (
     unary_int_funcs as funcs,
 )
 
@@ -134,7 +136,7 @@ class TestOperatorEquivalence:
 class TestEqualityAndHash:
     @given(nels)
     def test_reflexive(self, xs: NonEmptyList[int]):
-        assert xs == xs
+        assert xs == xs  # noqa: PLR0124 - Test equality reflexivity.
 
     @given(
         st.lists(_ints, min_size=1, max_size=6),

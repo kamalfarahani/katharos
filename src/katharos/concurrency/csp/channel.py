@@ -30,7 +30,7 @@ class _Slot[A]:
     buffer being empty (which is unsafe when senders contend).
     """
 
-    __slots__ = ("value", "taken")
+    __slots__ = ("taken", "value")
 
     def __init__(self, value: A) -> None:
         self.value = value

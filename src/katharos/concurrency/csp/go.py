@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import TracebackType
-from typing import Any, Callable
+from typing import Any, Self
 
 from katharos.concurrency.base_threading_backend import (
     BaseThreadHandle,
@@ -124,7 +125,7 @@ class Go:
 
         return handle
 
-    def __enter__(self) -> Go:
+    def __enter__(self) -> Self:
         """Open a structured-concurrency scope on the calling context.
 
         Returns:

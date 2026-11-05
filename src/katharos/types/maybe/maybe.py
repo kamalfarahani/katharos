@@ -7,7 +7,7 @@ from katharos.algebra.applicative.applicative import Applicative
 from katharos.algebra.monad import Monad
 from katharos.types.errors import UnwrapError
 
-A = TypeVar("A", covariant=True)
+A_co = TypeVar("A_co", covariant=True)
 
 
 @final
@@ -39,7 +39,7 @@ def is_nothing(value: Any) -> bool:
 
 
 @final
-class Maybe(Monad["Maybe[Any]", A]):
+class Maybe(Monad["Maybe[Any]", A_co]):
     """Optional value monad for type-safe null handling.
 
     ``Maybe`` encapsulates a value that may or may not be present, eliminating
@@ -49,7 +49,7 @@ class Maybe(Monad["Maybe[Any]", A]):
 
     A ``Maybe`` is in one of two states:
 
-    - **Just**: contains a value of type ``A``.
+    - **Just**: contains a value of type ``A_co``.
     - **Nothing**: contains no value.
 
     Use :meth:`Just` and :meth:`Nothing` to construct values. Use
@@ -142,7 +142,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         """
         return Maybe(value=nothing)
 
-    def __init__(self, value: A | _Nothing = nothing) -> None:
+    def __init__(self, value: A_co | _Nothing = nothing) -> None:
         """Initialize a Maybe with an optional value.
 
         Args:
@@ -150,7 +150,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         """
         self._value = value
 
-    def unwrap(self) -> A:
+    def unwrap(self) -> A_co:
         """Extract the wrapped value.
 
         Returns:
@@ -162,9 +162,9 @@ class Maybe(Monad["Maybe[Any]", A]):
         if is_nothing(self._value):
             raise UnwrapError("Cannot unwrap a Nothing")
 
-        return cast(A, self._value)
+        return cast(A_co, self._value)
 
-    def unwrap_or[B](self, default: B) -> A | B:
+    def unwrap_or[B](self, default: B) -> A_co | B:
         """Extract the wrapped value, or return a default if Nothing.
 
         Args:
@@ -182,7 +182,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         if is_nothing(self._value):
             return default
 
-        return cast(A, self._value)
+        return cast(A_co, self._value)
 
     @staticmethod
     def from_optional[T](value: T | None) -> Maybe[T]:
@@ -209,7 +209,7 @@ class Maybe(Monad["Maybe[Any]", A]):
 
         return Maybe.Just(value)
 
-    def to_optional(self) -> A | None:
+    def to_optional(self) -> A_co | None:
         """Convert this Maybe into an optional value.
 
         The inverse of :meth:`from_optional`. Note that ``Just(None)`` and
@@ -227,9 +227,9 @@ class Maybe(Monad["Maybe[Any]", A]):
         if is_nothing(self._value):
             return None
 
-        return cast(A, self._value)
+        return cast(A_co, self._value)
 
-    def fmap[B](self, f: Callable[[A], B]) -> Maybe[B]:
+    def fmap[B](self, f: Callable[[A_co], B]) -> Maybe[B]:
         """Map a function over the wrapped value.
 
         Args:
@@ -245,7 +245,7 @@ class Maybe(Monad["Maybe[Any]", A]):
 
     def ap[B](
         self,
-        wrapped_funcs: Applicative[Maybe, Callable[[A], B]],
+        wrapped_funcs: Applicative[Maybe, Callable[[A_co], B]],
     ) -> Maybe[B]:
         """Apply a function wrapped in a Maybe to this Maybe's value.
 
@@ -255,7 +255,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         Returns:
             A Maybe containing the result, or Nothing if either operand is Nothing.
         """
-        wrapped_funcs = cast(Maybe[Callable[[A], B]], wrapped_funcs)
+        wrapped_funcs = cast(Maybe[Callable[[A_co], B]], wrapped_funcs)
 
         if is_nothing(self._value) or is_nothing(wrapped_funcs._value):
             return Maybe[B].Nothing()
@@ -264,7 +264,7 @@ class Maybe(Monad["Maybe[Any]", A]):
 
     def bind[B](
         self,
-        f: Callable[[A], Monad[Maybe, B]],
+        f: Callable[[A_co], Monad[Maybe, B]],
     ) -> Maybe[B]:
         """Chain a function that returns a Maybe.
 
@@ -274,7 +274,7 @@ class Maybe(Monad["Maybe[Any]", A]):
         Returns:
             The result of applying ``f``, or Nothing if this is Nothing.
         """
-        f = cast(Callable[[A], Maybe[B]], f)
+        f = cast(Callable[[A_co], Maybe[B]], f)
         if is_nothing(self._value):
             return Maybe[B].Nothing()
 
@@ -298,7 +298,7 @@ class Maybe(Monad["Maybe[Any]", A]):
 
     def __pow__[B](
         self,
-        wrapped_funcs: Applicative["Maybe", Callable[[A], B]],
+        wrapped_funcs: Applicative[Maybe, Callable[[A_co], B]],
     ) -> Maybe[B]:
         """Infix operator for applicative application (``**``).
 
@@ -312,7 +312,7 @@ class Maybe(Monad["Maybe[Any]", A]):
 
     def __or__[B](
         self,
-        f: Callable[[A], Monad[Maybe, B]],
+        f: Callable[[A_co], Monad[Maybe, B]],
     ) -> Maybe[B]:
         """Infix operator for monadic bind (``|``).
 

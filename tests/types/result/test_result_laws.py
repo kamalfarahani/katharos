@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
-from katharos.types.result import Result
 from katharos.functools import F
+from katharos.types.result import Result
 
 
 class TestFunctorLaws:
