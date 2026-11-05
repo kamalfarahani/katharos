@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
-from katharos.types.list.non_empty_list import NonEmptyList
 from katharos.functools import F
+from katharos.types.list.non_empty_list import NonEmptyList
 
 
 class TestFunctorLaws:

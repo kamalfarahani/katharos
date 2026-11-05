@@ -124,7 +124,7 @@ class TestProductComplex:
 class TestProductDecimal:
     def test_identity_returns_one(self):
         identity = Product[decimal.Decimal].identity()
-        assert identity._value == decimal.Decimal("1")
+        assert identity._value == decimal.Decimal(1)
 
     def test_op_multiplies_values(self):
         a = Product(decimal.Decimal("5.5"))

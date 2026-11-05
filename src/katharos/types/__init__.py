@@ -26,12 +26,12 @@ from .result import Result
 from .side_effect import IO
 
 __all__ = [
+    "IO",
     "ImmutableList",
-    "NonEmptyList",
+    "Lazy",
     "Maybe",
     "MonoidMaybe",
-    "Lazy",
+    "NonEmptyList",
     "Result",
-    "IO",
     "UnwrapError",
 ]

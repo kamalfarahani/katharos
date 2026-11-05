@@ -50,7 +50,7 @@ class TestOperatorEquivalence:
 class TestEqualityAndHash:
     @given(monoid_maybes)
     def test_reflexive(self, a: MonoidMaybe):
-        assert a == a
+        assert a == a  # noqa: PLR0124 - Test equality reflexivity.
 
     @given(monoid_maybes)
     def test_not_equal_to_non_monoid_maybe(self, a: MonoidMaybe):

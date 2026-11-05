@@ -23,7 +23,7 @@ class Sum[
     """
 
     @classmethod
-    def __class_getitem__(cls, item: type[S]) -> type["Sum"]:
+    def __class_getitem__(cls, item: type[S]) -> type[Sum]:
         """Return a dynamic subclass of ``Sum`` bound to the given element type.
 
         Called implicitly by the ``Sum[SomeType]`` subscription syntax so that

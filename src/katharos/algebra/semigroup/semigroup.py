@@ -6,7 +6,7 @@ from typing import Any, Generic, TypeVar
 S_co = TypeVar("S_co", bound="Semigroup[Any]", covariant=True)
 
 
-class Semigroup(ABC, Generic[S_co]):
+class Semigroup(ABC, Generic[S_co]):  # noqa: UP046 - Preserve explicit covariance.
     """Abstract base class for semigroups.
 
     A semigroup is a set equipped with an associative binary operation.

@@ -298,7 +298,7 @@ class Maybe(Monad["Maybe[Any]", A_co]):
 
     def __pow__[B](
         self,
-        wrapped_funcs: Applicative["Maybe", Callable[[A_co], B]],
+        wrapped_funcs: Applicative[Maybe, Callable[[A_co], B]],
     ) -> Maybe[B]:
         """Infix operator for applicative application (``**``).
 

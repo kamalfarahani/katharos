@@ -50,7 +50,7 @@ class TestMaybeEquality:
 
     def test_equality_reflexive(self):
         m = Maybe.Just(42)
-        assert m == m
+        assert m == m  # noqa: PLR0124 - Test equality reflexivity.
 
     def test_equality_symmetric(self):
         m1 = Maybe.Just(42)

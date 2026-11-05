@@ -15,6 +15,8 @@ from tests.law_helpers import (
     check_applicative_laws,
     check_functor_laws,
     check_monad_laws,
+)
+from tests.law_helpers import (
     unary_int_funcs as funcs,
 )
 
@@ -101,7 +103,7 @@ class TestOperatorEquivalence:
 class TestEqualityAndHash:
     @given(maybes)
     def test_reflexive(self, m: Maybe[int]):
-        assert m == m
+        assert m == m  # noqa: PLR0124 - Test equality reflexivity.
 
     @given(st.integers(), st.integers())
     def test_equal_iff_same_state_and_value(self, a: int, b: int):

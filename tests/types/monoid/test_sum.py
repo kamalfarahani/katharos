@@ -124,7 +124,7 @@ class TestSumComplex:
 class TestSumDecimal:
     def test_identity_returns_zero(self):
         identity = Sum[decimal.Decimal].identity()
-        assert identity._value == decimal.Decimal("0")
+        assert identity._value == decimal.Decimal(0)
 
     def test_op_adds_values(self):
         a = Sum(decimal.Decimal("5.5"))

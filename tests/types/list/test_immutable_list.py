@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
-from katharos.types.list.immutable_list import ImmutableList
 from katharos.functools import F
+from katharos.types.list.immutable_list import ImmutableList
 
 
 class TestFunctorLaws:

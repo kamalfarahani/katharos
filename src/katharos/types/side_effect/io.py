@@ -10,6 +10,8 @@ from .function_with_side_effect import FunctionWithSideEffect
 
 A_co = TypeVar("A_co", covariant=True)
 
+_NO_OP = FunctionWithSideEffect.no_op()
+
 
 class IO(Monad["IO[Any]", A_co]):
     """Lazy wrapper for a value with deferred side-effect execution.
@@ -55,7 +57,7 @@ class IO(Monad["IO[Any]", A_co]):
     def __init__(
         self,
         value: A_co,
-        io_func: FunctionWithSideEffect = FunctionWithSideEffect.no_op(),
+        io_func: FunctionWithSideEffect = _NO_OP,
     ):
         """Initialize an IO action.
 

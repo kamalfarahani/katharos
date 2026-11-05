@@ -10,6 +10,6 @@ monadic computations using generator functions.
 from .do import DoBlock, do
 
 __all__ = [
-    "do",
     "DoBlock",
+    "do",
 ]

@@ -1,6 +1,7 @@
 import threading
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 
@@ -135,10 +136,9 @@ class TestGoScope:
     def test_scope_joins_even_when_body_raises(self):
         done = threading.Event()
 
-        with pytest.raises(ValueError, match="boom"):
-            with go:
-                go(lambda: (time.sleep(0.01), done.set()))
-                raise ValueError("boom")
+        with pytest.raises(ValueError, match="boom"), go:
+            go(lambda: (time.sleep(0.01), done.set()))
+            raise ValueError("boom")
 
         assert done.is_set()
 

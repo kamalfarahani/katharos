@@ -8,7 +8,7 @@ F_co = TypeVar("F_co", bound="Functor[Any, Any]", covariant=True)
 A_co = TypeVar("A_co", covariant=True)
 
 
-class Functor(ABC, Generic[F_co, A_co]):
+class Functor(ABC, Generic[F_co, A_co]):  # noqa: UP046 - Preserve explicit covariance.
     """Abstract base class for functors.
 
     A functor is a type that implements :meth:`fmap`, allowing functions to be

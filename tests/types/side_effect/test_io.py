@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
-from katharos.types.side_effect import IO
 from katharos.functools import F
+from katharos.types.side_effect import IO
 
 
 class TestFunctorLaws:

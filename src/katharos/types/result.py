@@ -15,14 +15,14 @@ A_co = TypeVar("A_co", covariant=True)
 
 
 @dataclass
-class _ErrorWrapper(Generic[E_co]):
+class _ErrorWrapper(Generic[E_co]):  # noqa: UP046 - Preserve explicit covariance.
     err: E_co
 
 
 @final
 class Result(
-    Generic[E_co, A_co],
     Monad["Result[E_co, Any]", A_co],
+    Generic[E_co, A_co],  # noqa: UP046 - Preserve explicit covariance.
 ):
     """A Result monad for error handling without exceptions.
 
@@ -424,10 +424,7 @@ class Result(
             >>> Result.Failure(ValueError("err")).is_success()
             False
         """
-        if isinstance(self._value, _ErrorWrapper):
-            return False
-
-        return True
+        return not isinstance(self._value, _ErrorWrapper)
 
     def is_failure(self) -> bool:
         """Check if this Result is a Failure.
