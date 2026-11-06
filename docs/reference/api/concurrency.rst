@@ -80,7 +80,18 @@ CSPRuntime
    :undoc-members:
    :show-inheritance:
 
-.. autodata:: katharos.concurrency.csp.csp
+.. autodata:: katharos.concurrency.csp.default_csp_runtime
+
+.. warning::
+
+   Breaking change: the default runtime's ``csp`` name and the old
+   ``katharos.concurrency.csp.csp`` implementation module have been removed.
+   Replace ``from katharos.concurrency.csp import csp`` with
+   ``from katharos.concurrency.csp import default_csp_runtime as csp_runtime``, then use
+   ``csp_runtime.Channel(...)`` and ``csp_runtime.go(...)``.
+   Import :class:`~katharos.concurrency.csp.CSPRuntime` from
+   ``katharos.concurrency.csp`` when constructing your own runtime. The package
+   path and concurrency behavior are unchanged.
 
 Channel
 -------

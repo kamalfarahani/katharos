@@ -69,8 +69,9 @@ def recv[A](channel: Channel[A]) -> _RecvCase[A]:
         ``channel``.
 
     Examples:
-        >>> from katharos.concurrency.csp import default_csp_runtime, recv, select
-        >>> ch = default_csp_runtime.Channel[int](capacity=1)
+        >>> from katharos.concurrency.csp import recv, select
+        >>> from katharos.concurrency.csp import default_csp_runtime as csp_runtime
+        >>> ch = csp_runtime.Channel[int](capacity=1)
         >>> ch.send(7)
         Success(None)
         >>> choice = select(recv(ch))
@@ -182,9 +183,10 @@ def select[A](
             ``timeout``, which would block forever.
 
     Examples:
-        >>> from katharos.concurrency.csp import default_csp_runtime, recv, select
-        >>> a = default_csp_runtime.Channel[int](capacity=1)
-        >>> b = default_csp_runtime.Channel[int](capacity=1)
+        >>> from katharos.concurrency.csp import recv, select
+        >>> from katharos.concurrency.csp import default_csp_runtime as csp_runtime
+        >>> a = csp_runtime.Channel[int](capacity=1)
+        >>> b = csp_runtime.Channel[int](capacity=1)
         >>> b.send(99)
         Success(None)
         >>> choice = select(recv(a), recv(b))

@@ -226,16 +226,18 @@ ImmutableList([1, 2]) @ ImmutableList([3, 4])  # ImmutableList([1, 2, 3, 4])
 
 ## Concurrency
 
-Katharos provides **Go-style message-passing concurrency**: launch workers with `csp.go` and communicate over typed channels. `send()` returns `Success(None)` on completion or `Failure(ChannelClosedError)` if closure prevents completion. `recv()` returns a `Result` containing a value, a closure error, or a timeout error.
+Katharos provides **Go-style message-passing concurrency**: launch workers with `csp_runtime.go` and communicate over typed channels. `send()` returns `Success(None)` on completion or `Failure(ChannelClosedError)` if closure prevents completion. `recv()` returns a `Result` containing a value, a closure error, or a timeout error.
+
+Breaking change: the default runtime is now named `default_csp_runtime`; see the [migration guidance](https://katharos.readthedocs.io/en/latest/reference/api/concurrency.html#katharos.concurrency.csp.default_csp_runtime) to update imports and calls.
 
 ### Channels
 
 ```python
-from katharos.concurrency.csp import csp
+from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-ch = csp.Channel[int](capacity=1)
+ch = csp_runtime.Channel[int](capacity=1)
 
-csp.go(ch.send, 42)     # run work concurrently, like Go's `go f(x)`
+csp_runtime.go(ch.send, 42)     # run work concurrently, like Go's `go f(x)`
 
 ch.recv()               # Success(42)
 
@@ -247,7 +249,8 @@ ch.send(99)             # Failure(ChannelClosedError('send on closed channel'))
 Iterating a channel yields values until it is closed. This is the Fibonacci example from the [Go Tour](https://go.dev/tour/concurrency/4): a producer sends values and closes the channel, and the consumer ranges over it.
 
 ```python
-from katharos.concurrency.csp import Channel, csp
+from katharos.concurrency.csp import Channel
+from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
 
 def fibonacci(n: int, c: Channel[int]) -> None:
@@ -258,8 +261,8 @@ def fibonacci(n: int, c: Channel[int]) -> None:
     c.close()
 
 
-c = csp.Channel[int](capacity=10)
-csp.go(fibonacci, 10, c)
+c = csp_runtime.Channel[int](capacity=10)
+csp_runtime.go(fibonacci, 10, c)
 
 for i in c:  # receives until the channel is closed
     print(i)  # 0 1 1 2 3 5 8 13 21 34
@@ -270,19 +273,19 @@ for i in c:  # receives until the channel is closed
 Used as a context manager, `go` becomes a **scope** that joins everything spawned inside it before the block exits:
 
 ```python
-from katharos.concurrency.csp import csp
+from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
 def worker(n: int) -> None: ...
 
-with csp.go:                 # scope waits for all work launched inside
-    csp.go(worker, 1)
-    csp.go(worker, 2)
+with csp_runtime.go:                 # scope waits for all work launched inside
+    csp_runtime.go(worker, 1)
+    csp_runtime.go(worker, 2)
 # both workers have finished here
 ```
 
 ### Backends
 
-The `csp` runtime uses standard Python threads by default. Supply a different `BaseThreadingBackend` to customize how workers run and synchronize.
+The shared `default_csp_runtime` uses standard Python threads. Supply a different `BaseThreadingBackend` to customize how workers run and synchronize.
 
 ## Documentation
 
