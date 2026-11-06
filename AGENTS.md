@@ -33,6 +33,12 @@ uv run tox
 uv run --group docs sphinx-build -W -b html docs docs/_build/html
 ```
 
+## Release versioning
+
+During early development, use minor version bumps for breaking API changes.
+Keep Conventional Commits breaking-change markers to describe compatibility
+impact. A version bump does not authorize tagging or publishing a release.
+
 ## Architecture
 
 Katharos is a functional programming library structured in three layers, plus a concurrency module (`src/katharos/concurrency/`):
