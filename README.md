@@ -228,8 +228,6 @@ ImmutableList([1, 2]) @ ImmutableList([3, 4])  # ImmutableList([1, 2, 3, 4])
 
 Katharos provides **Go-style message-passing concurrency**: launch workers with `csp_runtime.go` and communicate over typed channels. `send()` returns `Success(None)` on completion or `Failure(ChannelClosedError)` if closure prevents completion. `recv()` returns a `Result` containing a value, a closure error, or a timeout error.
 
-Breaking change: the default runtime is now named `default_csp_runtime`; see the [migration guidance](https://katharos.readthedocs.io/en/latest/reference/api/concurrency.html#katharos.concurrency.csp.default_csp_runtime) to update imports and calls.
-
 ### Channels
 
 ```python
