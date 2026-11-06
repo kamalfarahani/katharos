@@ -80,7 +80,7 @@ CSPRuntime
    :undoc-members:
    :show-inheritance:
 
-.. autodata:: katharos.concurrency.csp.csp
+.. autodata:: katharos.concurrency.csp.default_csp_runtime
 
 Channel
 -------

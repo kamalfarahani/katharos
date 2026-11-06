@@ -1,7 +1,7 @@
 Porting Go's Worker Pool
 ========================
 
-In this tutorial, we will port the classic *worker pool* program from `Go by Example <https://gobyexample.com/worker-pools>`_ to Python using Katharos' CSP (Communicating Sequential Processes) primitives. A worker pool is a fixed set of concurrent workers that pull tasks from a shared queue, do them, and push results to another queue. Along the way we will use ``Channel`` to move values between threads, ``csp.go`` to run the workers concurrently, and a structured-concurrency scope to wait for them to finish.
+In this tutorial, we will port the classic *worker pool* program from `Go by Example <https://gobyexample.com/worker-pools>`_ to Python using Katharos' CSP (Communicating Sequential Processes) primitives. A worker pool is a fixed set of concurrent workers that pull tasks from a shared queue, do them, and push results to another queue. Along the way we will use ``Channel`` to move values between threads, ``csp_runtime.go`` to run the workers concurrently, and a structured-concurrency scope to wait for them to finish.
 
 Here is the original Go program we are porting:
 
@@ -45,24 +45,26 @@ Step 1: Write the Worker
 
 A worker reads jobs from one channel and writes results to another. In Go this is ``for j := range jobs``; in Katharos a channel is iterable, so it is a plain ``for`` loop that ends when the channel is closed. We will start with a single worker to keep the output easy to follow.
 
+We import ``default_csp_runtime`` as ``csp_runtime`` to keep the examples concise.
 Create a new file called ``pool.py`` with the following contents:
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import Channel, csp
+   from katharos.concurrency.csp import Channel
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
    def worker(jobs: Channel[int], results: Channel[int]) -> None:
        for job in jobs:
            results.send(job * 2).unwrap()
 
-   jobs: Channel[int] = csp.Channel[int](capacity=3)
-   results: Channel[int] = csp.Channel[int](capacity=3)
+   jobs: Channel[int] = csp_runtime.Channel[int](capacity=3)
+   results: Channel[int] = csp_runtime.Channel[int](capacity=3)
 
    for j in [1, 2, 3]:
        jobs.send(j).unwrap()
    jobs.close()
 
-   csp.go(worker, jobs, results)
+   csp_runtime.go(worker, jobs, results)
 
    for _ in range(3):
        print(results.recv().unwrap())
@@ -82,8 +84,8 @@ You should see:
    6
 
 Notice the shape of the port. ``make(chan int, numJobs)`` becomes
-``csp.Channel[int](capacity=3)``, ``go worker(...)`` becomes
-``csp.go(worker, ...)``, and ``close(jobs)`` becomes ``jobs.close()``.
+``csp_runtime.Channel[int](capacity=3)``, ``go worker(...)`` becomes
+``csp_runtime.go(worker, ...)``, and ``close(jobs)`` becomes ``jobs.close()``.
 Both ``send`` and ``recv`` return a ``Result``. A successful send contains
 ``None``; a successful receive contains the value. We call ``unwrap`` to
 check each send and get each received value. Only this producer closes
@@ -96,18 +98,19 @@ The point of a worker pool is to run several workers against the *same* jobs cha
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import Channel, csp
+   from katharos.concurrency.csp import Channel
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
    def worker(jobs: Channel[int], results: Channel[int]) -> None:
        for job in jobs:
            results.send(job * 2).unwrap()
 
    num_jobs: int = 5
-   jobs: Channel[int] = csp.Channel[int](capacity=num_jobs)
-   results: Channel[int] = csp.Channel[int](capacity=num_jobs)
+   jobs: Channel[int] = csp_runtime.Channel[int](capacity=num_jobs)
+   results: Channel[int] = csp_runtime.Channel[int](capacity=num_jobs)
 
    for _ in range(3):
-       csp.go(worker, jobs, results)
+       csp_runtime.go(worker, jobs, results)
 
    for j in range(1, num_jobs + 1):
        jobs.send(j).unwrap()
@@ -133,13 +136,14 @@ Notice that all three workers read from one shared ``jobs`` channel, so each job
 Step 3: See the Workers Run in Parallel
 ---------------------------------------
 
-So far the work has been instant. Let us make each job take a tenth of a second, so we can see the pool actually working in parallel. We will also use ``csp.go`` as a ``with`` block: a structured-concurrency scope that waits for every worker launched inside it to finish before moving on. Replace the contents of ``pool.py`` with:
+So far the work has been instant. Let us make each job take a tenth of a second, so we can see the pool actually working in parallel. We will also use ``csp_runtime.go`` as a ``with`` block: a structured-concurrency scope that waits for every worker launched inside it to finish before moving on. Replace the contents of ``pool.py`` with:
 
 .. code-block:: python
 
    import time
 
-   from katharos.concurrency.csp import Channel, csp
+   from katharos.concurrency.csp import Channel
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
    def worker(jobs: Channel[int], results: Channel[int]) -> None:
        for job in jobs:
@@ -147,17 +151,17 @@ So far the work has been instant. Let us make each job take a tenth of a second,
            results.send(job * 2).unwrap()
 
    num_jobs: int = 5
-   jobs: Channel[int] = csp.Channel[int](capacity=num_jobs)
-   results: Channel[int] = csp.Channel[int](capacity=num_jobs)
+   jobs: Channel[int] = csp_runtime.Channel[int](capacity=num_jobs)
+   results: Channel[int] = csp_runtime.Channel[int](capacity=num_jobs)
 
    for j in range(1, num_jobs + 1):
        jobs.send(j).unwrap()
    jobs.close()
 
    start = time.monotonic()
-   with csp.go:
+   with csp_runtime.go:
        for _ in range(3):
-           csp.go(worker, jobs, results)
+           csp_runtime.go(worker, jobs, results)
    elapsed = time.monotonic() - start
 
    results.close()
@@ -177,7 +181,7 @@ You should see:
    [2, 4, 6, 8, 10]
    finished in under half a second: True
 
-Notice the speedup. Five jobs at a tenth of a second each would take half a second one at a time, but three workers share the load and finish in about two tenths of a second. The ``with csp.go`` block does the waiting for us: once it exits, every worker has finished, so it is safe to ``close`` the results channel and drain it with ``sorted``.
+Notice the speedup. Five jobs at a tenth of a second each would take half a second one at a time, but three workers share the load and finish in about two tenths of a second. The ``with csp_runtime.go`` block does the waiting for us: once it exits, every worker has finished, so it is safe to ``close`` the results channel and drain it with ``sorted``.
 
 If your program hangs here, check that you closed ``jobs`` (otherwise the workers' ``for`` loops never end) and that ``results`` has enough ``capacity`` to hold every result.
 
@@ -192,9 +196,9 @@ We ported Go's worker-pool program to Katharos and watched it process jobs acros
    * - Go
      - Katharos
    * - ``make(chan int, n)``
-     - ``csp.Channel[int](capacity=n)``
+     - ``csp_runtime.Channel[int](capacity=n)``
    * - ``go worker(...)``
-     - ``csp.go(worker, ...)``
+     - ``csp_runtime.go(worker, ...)``
    * - ``for j := range jobs``
      - ``for job in jobs``
    * - ``close(jobs)``
@@ -202,4 +206,4 @@ We ported Go's worker-pool program to Katharos and watched it process jobs acros
    * - ``<-results``
      - ``results.recv()`` (returns a ``Result``)
 
-The one idea Katharos adds is the ``with csp.go`` scope, which joins all the work launched inside it so you never have to track and wait on individual workers by hand. With channels for communication and goroutines for concurrency, you coordinate work by passing messages instead of sharing and locking state.
+The one idea Katharos adds is the ``with csp_runtime.go`` scope, which joins all the work launched inside it so you never have to track and wait on individual workers by hand. With channels for communication and goroutines for concurrency, you coordinate work by passing messages instead of sharing and locking state.

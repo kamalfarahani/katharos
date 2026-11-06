@@ -29,8 +29,9 @@ class Go:
     block are pure fire-and-forget and are not tracked.
 
     You normally reach a launcher through a :class:`~katharos.concurrency.csp.CSPRuntime`
-    runtime (the :data:`~katharos.concurrency.csp.csp` default exposes one as
-    ``csp.go``); construct your own ``Go`` only to pin a specific backend.
+    runtime (the :data:`~katharos.concurrency.csp.default_csp_runtime` default
+    exposes one as ``default_csp_runtime.go``); construct your own ``Go`` only
+    to pin a specific backend.
 
     Note:
         Like a goroutine, a callable launched here is fire-and-forget: its

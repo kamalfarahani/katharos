@@ -35,14 +35,12 @@ protocols are intentionally minimal - only the context-manager and wait/notify s
 that the channels actually use - so a standard ``threading.Lock`` satisfies them
 structurally, and so does a green-thread equivalent.
 
-This is also why a :class:`~katharos.concurrency.csp.CSPRuntime` *requires* an explicit
-backend rather than reaching for a hidden global. An earlier design exposed a
-module-level launcher; it was deliberately removed. A global singleton quietly couples
-every channel and goroutine in a program to one backend chosen somewhere out of sight,
-which is exactly the implicit shared state CSP sets out to avoid. Making the backend an
-explicit argument keeps the choice visible and local: the default ``csp`` runtime is
-there for convenience, but you can always construct a runtime bound to a backend you
-control.
+A :class:`~katharos.concurrency.csp.CSPRuntime` binds its channels and goroutines to
+one backend. With no argument, it uses the shared default threading backend, as does
+the :data:`~katharos.concurrency.csp.default_csp_runtime` instance. Pass a backend
+explicitly when constructing a runtime to keep a different execution choice visible
+and local. Creating channels and launching workers through that runtime keeps their
+synchronization on the same backend.
 
 Channels: rendezvous versus buffering
 -------------------------------------
@@ -85,7 +83,7 @@ simply ends when ``recv`` reports closure.
 Goroutines and structured concurrency
 -------------------------------------
 
-``csp.go(fn, ...)`` launches work concurrently and returns immediately, mirroring Go's
+``csp_runtime.go(fn, ...)`` launches work concurrently and returns immediately, mirroring Go's
 ``go func()``. Like a goroutine, it is deliberately forgetful: the callable's return
 value is discarded, and an exception it raises does not propagate back to the launcher.
 That can be surprising, but it is the honest consequence of concurrency - the launching
@@ -95,7 +93,7 @@ if you want a result or a failure back, send it over a channel. Communication is
 channel's job, not the launcher's.
 
 Fire-and-forget is fine for truly independent work, but most concurrent code wants to
-*wait* for the work it started. Used as a ``with`` block, ``csp.go`` becomes a
+*wait* for the work it started. Used as a ``with`` block, ``csp_runtime.go`` becomes a
 structured-concurrency scope: every task launched inside is tracked, and leaving the
 block blocks until all of them finish - even if the block exits because of an exception.
 This is what stops concurrency from leaking. Without a scope, an error in the middle of
@@ -153,9 +151,10 @@ Putting it together: the runtime
 :class:`~katharos.concurrency.csp.CSPRuntime` is the small piece that ties everything to
 one backend. It bundles a backend-bound channel class and a backend-bound goroutine
 launcher, so channels you create and work you launch through the same runtime all run on
-- and synchronize through - the same backend. The default ``csp`` instance is that
-runtime bound to the default threading backend, which is why the tutorial and how-to can
-write ``csp.Channel[int](...)`` and ``csp.go(...)`` without ever mentioning a backend.
+- and synchronize through - the same backend. The ``default_csp_runtime`` instance
+is that runtime bound to the default threading backend. The tutorial and how-to
+import it as ``csp_runtime`` for brevity, so they can write ``csp_runtime.Channel[int](...)`` and
+``csp_runtime.go(...)`` without ever mentioning a backend.
 Swapping the whole concurrency substrate is then a single, local change: construct a
 ``CSPRuntime`` with a different backend and build everything through it.
 

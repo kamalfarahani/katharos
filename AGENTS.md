@@ -33,6 +33,12 @@ uv run tox
 uv run --group docs sphinx-build -W -b html docs docs/_build/html
 ```
 
+## Release versioning
+
+During early development, use minor version bumps for breaking API changes.
+Keep Conventional Commits breaking-change markers to describe compatibility
+impact. A version bump does not authorize tagging or publishing a release.
+
 ## Architecture
 
 Katharos is a functional programming library structured in three layers, plus a concurrency module (`src/katharos/concurrency/`):
@@ -82,8 +88,8 @@ Concurrency types are decoupled from any specific threading library by a backend
 
 CSP-style primitives live in `concurrency/csp/`:
 
-- **`Go`** / **`csp.go`** - a `Go` instance launches `go(fn, *args, **kwargs)` concurrently, returning a thread handle (fire-and-forget; return value discarded, exceptions don't propagate out). Used as a context manager (`with go:`), it becomes a structured-concurrency scope that joins all work spawned inside it on exit. Scopes are tracked per execution context via the backend's context-local storage, so a shared `Go` instance nests correctly. `Go` requires a backend; the usual entry point is the default `csp` runtime's `csp.go` (a `Go` bound to `default_backend()`), or construct your own `Go(backend)` to pin a specific backend.
-- **`Channel[A]`** - Go-style thread-safe channel. `capacity=0` (default) is unbuffered (synchronous rendezvous); `capacity>0` buffers. `recv(timeout=None)` returns a `Result`: `Success(value)`, `Failure(ChannelClosedError)` when closed and drained, or `Failure(ChannelTimeoutError)` on timeout. `send` returns `Success(None)` on completion or `Failure(ChannelClosedError)` if closure prevents completion; iterating yields values until closed. Every op uses `notify_all` (O(waiters)) for correctness under contention. The CSP primitives (`Channel`, `Go`, `CSP`, `csp`, `ChannelClosedError`, `ChannelTimeoutError`) are exported from `katharos.concurrency.csp` - the top-level `katharos.concurrency` package exposes only the backend abstractions, not the CSP layer.
+- **`Go`** / **`default_csp_runtime.go`** - a `Go` instance launches `go(fn, *args, **kwargs)` concurrently, returning a thread handle (fire-and-forget; return value discarded, exceptions don't propagate out). Used as a context manager (`with go:`), it becomes a structured-concurrency scope that joins all work spawned inside it on exit. Scopes are tracked per execution context via the backend's context-local storage, so a shared `Go` instance nests correctly. `Go` requires a backend; the usual entry point is `default_csp_runtime.go` (a `Go` bound to `default_backend()`), or construct your own `Go(backend)` to pin a specific backend.
+- **`Channel[A]`** - Go-style thread-safe channel. `capacity=0` (default) is unbuffered (synchronous rendezvous); `capacity>0` buffers. `recv(timeout=None)` returns a `Result`: `Success(value)`, `Failure(ChannelClosedError)` when closed and drained, or `Failure(ChannelTimeoutError)` on timeout. `send` returns `Success(None)` on completion or `Failure(ChannelClosedError)` if closure prevents completion; iterating yields values until closed. Every op uses `notify_all` (O(waiters)) for correctness under contention. The CSP primitives (`Channel`, `Go`, `CSPRuntime`, `default_csp_runtime`, `ChannelClosedError`, `ChannelTimeoutError`) are exported from `katharos.concurrency.csp` - the top-level `katharos.concurrency` package exposes only the backend abstractions, not the CSP layer.
 
 ### Operator summary
 

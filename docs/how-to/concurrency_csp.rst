@@ -2,7 +2,7 @@ How to Coordinate Concurrent Work with CSP
 ==========================================
 
 This guide is a set of task-focused recipes for Katharos' CSP primitives:
-launching concurrent work with ``csp.go``, passing values over a ``Channel``, and
+launching concurrent work with ``csp_runtime.go``, passing values over a ``Channel``, and
 choosing between operations with ``select``. Each section solves one concrete problem;
 pick the one you need.
 
@@ -13,24 +13,24 @@ Prerequisites
   :doc:`../tutorials/csp` tutorial first.
 - For the full signatures and options, see the :doc:`../reference/api/concurrency`
   reference.
-- Every recipe uses the default runtime: ``from katharos.concurrency.csp import csp``
-  (plus ``Channel``, ``recv``, ``select`` where noted). ``csp.go`` and
-  ``csp.Channel`` supply the threading backend for you.
+- Every recipe uses the default runtime: ``from katharos.concurrency.csp import default_csp_runtime as csp_runtime``
+  (plus ``Channel``, ``recv``, ``select`` where noted). ``csp_runtime.go`` and
+  ``csp_runtime.Channel`` supply the threading backend for you.
 
 Run a function concurrently
 ---------------------------
 
-Call ``csp.go`` with the function and its arguments. It starts the work on another
+Call ``csp_runtime.go`` with the function and its arguments. It starts the work on another
 thread and returns immediately with a handle:
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
    def greet(name: str) -> None:
        print(f"hello, {name}")
 
-   handle = csp.go(greet, "world")
+   handle = csp_runtime.go(greet, "world")
    handle.join()   # hello, world
 
 A launched callable is fire-and-forget: its return value is discarded and any
@@ -41,14 +41,14 @@ Wait for spawned work to finish
 -------------------------------
 
 For a single task, keep the handle and call ``join``. For a *group* of tasks, use
-``csp.go`` as a ``with`` block: the scope joins everything launched inside it before
+``csp_runtime.go`` as a ``with`` block: the scope joins everything launched inside it before
 the block exits, so you never track handles by hand.
 
 .. code-block:: python
 
    import threading
 
-   from katharos.concurrency.csp import csp
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
    lock = threading.Lock()
    done: list[int] = []
@@ -57,28 +57,28 @@ the block exits, so you never track handles by hand.
        with lock:
            done.append(n)
 
-   with csp.go:
+   with csp_runtime.go:
        for n in range(3):
-           csp.go(record, n)
+           csp_runtime.go(record, n)
    # the block has joined all three workers here
    print(sorted(done))   # [0, 1, 2]
 
-Prefer the ``with`` block over collecting handles yourself. It turns ``csp.go`` into
+Prefer the ``with`` block over collecting handles yourself. It turns ``csp_runtime.go`` into
 a *structured-concurrency scope*, which gives you:
 
 - **Automatic joining.** Every task launched inside the block is joined when the
   block exits, so you never have to keep a list of handles and join each one. Adding
-  another ``csp.go(...)`` inside the block needs no extra bookkeeping.
+  another ``csp_runtime.go(...)`` inside the block needs no extra bookkeeping.
 - **Guaranteed cleanup on errors.** The scope joins its work *even if the block
   raises*, so a spawned task can never outlive the block. Without it, an exception in
   the middle of your code would leak still-running threads.
 - **A bounded lifetime.** The indentation makes the lifetime of the concurrent work
   obvious at a glance: everything started inside finishes before the program moves
-  past the block. Outside any ``with`` block, ``csp.go`` is pure fire-and-forget and
+  past the block. Outside any ``with`` block, ``csp_runtime.go`` is pure fire-and-forget and
   is not tracked.
 - **Correct nesting.** Scopes are tracked per execution context, so they nest: an
-  inner ``with csp.go`` joins only its own work, and a shared ``csp`` runtime stays
-  safe to use from several places at once.
+  inner ``with csp_runtime.go`` joins only its own work, and the shared
+  ``default_csp_runtime`` stays safe to use from several places at once.
 
 For the deeper rationale behind scoping concurrent work this way (and why an
 unscoped ``go`` is a footgun), see Nathaniel J. Smith's
@@ -93,14 +93,14 @@ receive it on the other side. An unbuffered channel makes this a synchronous han
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-   answer = csp.Channel[int]()
+   answer = csp_runtime.Channel[int]()
 
    def compute() -> None:
        answer.send(6 * 7).unwrap()
 
-   csp.go(compute)
+   csp_runtime.go(compute)
    print(answer.recv().unwrap())   # 42
 
 ``recv`` returns a :class:`~katharos.types.Result`, so call ``unwrap`` to get the
@@ -115,9 +115,9 @@ catches up. A buffered ``send`` only blocks once the buffer is full:
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-   buffer = csp.Channel[int](capacity=3)
+   buffer = csp_runtime.Channel[int](capacity=3)
 
    buffer.send(1).unwrap()
    buffer.send(2).unwrap()
@@ -132,16 +132,16 @@ iterable, so the consumer drains it with a plain ``for`` loop that ends automati
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-   stream = csp.Channel[int]()
+   stream = csp_runtime.Channel[int]()
 
    def produce() -> None:
        for n in range(3):
            stream.send(n).unwrap()
        stream.close()
 
-   csp.go(produce)
+   csp_runtime.go(produce)
 
    for value in stream:
        print(value)        # 0, then 1, then 2
@@ -154,14 +154,14 @@ Fan work out to a pool and collect results
 
 Run several workers against one shared ``jobs`` channel and gather their output from a
 shared ``results`` channel. Close ``jobs`` to end the workers' loops, then use a
-``with csp.go`` scope to wait for them before draining the results:
+``with csp_runtime.go`` scope to wait for them before draining the results:
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-   jobs = csp.Channel[int](capacity=5)
-   results = csp.Channel[int](capacity=5)
+   jobs = csp_runtime.Channel[int](capacity=5)
+   results = csp_runtime.Channel[int](capacity=5)
 
    def worker() -> None:
        for job in jobs:
@@ -171,9 +171,9 @@ shared ``results`` channel. Close ``jobs`` to end the workers' loops, then use a
        jobs.send(n).unwrap()
    jobs.close()
 
-   with csp.go:
+   with csp_runtime.go:
        for _ in range(3):
-           csp.go(worker)
+           csp_runtime.go(worker)
 
    results.close()
    print(sorted(results))   # [1, 4, 9, 16, 25]
@@ -190,10 +190,11 @@ which case was chosen:
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp, recv, select
+   from katharos.concurrency.csp import recv, select
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-   a = csp.Channel[str]()
-   b = csp.Channel[str](capacity=1)
+   a = csp_runtime.Channel[str]()
+   b = csp_runtime.Channel[str](capacity=1)
    b.send("from b").unwrap()
 
    choice = select(recv(a), recv(b))
@@ -208,9 +209,9 @@ To bound a wait on a single channel, pass ``timeout`` to ``recv``; it returns a
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-   idle = csp.Channel[int]()
+   idle = csp_runtime.Channel[int]()
    print(idle.recv(timeout=0.1))
    # Failure(ChannelTimeoutError('recv timed out after 0.1 seconds'))
 
@@ -219,10 +220,11 @@ To bound a wait across *several* channels, pass ``timeout`` to ``select`` and ch
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp, recv, select
+   from katharos.concurrency.csp import recv, select
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-   a = csp.Channel[int]()
-   b = csp.Channel[int]()
+   a = csp_runtime.Channel[int]()
+   b = csp_runtime.Channel[int]()
 
    choice = select(recv(a), recv(b), timeout=0.1)
    print(choice.is_timeout)   # True
@@ -235,9 +237,10 @@ return immediately otherwise. Check ``is_default`` to see whether nothing was re
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp, recv, select
+   from katharos.concurrency.csp import recv, select
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-   ch = csp.Channel[int]()
+   ch = csp_runtime.Channel[int]()
 
    choice = select(recv(ch), default=True)
    print(choice.is_default)   # True  (nothing was waiting)
@@ -251,10 +254,11 @@ the worker. List the ``done`` case first so cancellation takes priority:
 
 .. code-block:: python
 
-   from katharos.concurrency.csp import csp, recv, select
+   from katharos.concurrency.csp import recv, select
+   from katharos.concurrency.csp import default_csp_runtime as csp_runtime
 
-   work = csp.Channel[int]()
-   done = csp.Channel[int]()
+   work = csp_runtime.Channel[int]()
+   done = csp_runtime.Channel[int]()
    processed: list[int] = []
 
    def consumer() -> None:
@@ -264,7 +268,7 @@ the worker. List the ``done`` case first so cancellation takes priority:
                return
            processed.append(choice.value.unwrap())
 
-   handle = csp.go(consumer)
+   handle = csp_runtime.go(consumer)
 
    work.send(1).unwrap()
    work.send(2).unwrap()
@@ -284,10 +288,10 @@ outcome to react explicitly, distinguishing the two failure types by class:
    from katharos.concurrency.csp import (
        ChannelClosedError,
        ChannelTimeoutError,
-       csp,
+       default_csp_runtime as csp_runtime,
    )
 
-   ch = csp.Channel[int]()
+   ch = csp_runtime.Channel[int]()
    ch.close()
 
    outcome = ch.recv(timeout=0.1)
@@ -315,9 +319,9 @@ with a check of the returned ``Result``. See :doc:`../reference/api/concurrency`
 Pin or swap the threading backend
 ---------------------------------
 
-The default ``csp`` runtime uses the standard-library threading backend. To pin a
-specific backend (for example, to run a green-thread backend), build your own
-``CSPRuntime`` and create channels and goroutines through it:
+The shared ``default_csp_runtime`` uses the standard-library threading backend.
+To pin a specific backend (for example, to run a green-thread backend), build
+your own ``CSPRuntime`` and create channels and goroutines through it:
 
 .. code-block:: python
 
