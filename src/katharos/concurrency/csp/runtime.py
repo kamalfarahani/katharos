@@ -22,26 +22,26 @@ class CSPRuntime:
 
     - :attr:`Channel`: a backend-bound channel class. Subscript it with the
       element type and call it to construct a channel:
-      ``ch = csp.Channel[int](capacity=1)``. The ``backend`` is supplied
+      ``ch = runtime.Channel[int](capacity=1)``. The ``backend`` is supplied
       automatically, so callers never pass it.
     - :attr:`go`: a backend-bound :class:`~katharos.concurrency.csp.Go`
-      launcher. Call it to run work concurrently (``csp.go(fn, *args)``) or use
+      launcher. Call it to run work concurrently (``runtime.go(fn, *args)``) or use
       it as a ``with`` block for structured concurrency.
 
     Examples:
         >>> from katharos.concurrency.threading_backend import ThreadingBackend
-        >>> csp = CSPRuntime(ThreadingBackend())
-        >>> ch = csp.Channel[int](capacity=1)
-        >>> _ = csp.go(ch.send, 42)
+        >>> runtime = CSPRuntime(ThreadingBackend())
+        >>> ch = runtime.Channel[int](capacity=1)
+        >>> _ = runtime.go(ch.send, 42)
         >>> ch.recv()
         Success(42)
 
         Used as a structured-concurrency scope, the block waits for everything
         launched inside it:
 
-        >>> ch = csp.Channel[int]()
-        >>> with csp.go:
-        ...     _ = csp.go(ch.send, 1)
+        >>> ch = runtime.Channel[int]()
+        >>> with runtime.go:
+        ...     _ = runtime.go(ch.send, 1)
         ...     received = ch.recv()
         >>> received
         Success(1)
@@ -74,5 +74,5 @@ class CSPRuntime:
         return self._backend
 
 
-csp = CSPRuntime()
+default_csp_runtime = CSPRuntime()
 """The default CSP runtime, bound to the default threading backend."""

@@ -11,12 +11,12 @@ from katharos.concurrency import (
     BaseThreadHandle,
     BaseThreadingBackend,
 )
-from katharos.concurrency.csp import Go, csp
+from katharos.concurrency.csp import Go, default_csp_runtime
 from katharos.concurrency.threading_backend import ThreadingBackend, default_backend
 
 # The default runtime's launcher, bound to the default backend, stands in for
 # the shared launcher these tests exercise.
-go = csp.go
+go = default_csp_runtime.go
 
 
 class RecordingBackend(BaseThreadingBackend):

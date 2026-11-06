@@ -3,11 +3,15 @@ import time
 
 import pytest
 
-from katharos.concurrency.csp import ChannelClosedError, ChannelTimeoutError, csp
+from katharos.concurrency.csp import (
+    ChannelClosedError,
+    ChannelTimeoutError,
+    default_csp_runtime,
+)
 from katharos.types import Result
 
 # The default runtime's channel supplies the backend automatically.
-Channel = csp.Channel
+Channel = default_csp_runtime.Channel
 
 
 class TestChannelConstruction:

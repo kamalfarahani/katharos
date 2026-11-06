@@ -6,7 +6,7 @@ import pytest
 from katharos.concurrency.csp import (
     ChannelClosedError,
     SelectResult,
-    csp,
+    default_csp_runtime,
     recv,
     select,
 )
@@ -14,8 +14,8 @@ from katharos.concurrency.csp.select import _Selector
 from katharos.concurrency.threading_backend import ThreadingBackend
 
 # The default runtime's channel supplies the backend automatically.
-Channel = csp.Channel
-go = csp.go
+Channel = default_csp_runtime.Channel
+go = default_csp_runtime.go
 
 
 class TestSelectReady:
