@@ -16,6 +16,7 @@ Solid arrows show inheritance; dotted arrows show implementations.
 
         monad -.-> maybe["Maybe[A]"]
         monad -.-> result["Result[E, A]"]
+        monad -.-> either["Either[L, R]"]
         monad -.-> io["IO[A]"]
         monad -.-> lazy["Lazy[A]"]
         monad -.-> immutableList["ImmutableList[T]"]
@@ -30,7 +31,7 @@ Solid arrows show inheritance; dotted arrows show implementations.
         classDef abstract fill:#C2E5FF,stroke:#3DADFF
         classDef concrete fill:#CDF4D3,stroke:#66D575
         class semigroup,monoid,functor,applicative,monad abstract
-        class maybe,result,io,lazy,immutableList,nonEmptyList,monoidMaybe,sum,product concrete
+        class maybe,result,either,io,lazy,immutableList,nonEmptyList,monoidMaybe,sum,product concrete
 
 ----
 
@@ -152,6 +153,9 @@ Concrete Types
    * - ``Result[E, A]``
      - ``Monad``
      - States: ``Success(value)`` / ``Failure(exc)``. ``@final`` - do not subclass.
+   * - ``Either[L, R]``
+     - ``Monad``
+     - States: ``Left(value)`` / ``Right(value)``. Right-biased; both payload types are unrestricted. ``@final`` - do not subclass.
    * - ``IO[A]``
      - ``Monad``
      - Lazy side-effect wrapper. Call ``.execute()`` to run the wrapped action.
