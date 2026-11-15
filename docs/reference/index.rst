@@ -43,6 +43,7 @@ Data Types
 
 - :class:`katharos.types.Maybe`
 - :class:`katharos.types.Result`
+- :class:`katharos.types.Either`
 - :class:`katharos.types.ImmutableList`
 - :class:`katharos.types.NonEmptyList`
 - :class:`katharos.types.Lazy`

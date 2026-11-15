@@ -7,6 +7,7 @@ composable functional programming patterns.
 Available types:
     - :class:`Maybe`: Optional values without None checks
     - :class:`Result`: Error handling without exceptions
+    - :class:`Either`: A right-biased choice between arbitrary payload types
     - :class:`ImmutableList`: Immutable list with monadic operations
     - :class:`NonEmptyList`: List guaranteed to have at least one element
     - :class:`IO`: Lazy computation with side effects
@@ -18,6 +19,7 @@ Each type implements appropriate algebraic abstractions (Functor, Applicative,
 Monad, etc.) and provides operators for convenient composition.
 """
 
+from .either import Either
 from .errors import UnwrapError
 from .lazy import Lazy
 from .list import ImmutableList, NonEmptyList
@@ -27,6 +29,7 @@ from .side_effect import IO
 
 __all__ = [
     "IO",
+    "Either",
     "ImmutableList",
     "Lazy",
     "Maybe",

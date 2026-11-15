@@ -3,5 +3,6 @@ class UnwrapError(Exception):
 
     Covers unwrapping a Nothing :class:`~katharos.types.Maybe`, getting the
     value of a Failure :class:`~katharos.types.Result`, or getting the error
-    of a Success :class:`~katharos.types.Result`.
+    of a Success :class:`~katharos.types.Result`, or accessing the inactive
+    branch of an :class:`~katharos.types.Either`.
     """

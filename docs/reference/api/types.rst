@@ -30,6 +30,29 @@ Result
    :show-inheritance:
    :special-members: __init__, __or__, __pow__, __eq__, __repr__, __hash__
 
+Either
+------
+
+``Either[L, R]`` holds a Left payload or a Right payload of unrestricted type.
+``fmap``, ``bind`` and ``ap`` operate on Right values; Left values short-circuit.
+``map_left`` and ``bimap`` transform branch payloads, while ``either`` returns
+the result of the active branch's handler. Exceptions from callbacks propagate.
+
+Construction uses ``Either.Left(value)`` or ``Either.Right(value)``. Both accept
+``None`` as a payload. ``pure`` and ``ret`` create Right values. Direct
+``Either(...)`` construction raises ``TypeError``.
+
+For ``value.ap(wrapped_function)`` and ``value ** wrapped_function``, the
+receiver's Left takes precedence if both operands are Left, matching
+:class:`~katharos.types.Result`. Haskell's ``<*>`` gives the function operand
+precedence instead.
+
+.. autoclass:: katharos.types.Either
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__, __or__, __pow__, __rshift__, __eq__, __repr__, __hash__, __bool__
+
 ImmutableList
 -------------
 
