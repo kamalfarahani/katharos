@@ -65,7 +65,7 @@ to the one above it; concrete types can belong to both.
 flowchart TD
     Functor --> Applicative --> Monad
     Semigroup --> Monoid
-    Monad -.-> contexts["Maybe, Result, IO, Lazy"]
+    Monad -.-> contexts["Maybe, Result, Either, IO, Lazy"]
     Monad -.-> ImmutableList
     Monad -.-> NonEmptyList
     Monoid -.-> ImmutableList
