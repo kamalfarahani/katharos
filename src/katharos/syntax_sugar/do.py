@@ -55,8 +55,8 @@ def do[M: Monad, R](
     Returning an already-monadic value passes it through unchanged.
 
     Short-circuiting is handled transparently by ``bind``: if any yielded monad
-    is ``Nothing`` or ``Failure``, the rest of the generator is abandoned and
-    that monad is returned immediately.
+    is ``Nothing``, ``Failure``, or ``Left``, the rest of the generator is
+    abandoned and that monad is returned immediately.
 
     Works correctly with non-deterministic monads such as ``ImmutableList``
     whose ``bind`` calls its function more than once. Each branch replays the
